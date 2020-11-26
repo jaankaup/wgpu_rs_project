@@ -1,0 +1,147 @@
+[package]
+name = "jaankaup_gradu2020"
+version = "0.1.0"
+authors = ["jaankaup <janne.a.kauppinen@student.jyu.fi>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "gradu2020"
+path = "src/lib.rs"
+
+[[bin]]
+name = "jaankaup_gradu2020"
+path = "src/main.rs"
+
+[dependencies]
+wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", rev = "e59ea495a66ce9606c3a2bbfc2efe8c0c05d413c"}
+
+[patch.crates-io]
+wasm-bindgen = { git = "https://github.com/rustwasm/wasm-bindgen", rev = "316c5a70fdc4a052fb65ef82bf02d52107b5671b" }
+wasm-bindgen-futures = { git = "https://github.com/rustwasm/wasm-bindgen", rev = "316c5a70fdc4a052fb65ef82bf02d52107b5671b" }
+web-sys = { git = "https://github.com/rustwasm/wasm-bindgen", rev = "316c5a70fdc4a052fb65ef82bf02d52107b5671b" }
+js-sys = { git = "https://github.com/rustwasm/wasm-bindgen", rev = "316c5a70fdc4a052fb65ef82bf02d52107b5671b" }
+
+#winit = { version = "0.23.0", features = ["web-sys"] }
+#futures = "0.3"
+#raw-window-handle = "0.3"
+#log = "0.4"
+#cgmath = "0.17"
+#png = "0.16"
+#bytemuck = { version = "1.4", features = ["derive"] }
+#rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+#ordered-float = "1.0.1"
+#obj-rs = "0.6.1"
+#wavefront_obj = "8.0.0"
+
+#[target.'cfg(all(unix, not(target_os = "ios"), not(target_os = "macos")))'.depencendies]
+#gfx-backend-vulkan = "0.6"
+
+#[target.'cfg(target_arch = "wasm32")'.dependencies]
+#wasm-bindgen = "=0.2.68"
+#web-sys = { version = "=0.3.45", rev = "", features = [
+#    "Document",
+#    "Navigator",
+#    "Node",
+#    "NodeList",
+#    "Gpu",
+#    "GpuAdapter",
+#    "GpuAddressMode",
+#    "GpuBindGroup",
+#    "GpuBindGroupEntry",
+#    "GpuBindGroupDescriptor",
+#    "GpuBindGroupLayout",
+#    "GpuBindGroupLayoutEntry",
+#    "GpuBindGroupLayoutDescriptor",
+#    "GpuBlendDescriptor",
+#    "GpuBlendFactor",
+#    "GpuBlendOperation",
+#    "GpuBindingType",
+#    "GpuBuffer",
+#    "GpuBufferBinding",
+#    "GpuBufferCopyView",
+#    "GpuBufferDescriptor",
+#    "GpuCanvasContext",
+#    "GpuColorDict",
+#    "GpuColorStateDescriptor",
+#    "GpuCommandBuffer",
+#    "GpuCommandBufferDescriptor",
+#    "GpuCommandEncoder",
+#    "GpuCommandEncoderDescriptor",
+#    "GpuCompareFunction",
+#    "GpuComputePassDescriptor",
+#    "GpuComputePassEncoder",
+#    "GpuComputePipeline",
+#    "GpuComputePipelineDescriptor",
+#    "GpuCullMode",
+#    "GpuDepthStencilStateDescriptor",
+#    "GpuDevice",
+#    "GpuDeviceDescriptor",
+#    "GpuExtent3dDict",
+#    "GpuFilterMode",
+#    "GpuFrontFace",
+#    "GpuIndexFormat",
+#    "GpuInputStepMode",
+#    "GpuLimits",
+#    "GpuLoadOp",
+#    "GpuMapMode",
+#    "GpuOrigin3dDict",
+#    "GpuPipelineLayout",
+#    "GpuPipelineLayoutDescriptor",
+#    "GpuPowerPreference",
+#    "GpuPrimitiveTopology",
+#    "GpuProgrammableStageDescriptor",
+#    "GpuQueue",
+#    "GpuRasterizationStateDescriptor",
+#    "GpuRenderBundle",
+#    "GpuRenderBundleDescriptor",
+#    "GpuRenderBundleEncoder",
+#    "GpuRenderBundleEncoderDescriptor",
+#    "GpuRenderPassColorAttachmentDescriptor",
+#    "GpuRenderPassDepthStencilAttachmentDescriptor",
+#    "GpuRenderPassDescriptor",
+#    "GpuRenderPassEncoder",
+#    "GpuRenderPipeline",
+#    "GpuRenderPipelineDescriptor",
+#    "GpuRequestAdapterOptions",
+#    "GpuSampler",
+#    "GpuSamplerDescriptor",
+#    "GpuShaderModule",
+#    "GpuShaderModuleDescriptor",
+#    "GpuStencilOperation",
+#    "GpuStencilStateFaceDescriptor",
+#    "GpuStoreOp",
+#    "GpuSwapChain",
+#    "GpuSwapChainDescriptor",
+#    "GpuTexture",
+#    "GpuTextureAspect",
+#    "GpuTextureComponentType",
+#    "GpuTextureCopyView",
+#    "GpuTextureDataLayout",
+#    "GpuTextureDescriptor",
+#    "GpuTextureDimension",
+#    "GpuTextureFormat",
+#    "GpuTextureViewDescriptor",
+#    "GpuTextureViewDimension",
+#    "GpuTextureView",
+#    "GpuVertexAttributeDescriptor",
+#    "GpuVertexBufferLayoutDescriptor",
+#    "GpuVertexFormat",
+#    "GpuVertexStateDescriptor",
+#    "GpuVertexAttributeDescriptor",
+#    "HtmlCanvasElement",
+#    "Window",
+#]}
+#js-sys = "0.3.45"
+#wasm-bindgen-futures = "0.4.18"
+#
+#console_error_panic_hook = "0.1.6"
+#console_log = "0.1.2"
+
+[profile.dev]
+opt-level = 1
+debug = false
+
+[profile.release]
+opt-level = 1
+debug = false

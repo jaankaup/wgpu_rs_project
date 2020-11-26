@@ -1,0 +1,14 @@
+*.swp
+*.swo
+target/
+glslangValidator
+spirv-opt
+trace
+
+output.txt
+'
+*.txt
+*.info
+*.sh
+lib
+*.obj
