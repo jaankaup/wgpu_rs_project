@@ -13,10 +13,21 @@ path = "src/lib.rs"
 name = "jaankaup_gradu2020"
 path = "src/main.rs"
 
+[[bin]]
+name = "hello"
+path = "src/bin/hello/main.rs"
+
 [dependencies]
 wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", rev = "e59ea495a66ce9606c3a2bbfc2efe8c0c05d413c"}
 winit = { version = "0.23.0", features = ["web-sys"] }
 futures = "0.3"
+log = "0.4"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.subscriber]
+package = "wgpu-subscriber"
+version = "0.1"
+
+#[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies.subscriber]
 
 [patch.crates-io]
 wasm-bindgen = { git = "https://github.com/rustwasm/wasm-bindgen", rev = "316c5a70fdc4a052fb65ef82bf02d52107b5671b" }
@@ -41,7 +52,7 @@ js-sys = { git = "https://github.com/rustwasm/wasm-bindgen", rev = "316c5a70fdc4
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "=0.2.68"
-web-sys = { version = "=0.3.45", rev = "", features = [
+web-sys = { version = "=0.3.45", features = [
     "Document",
     "Navigator",
     "Node",
