@@ -1,11 +1,12 @@
-//#[cfg(target_arch = "wasm32")]
-//use futures::task::LocalSpawn;
-
 use jaankaup_core::wgpu_system as ws;
+use crate::ws::BasicLoop;
 use jaankaup_core::wgpu_system::Application;
+use jaankaup_core::wgpu_system::Loop;
+//use jaankaup_core::wgpu_system::Application;
 
 struct MyFeatures {}
-impl ws::WGPUFeatures for MyFeatures { }
+impl ws::WGPUFeatures for MyFeatures { 
+}
 
 struct HelloApp {
 }
@@ -68,7 +69,8 @@ fn main() {
     #[cfg(not(target_arch = "wasm32"))] {
         let configuration = futures::executor::block_on(ws::setup::<MyFeatures>("jihuu")).expect("Failed to create WGPUConfiguration.");
         let app = HelloApp::init(&configuration);
-
+        let basic_loop = BasicLoop {};
+        basic_loop.run(app, configuration); 
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -77,6 +79,9 @@ fn main() {
         wasm_bindgen_futures::spawn_local(async move {
             let configuration = ws::setup::<MyFeatures>("jihuu").await.unwrap();
             let app = HelloApp::init(&configuration); 
+            let basic_loop = BasicLoop {};
+            //basic_loop<HelloApp>(application: A, WGPUConfiguration {
+            basic_loop.run(app, configuration); 
         });
     }
 
