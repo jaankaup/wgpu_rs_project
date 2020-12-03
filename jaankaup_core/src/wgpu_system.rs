@@ -4,6 +4,18 @@ use winit::{
     window::Window
 };
 
+pub trait Application: Sized + 'static {
+    fn init(self) -> Self;
+    fn render(self);
+    fn input(self);
+    fn resize(self);
+    fn update(self);
+}
+
+pub trait Loop {
+    fn run<A: Application>(configuration: WGPUConfiguration);
+}
+
 /// A struct that holds wgpu-rs resources.
 pub struct WGPUConfiguration {
     pub window: winit::window::Window,

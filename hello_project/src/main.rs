@@ -1,8 +1,9 @@
-#[path = "../../wgpu_system.rs"]
-mod wgpu_system;
-
-#[path = "../../application.rs"]
-mod application;
+use jaankaup_core::wgpu_system;
+//#[path = "../../wgpu_system.rs"]
+//mod wgpu_system;
+//
+//#[path = "../../application.rs"]
+//mod application;
 
 /// A struct for features and limits used in this application.
 struct MyFeatures {}
