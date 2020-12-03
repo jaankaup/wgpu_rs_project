@@ -1,19 +1,19 @@
-#[cfg(target_arch = "wasm32")]
-use futures::task::LocalSpawn;
+//#[cfg(target_arch = "wasm32")]
+//use futures::task::LocalSpawn;
 
 use jaankaup_core::wgpu_system as ws;
+use jaankaup_core::wgpu_system::Application;
 
 struct MyFeatures {}
 impl ws::WGPUFeatures for MyFeatures { }
 
-struct Hello_app {
+struct HelloApp {
 }
 
-impl ws::Application for Hello_app  {
+impl ws::Application for HelloApp {
 
-    fn init(self, configuration: &ws::WGPUConfiguration) -> Self {
-        Hello_app {
-        }
+    fn init(configuration: &ws::WGPUConfiguration) -> Self {
+        HelloApp { }
     }
 
     fn render(self) {
@@ -31,7 +31,6 @@ impl ws::Application for Hello_app  {
     fn update(self) {
 
     }
-
 }
 
 // pub trait Application: Sized + 'static {
@@ -66,7 +65,20 @@ struct TestApp {
 fn main() {
     
     println!("Started...");
-    let configuration = futures::executor::block_on(ws::setup::<MyFeatures>("jihuu")).expect("Failed to create WGPUConfiguration.");
+    #[cfg(not(target_arch = "wasm32"))] {
+        let configuration = futures::executor::block_on(ws::setup::<MyFeatures>("jihuu")).expect("Failed to create WGPUConfiguration.");
+        let app = HelloApp::init(&configuration);
+
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        //use futures::{future::LocalFutureObj, task::SpawnError};
+        wasm_bindgen_futures::spawn_local(async move {
+            let configuration = ws::setup::<MyFeatures>("jihuu").await.unwrap();
+            let app = HelloApp::init(&configuration); 
+        });
+    }
 
 
     println!("Finished...");

@@ -11,7 +11,7 @@ use winit::{
 pub trait Application: Sized + 'static {
 
     /// Creates the Application.
-    fn init(self, configuration: &WGPUConfiguration) -> Self;
+    fn init(configuration: &WGPUConfiguration) -> Self;
 
     /// The render function for application.
     fn render(self);
@@ -47,8 +47,10 @@ impl Loop for BasicLoop {
         surface,
         adapter,
         device,
-        queue}: WGPUConfiguration,) {
-
+        queue,
+        swap_chain,
+        sc_desc
+        }: WGPUConfiguration,) {
 
     // Create thread pool and spawner for native version.
     #[cfg(not(target_arch = "wasm32"))]
@@ -93,7 +95,7 @@ impl Loop for BasicLoop {
     // Launch the loop.
     event_loop.run(move |event, _, control_flow| {
 
-        // Move the ownerships to this function.
+        // Force the ownerships to this closure.
         let _ = (&window,
                 &instance,
                 &size,
@@ -101,13 +103,11 @@ impl Loop for BasicLoop {
                 &adapter,
                 &device,
                 &queue,
+                &swap_chain,
+                &sc_desc,
                 &mut application);
 
         *control_flow = ControlFlow::Poll;
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            pool.run_until_stalled();
-        }
 
         match event {
 
@@ -121,7 +121,8 @@ impl Loop for BasicLoop {
                 window.request_redraw();
             }
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                //state.resize(size);
+                // TODO: change the size and and modify the sc_desc and create new swap_chain.
+                //application.resize(size);
             }
             Event::WindowEvent {event, .. } => {
                 //if state.input(&event) { /* state.update() */ }
@@ -162,6 +163,8 @@ pub struct WGPUConfiguration {
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+    pub swap_chain: wgpu::SwapChain,
+    pub sc_desc: wgpu::SwapChainDescriptor,
 }
 
 /// A trait to configure wgpu-rs engine. TODO: Do we need this? 'static + Sized
@@ -181,6 +184,8 @@ pub trait WGPUFeatures: Sized + 'static {
 pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'static str> {
 
     println!("YEEEAAAAH");
+
+    let title = title.to_owned();
 
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -269,6 +274,20 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
         .await
         .unwrap();
 
+    let sc_desc = wgpu::SwapChainDescriptor {
+        usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
+        // TODO: Allow srgb unconditionally
+        format: if cfg!(target_arch = "wasm32") {
+            wgpu::TextureFormat::Bgra8Unorm
+        } else {
+            wgpu::TextureFormat::Bgra8UnormSrgb
+        },
+        width: size.width,
+        height: size.height,
+        present_mode: wgpu::PresentMode::Mailbox,
+    };
+    let swap_chain = device.create_swap_chain(&surface, &sc_desc);
+
     Ok(WGPUConfiguration {
             window: window,
             event_loop: event_loop,
@@ -278,5 +297,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
             adapter: adapter,
             device: device,
             queue: queue,
+            swap_chain: swap_chain,
+            sc_desc: sc_desc,
     })
 }
