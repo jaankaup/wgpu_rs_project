@@ -9,6 +9,5 @@ output.txt
 '
 *.txt
 *.info
-*.sh
 lib
 *.obj

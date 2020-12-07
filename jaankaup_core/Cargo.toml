@@ -137,6 +137,7 @@ web-sys = { version = "=0.3.46", features = [
 ]}
 js-sys = "0.3.46"
 wasm-bindgen-futures = "0.4.19"
+wasm-timer = "0.2.5"
 
 console_error_panic_hook = "0.1.6"
 console_log = "0.1.2"

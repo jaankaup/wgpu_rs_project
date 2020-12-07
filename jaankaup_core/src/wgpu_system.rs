@@ -4,7 +4,7 @@ use futures::task::LocalSpawn;
 use winit::{
     event::{Event, WindowEvent,KeyboardInput,ElementState,VirtualKeyCode},
     event_loop::{ControlFlow, EventLoop},
-    window::Window
+    //window::Window
 };
 
 /// A trait for wgpu-rs based application.
@@ -118,6 +118,7 @@ impl Loop for BasicLoop {
 
         match event {
 
+            // Events except RedrawRequested are reported.
             Event::MainEventsCleared => {
                 #[cfg(not(target_arch = "wasm32"))]
                 {
@@ -127,29 +128,21 @@ impl Loop for BasicLoop {
                 #[cfg(target_arch = "wasm32")]
                 window.request_redraw();
             }
-            Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                // TODO: change the size and and modify the sc_desc and create new swap_chain.
-                //application.resize(size);
-            }
-            Event::WindowEvent {event, .. } => {
-                //if state.input(&event) { /* state.update() */ }
+            Event::WindowEvent { event, ..} => {
+                // Update input cache.
+                //input.update(&event);
                 match event {
+                    WindowEvent::Resized(size) => {
+                        // TODO: change the size and and modify the sc_desc and create new swap_chain.
+                        //application.resize(size);
+                    }
                     WindowEvent::CloseRequested => {
+                        // TODO: application.close()
                         *control_flow = ControlFlow::Exit
                     }
-                    WindowEvent::KeyboardInput { input, ..  } => {
-                        match input {
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                ..
-                            } => *control_flow = ControlFlow::Exit,
-                            _ => {}
-                        } // match input
-                    } // KeyboardInput
-                    _ => { /*state.update()*/ } // Other WindowEvents
-                } // match event (WindowEvent)
-            } // Event::WindowEvent
+                    _ => {}
+                }
+            }
             Event::RedrawRequested(_) => {
                 //state.render(&window);
             }
