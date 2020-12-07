@@ -29,6 +29,9 @@ pub trait Application: Sized + 'static {
 /// A trait for Loops.
 pub trait Loop: Sized + 'static {
 
+    /// Initialize loop.
+    fn init() -> Self;
+
     /// Run function that starts the loop. Beware: run takes ownership of application and
     /// configuration.
     fn run<A: Application>(self, application: A, configuration: WGPUConfiguration);
@@ -38,6 +41,10 @@ pub trait Loop: Sized + 'static {
 pub struct BasicLoop { }
 
 impl Loop for BasicLoop {
+
+    fn init() -> Self {
+        BasicLoop {}
+    }
 
     fn run<A: Application>(self, mut application: A, WGPUConfiguration {
         window,
@@ -300,4 +307,23 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
             swap_chain: swap_chain,
             sc_desc: sc_desc,
     })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
+    let configuration = futures::executor::block_on(setup::<F>("jihuu")).expect("Failed to create WGPUConfiguration.");
+    let app = A::init(&configuration);
+    let lo = L::init();
+    lo.run(app, configuration); 
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
+    wasm_bindgen_futures::spawn_local(async move {
+        let configuration = setup::<F>("jihuu").await.unwrap();
+        let app = A::init(&configuration); 
+        let lo = L::init();
+        //basic_loop<HelloApp>(application: A, WGPUConfiguration {
+        lo.run(app, configuration); 
+    });
 }

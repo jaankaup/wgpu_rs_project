@@ -1,4 +1,5 @@
 pub mod wgpu_system; 
+pub mod input; 
 
 #[cfg(test)]
 mod tests {
