@@ -7,6 +7,8 @@ use winit::{
     //window::Window
 };
 
+use crate::input::InputCache;
+
 /// A trait for wgpu-rs based application.
 pub trait Application: Sized + 'static {
 
@@ -35,6 +37,33 @@ pub trait Loop: Sized + 'static {
     /// Run function that starts the loop. Beware: run takes ownership of application and
     /// configuration.
     fn run<A: Application>(self, application: A, configuration: WGPUConfiguration);
+}
+
+/// A struct that holds the wgpu-rs application resources.
+pub struct WGPUConfiguration {
+    pub window: winit::window::Window,
+    pub event_loop: EventLoop<()>,
+    pub instance: wgpu::Instance,
+    pub size: winit::dpi::PhysicalSize<u32>,
+    pub surface: wgpu::Surface,
+    pub adapter: wgpu::Adapter,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub swap_chain: wgpu::SwapChain,
+    pub sc_desc: wgpu::SwapChainDescriptor,
+}
+
+/// A trait to configure wgpu-rs engine. TODO: Do we need this? 'static + Sized
+pub trait WGPUFeatures: Sized + 'static {
+    fn optional_features() -> wgpu::Features {
+        wgpu::Features::empty()
+    }
+    fn required_features() -> wgpu::Features {
+        wgpu::Features::empty()
+    }
+    fn required_limits() -> wgpu::Limits {
+        wgpu::Limits::default()
+    }
 }
 
 /// A basic loop.
@@ -99,6 +128,8 @@ impl Loop for BasicLoop {
         WebSpawner {}
     };
 
+    let mut input = InputCache::init();
+
     // Launch the loop.
     event_loop.run(move |event, _, control_flow| {
 
@@ -112,7 +143,8 @@ impl Loop for BasicLoop {
                 &queue,
                 &swap_chain,
                 &sc_desc,
-                &mut application);
+                &mut application,
+                &mut input);
 
         *control_flow = ControlFlow::Poll;
 
@@ -130,7 +162,8 @@ impl Loop for BasicLoop {
             }
             Event::WindowEvent { event, ..} => {
                 // Update input cache.
-                //input.update(&event);
+                input.update(&event);
+
                 match event {
                     WindowEvent::Resized(size) => {
                         // TODO: change the size and and modify the sc_desc and create new swap_chain.
@@ -153,32 +186,6 @@ impl Loop for BasicLoop {
     }
 }
 
-/// A struct that holds the wgpu-rs application resources.
-pub struct WGPUConfiguration {
-    pub window: winit::window::Window,
-    pub event_loop: EventLoop<()>,
-    pub instance: wgpu::Instance,
-    pub size: winit::dpi::PhysicalSize<u32>,
-    pub surface: wgpu::Surface,
-    pub adapter: wgpu::Adapter,
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
-    pub swap_chain: wgpu::SwapChain,
-    pub sc_desc: wgpu::SwapChainDescriptor,
-}
-
-/// A trait to configure wgpu-rs engine. TODO: Do we need this? 'static + Sized
-pub trait WGPUFeatures: Sized + 'static {
-    fn optional_features() -> wgpu::Features {
-        wgpu::Features::empty()
-    }
-    fn required_features() -> wgpu::Features {
-        wgpu::Features::empty()
-    }
-    fn required_limits() -> wgpu::Limits {
-        wgpu::Limits::default()
-    }
-}
 
 /// Initializes wgpu-rs system. TODO: finish the Result<...>.
 pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'static str> {
