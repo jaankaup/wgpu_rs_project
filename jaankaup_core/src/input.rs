@@ -10,19 +10,23 @@ use winit::dpi::PhysicalPosition;
 #[derive(Clone,Debug)]
 pub enum InputState {
     Pressed(u128),
-    Released((u128, u128)),
+    Down(u128,u128),
+    Released(u128, u128),
 }
 
 impl InputState {
-    /// Updates InputState enum.
+    /// Updates the state depending on given ElementState and the current state.
     pub fn update(&mut self, state: &ev::ElementState, time_now: u128) {
         match state {
             ev::ElementState::Pressed => {
                 match std::mem::replace(self, InputState::Pressed(666)) {
-                    InputState::Pressed(_) => {
-                        *self = InputState::Pressed(time_now)
+                    InputState::Pressed(start_time) => {
+                        *self = InputState::Down(start_time,time_now)
                     }
-                    InputState::Released(_) => {
+                    InputState::Down(start_time, _) => {
+                        *self = InputState::Down(start_time,time_now)
+                    }
+                    InputState::Released(_,_) => {
                         *self = InputState::Pressed(time_now)
                     }
                 }
@@ -30,10 +34,13 @@ impl InputState {
             ev::ElementState::Released => {
                 match std::mem::replace(self, InputState::Pressed(666)) {
                     InputState::Pressed(start_time) => {
-                        *self = InputState::Released((start_time,time_now))
+                        *self = InputState::Released(start_time,time_now)
                     }
-                    InputState::Released(_) => {
-                        *self = InputState::Released((0,0))
+                    InputState::Down(start_time, _) => {
+                        *self = InputState::Released(start_time,time_now)
+                    }
+                    InputState::Released(_,_) => {
+                        panic!("Already released.")
                     }
                 }
             }
@@ -43,16 +50,9 @@ impl InputState {
 
 #[derive(Clone)]
 pub struct MouseButton {
-    state: Option<InputState>, 
+    state: Option<InputState>,
     tag: ev::MouseButton,
 }
-
-//#[derive(Clone)]
-//pub struct KeyButton {
-//    state: InputState, 
-//    tag: Key,
-//    start_time: u128,
-//}
 
 /// A struct for mouse buttons.
 #[derive(Clone)]
@@ -76,30 +76,54 @@ impl MouseButtons {
                 match &mut self.left.state {
                     Some(s) => {
                         s.update(&state, time_now);
-                        //println!("{:?}", self.left.state.as_ref());
+                        println!("Left mouse : {:?}", self.left.state.as_ref());
                     }
                     None => {
                         self.left.state = Some(InputState::Pressed(time_now));
+                        println!("Left mouse : {:?}", self.left.state.as_ref());
                     }
                 }
             }
             ev::MouseButton::Middle => {
-                println!("Middle mouse button event");
+                match &mut self.middle.state {
+                    Some(s) => {
+                        s.update(&state, time_now);
+                        println!("Middle mouse : {:?}", self.middle.state.as_ref());
+                    }
+                    None => {
+                        self.middle.state = Some(InputState::Pressed(time_now));
+                        println!("Middle mouse : {:?}", self.middle.state.as_ref());
+                    }
+                }
             }
             ev::MouseButton::Right => {
-                println!("Right mouse button event");
+                match &mut self.right.state {
+                    Some(s) => {
+                        s.update(&state, time_now);
+                        println!("Right mouse : {:?}", self.right.state.as_ref());
+                    }
+                    None => {
+                        self.right.state = Some(InputState::Pressed(time_now));
+                        println!("Right mouse : {:?}", self.right.state.as_ref());
+                    }
+                }
             }
-            _ => {}
+            _ => { /* Some other mouse button clicked. */ }
         }
     }
-    pub fn get_left(self) -> MouseButton {
-        self.left
+    pub fn forced_update(&mut self) {
+        if let Some(InputState::Released(_,_)) = self.left.state   { self.left.state = None }
+        if let Some(InputState::Released(_,_)) = self.middle.state { self.middle.state = None }
+        if let Some(InputState::Released(_,_)) = self.right.state  { self.right.state = None }
     }
-    pub fn get_middle(self) -> MouseButton {
-        self.middle
+    pub fn get_left(self) -> Option<InputState> {
+        self.left.state
     }
-    pub fn get_right(self) -> MouseButton {
-        self.right
+    pub fn get_middle(self) -> Option<InputState> {
+        self.middle.state
+    }
+    pub fn get_right(self) -> Option<InputState> {
+        self.right.state
     }
 }
 
@@ -151,16 +175,25 @@ impl InputCache {
             timer: timer,
         }
     }
-    /// Process the new inputs.
-    pub fn update(&mut self, event: &ev::WindowEvent) {
-        use ev::WindowEvent::*;
+
+
+    /// This should be called before the actual update to ensure the all events takes effect even
+    /// winit doesn't produce any events..
+    pub fn pre_update(&mut self) {
+        // If mouse buttons were released previously, apply None to those states.
+        self.mouse_buttons.forced_update();
+
+        self.keyboard.retain(|_, state| match state { InputState::Released(_,_) => false, _ => true }); 
 
         // Update timer.
         let now = self.timer.elapsed().as_nanos();
         self.time_delta = now - self.time_now;
         self.time_now = now;
-        println!("Time delta == {}", self.time_delta);
-        //println!("Time now == {}", self.time_now);
+    }
+
+    /// Process the new inputs.
+    pub fn update(&mut self, event: &ev::WindowEvent) {
+        use ev::WindowEvent::*;
 
         match event {
             KeyboardInput { input, ..} => self.track_keyboard(*input),
@@ -178,7 +211,20 @@ impl InputCache {
     }
     /// Update the state of keyboard.
     fn track_keyboard(&mut self, evt: ev::KeyboardInput) {
-        //println!("track_keyboard");
+        if let Some(key) = evt.virtual_keycode {
+            match self.keyboard.get_mut(&key) {
+                Some(state) => {
+                    state.update(&evt.state, self.time_now) 
+                }
+                None => {
+                    let _ = self.keyboard.insert(key, InputState::Pressed(self.time_now));
+                }
+            }
+        }
+        // for (key, val) in self.keyboard.clone() {
+        //     println!("({:?}, {:?}", key, val);
+        // }
+
     }
     /// Update the state of mouse buttons.
     fn track_mouse_button(&mut self, button: ev::MouseButton, state: ev::ElementState) {
@@ -190,7 +236,6 @@ impl InputCache {
     }
     /// Update the state of mouse movement.
     fn track_cursor_movement(&mut self, new_pos: PhysicalPosition<f64>) {
-        //println!("track_cursor_movement");
         match self.mouse_position.pos {
             None => { self.mouse_position.pos = Some(new_pos); }
             Some(old_position) => {
@@ -198,7 +243,6 @@ impl InputCache {
                 self.mouse_position.pos = Some(new_pos);
             }
         }
-        println!("mouse_delta = ({}, {})", self.mouse_delta.x, self.mouse_delta.y);
     }
     /// Handle the cursor enter event. TODO: implement.
     fn track_cursor_enter(&mut self) {

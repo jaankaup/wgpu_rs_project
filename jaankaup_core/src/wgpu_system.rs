@@ -162,6 +162,7 @@ impl Loop for BasicLoop {
             }
             Event::WindowEvent { event, ..} => {
                 // Update input cache.
+                input.pre_update();
                 input.update(&event);
 
                 match event {
