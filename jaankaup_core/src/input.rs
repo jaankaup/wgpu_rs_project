@@ -205,9 +205,22 @@ impl InputCache {
             _ => (),
         }
     }
-    /// Get the state of keyboard key.
-    pub fn key_state(key: &Key) -> Option<InputState> {
-        None
+    /// Get the InputState of keyboard key.
+    pub fn key_state(self, key: &Key) -> Option<InputState> {
+        if let Some(val) = self.keyboard.get(key) {
+            Some(val.clone())
+        }
+        else { None }
+    }
+
+    /// Get the InputState of mouse button.
+    pub fn mouse_button_state(self, button: &ev::MouseButton) -> Option<InputState> {
+        match button {
+            ev::MouseButton::Left => { self.mouse_buttons.left.state } 
+            ev::MouseButton::Middle => { self.mouse_buttons.middle.state } 
+            ev::MouseButton::Right => { self.mouse_buttons.right.state } 
+            _ => None
+        }
     }
     /// Update the state of keyboard.
     fn track_keyboard(&mut self, evt: ev::KeyboardInput) {
@@ -221,10 +234,6 @@ impl InputCache {
                 }
             }
         }
-        // for (key, val) in self.keyboard.clone() {
-        //     println!("({:?}, {:?}", key, val);
-        // }
-
     }
     /// Update the state of mouse buttons.
     fn track_mouse_button(&mut self, button: ev::MouseButton, state: ev::ElementState) {
