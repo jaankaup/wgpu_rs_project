@@ -7,36 +7,98 @@ pub use ev::VirtualKeyCode as Key;
 use winit::dpi::PhysicalPosition;
 
 /// An enum for mouse and keyboard button states.
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub enum InputState {
-    Pressed,
-    Down(u64),
-    Reseased(u64),
+    Pressed(u128),
+    Released((u128, u128)),
 }
+
+impl InputState {
+    /// Updates InputState enum.
+    pub fn update(&mut self, state: &ev::ElementState, time_now: u128) {
+        match state {
+            ev::ElementState::Pressed => {
+                match std::mem::replace(self, InputState::Pressed(666)) {
+                    InputState::Pressed(_) => {
+                        *self = InputState::Pressed(time_now)
+                    }
+                    InputState::Released(_) => {
+                        *self = InputState::Pressed(time_now)
+                    }
+                }
+            }
+            ev::ElementState::Released => {
+                match std::mem::replace(self, InputState::Pressed(666)) {
+                    InputState::Pressed(start_time) => {
+                        *self = InputState::Released((start_time,time_now))
+                    }
+                    InputState::Released(_) => {
+                        *self = InputState::Released((0,0))
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct MouseButton {
+    state: Option<InputState>, 
+    tag: ev::MouseButton,
+}
+
+//#[derive(Clone)]
+//pub struct KeyButton {
+//    state: InputState, 
+//    tag: Key,
+//    start_time: u128,
+//}
 
 /// A struct for mouse buttons.
 #[derive(Clone)]
 pub struct MouseButtons {
-    left: Option<InputState>,
-    middle: Option<InputState>,
-    right: Option<InputState>,
+    left: MouseButton,
+    middle: MouseButton,
+    right: MouseButton,
 }
 
 impl MouseButtons {
     pub fn init() -> Self {
         Self {
-            left: None,
-            middle: None,
-            right: None,
+            left: MouseButton   { state: None , tag: ev::MouseButton::Left},
+            middle: MouseButton { state: None , tag: ev::MouseButton::Middle},
+            right: MouseButton  { state: None , tag: ev::MouseButton::Right},
         }
     }
-    pub fn get_left(self) -> Option<InputState> {
+    pub fn update(&mut self, button: &ev::MouseButton, state: &ev::ElementState, time_now: u128) {
+        match button {
+            ev::MouseButton::Left => {
+                match &mut self.left.state {
+                    Some(s) => {
+                        s.update(&state, time_now);
+                        //println!("{:?}", self.left.state.as_ref());
+                    }
+                    None => {
+                        self.left.state = Some(InputState::Pressed(time_now));
+                    }
+                }
+            }
+            ev::MouseButton::Middle => {
+                println!("Middle mouse button event");
+            }
+            ev::MouseButton::Right => {
+                println!("Right mouse button event");
+            }
+            _ => {}
+        }
+    }
+    pub fn get_left(self) -> MouseButton {
         self.left
     }
-    pub fn get_middle(self) -> Option<InputState> {
+    pub fn get_middle(self) -> MouseButton {
         self.middle
     }
-    pub fn get_right(self) -> Option<InputState> {
+    pub fn get_right(self) -> MouseButton {
         self.right
     }
 }
@@ -98,6 +160,7 @@ impl InputCache {
         self.time_delta = now - self.time_now;
         self.time_now = now;
         println!("Time delta == {}", self.time_delta);
+        //println!("Time now == {}", self.time_now);
 
         match event {
             KeyboardInput { input, ..} => self.track_keyboard(*input),
@@ -113,14 +176,13 @@ impl InputCache {
     pub fn key_state(key: &Key) -> Option<InputState> {
         None
     }
-
     /// Update the state of keyboard.
     fn track_keyboard(&mut self, evt: ev::KeyboardInput) {
-        println!("track_keyboard");
+        //println!("track_keyboard");
     }
     /// Update the state of mouse buttons.
     fn track_mouse_button(&mut self, button: ev::MouseButton, state: ev::ElementState) {
-        println!("track_mouse_button");
+        self.mouse_buttons.update(&button, &state, self.time_now);
     }
     /// Update the state of mouse wheel.
     fn track_mouse_wheel(&mut self, delta: ev::MouseScrollDelta) {
@@ -128,7 +190,7 @@ impl InputCache {
     }
     /// Update the state of mouse movement.
     fn track_cursor_movement(&mut self, new_pos: PhysicalPosition<f64>) {
-        println!("track_cursor_movement");
+        //println!("track_cursor_movement");
         match self.mouse_position.pos {
             None => { self.mouse_position.pos = Some(new_pos); }
             Some(old_position) => {

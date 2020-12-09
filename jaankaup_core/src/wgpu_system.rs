@@ -309,6 +309,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
     })
 }
 
+/// Initializes wgpu-rs basic components, application and starts the loop. Native version.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
     let configuration = futures::executor::block_on(setup::<F>("jihuu")).expect("Failed to create WGPUConfiguration.");
@@ -317,6 +318,7 @@ pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
     lo.run(app, configuration); 
 }
 
+/// Initializes wgpu-rs basic components, application and starts the loop. wasm version.
 #[cfg(target_arch = "wasm32")]
 pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
     wasm_bindgen_futures::spawn_local(async move {
