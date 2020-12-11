@@ -13,6 +13,8 @@ wgpu = { git = "https://github.com/gfx-rs/wgpu-rs" }
 winit = { version = "0.23.0", features = ["web-sys"] }
 futures = "0.3"
 log = "0.4"
+cgmath = "0.17"
+bytemuck = { version = "1.4", features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.subscriber]
 package = "wgpu-subscriber"
@@ -20,18 +22,10 @@ version = "0.1"
 
 #[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies.subscriber]
 
-#[patch.crates-io]
-#wasm-bindgen = { git = "https://github.com/rustwasm/wasm-bindgen", rev = "316c5a70fdc4a052fb65ef82bf02d52107b5671b" }
-#wasm-bindgen-futures = { git = "https://github.com/rustwasm/wasm-bindgen", rev = "316c5a70fdc4a052fb65ef82bf02d52107b5671b" }
-#web-sys = { git = "https://github.com/rustwasm/wasm-bindgen", rev = "316c5a70fdc4a052fb65ef82bf02d52107b5671b" }
-#js-sys = { git = "https://github.com/rustwasm/wasm-bindgen", rev = "316c5a70fdc4a052fb65ef82bf02d52107b5671b" }
-
 #futures = "0.3"
 #raw-window-handle = "0.3"
 #log = "0.4"
-#cgmath = "0.17"
 #png = "0.16"
-#bytemuck = { version = "1.4", features = ["derive"] }
 #rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 #ordered-float = "1.0.1"
 #obj-rs = "0.6.1"

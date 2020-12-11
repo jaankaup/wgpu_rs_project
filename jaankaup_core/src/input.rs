@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::{Instant};
 
 use winit::event as ev;
 
@@ -240,7 +240,7 @@ impl InputCache {
         self.mouse_buttons.update(&button, &state, self.time_now);
     }
     /// Update the state of mouse wheel.
-    fn track_mouse_wheel(&mut self, delta: ev::MouseScrollDelta) {
+    fn track_mouse_wheel(&mut self, _delta: ev::MouseScrollDelta) {
         println!("track_mouse_wheel");
     }
     /// Update the state of mouse movement.
@@ -255,11 +255,13 @@ impl InputCache {
     }
     /// Handle the cursor enter event. TODO: implement.
     fn track_cursor_enter(&mut self) {
+        self.mouse_position.inside = true;
         println!("track_cursor_enter");
     }
     /// Handle the cursor leave event. TODO: implement.
     fn track_cursor_leave(&mut self) {
         self.mouse_delta = PhysicalPosition::<f64>::new(0.0, 0.0);
+        self.mouse_position.inside = false;
         println!("track_cursor_leave");
     }
 }

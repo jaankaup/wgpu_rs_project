@@ -3,7 +3,6 @@ use jaankaup_core::wgpu_system::{
         WGPUFeatures,
         WGPUConfiguration,
         Application,
-        Loop,
         BasicLoop
 };
 
@@ -18,7 +17,7 @@ struct HelloApp {
 
 impl Application for HelloApp {
 
-    fn init(configuration: &WGPUConfiguration) -> Self {
+    fn init(_configuration: &WGPUConfiguration) -> Self {
         HelloApp { }
     }
 

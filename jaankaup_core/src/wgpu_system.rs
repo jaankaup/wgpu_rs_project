@@ -2,7 +2,7 @@
 use futures::task::LocalSpawn;
 
 use winit::{
-    event::{Event, WindowEvent,KeyboardInput,ElementState,VirtualKeyCode},
+    event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     //window::Window
 };
@@ -99,7 +99,7 @@ impl Loop for BasicLoop {
 
     // Define spawner for wasm version.
     #[cfg(target_arch = "wasm32")]
-    let spawner = {
+    let _spawner = {
         use futures::{future::LocalFutureObj, task::SpawnError};
         use winit::platform::web::WindowExtWebSys;
 
@@ -166,7 +166,7 @@ impl Loop for BasicLoop {
                 input.update(&event);
 
                 match event {
-                    WindowEvent::Resized(size) => {
+                    WindowEvent::Resized(_size) => {
                         // TODO: change the size and and modify the sc_desc and create new swap_chain.
                         //application.resize(size);
                     }
