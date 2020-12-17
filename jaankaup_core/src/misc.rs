@@ -79,3 +79,7 @@ pub fn encode_rgba_u32(r: u8, g: u8, b: u8, a: u8) -> u32 {
 pub fn map_range(a1: f32, a2: f32, b1: f32, b2: f32, s: f32) -> f32 {
     b1 + (s - a1) * (b2 - b1) / (a2 - a1)
 }
+
+pub fn multisampled(sample_count: u32) -> bool {
+  match sample_count { 1 => false, 2 => true, 4 => true, 8 => true, 16 => true, _ => panic!("Illegal sample count {}.", sample_count) }
+}

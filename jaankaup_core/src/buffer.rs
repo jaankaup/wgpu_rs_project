@@ -4,6 +4,15 @@ use bytemuck::Pod;
 use wgpu::util::DeviceExt;
 use std::mem;
 
+/// A struct that holds information for one draw call.
+pub struct VertexBufferInfo {
+    vertex_buffer_name: String,
+    _index_buffer: Option<String>,
+    start_index: u32,
+    end_index: u32,
+    instances: u32,
+}
+
 /// Buffer.
 pub struct Buffer {
     pub buffer: wgpu::Buffer,

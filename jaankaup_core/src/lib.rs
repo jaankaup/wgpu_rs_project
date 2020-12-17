@@ -4,6 +4,7 @@ pub mod shader;
 pub mod misc; 
 pub mod buffer; 
 pub mod texture; 
+pub mod pipeline; 
 
 #[cfg(test)]
 mod tests {
