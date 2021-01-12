@@ -1,5 +1,6 @@
-#[cfg(target_arch = "wasm32")]
-use futures::task::LocalSpawn;
+//#[cfg(target_arch = "wasm32")]
+//use futures::task::LocalSpawn;
+use std::future::Future;
 
 use winit::{
     event::{Event, WindowEvent},
@@ -89,44 +90,45 @@ impl Loop for BasicLoop {
         }: WGPUConfiguration,) {
 
     // Create thread pool and spawner for native version.
-    #[cfg(not(target_arch = "wasm32"))]
-    let (mut pool, _spawner) = {
-
-        let local_pool = futures::executor::LocalPool::new();
-        let spawner = local_pool.spawner();
-        (local_pool, spawner)
-    };
-
-    // Define spawner for wasm version.
-    #[cfg(target_arch = "wasm32")]
-    let _spawner = {
-        use futures::{future::LocalFutureObj, task::SpawnError};
-        use winit::platform::web::WindowExtWebSys;
-
-        struct WebSpawner {}
-        impl LocalSpawn for WebSpawner {
-            fn spawn_local_obj(
-                &self,
-                future: LocalFutureObj<'static, ()>,
-            ) -> Result<(), SpawnError> {
-                Ok(wasm_bindgen_futures::spawn_local(future))
-            }
-        }
-
-        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-
-        // On wasm, append the canvas to the document body
-        web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| doc.body())
-            .and_then(|body| {
-                body.append_child(&web_sys::Element::from(window.canvas()))
-                    .ok()
-            })
-            .expect("couldn't append canvas to document body");
-
-        WebSpawner {}
-    };
+//    #[cfg(not(target_arch = "wasm32"))]
+//    let (mut pool, _spawner) = {
+//
+//        let local_pool = futures::executor::LocalPool::new();
+//        let spawner = local_pool.spawner();
+//        (local_pool, spawner)
+//    };
+//
+//    // Define spawner for wasm version.
+//    #[cfg(target_arch = "wasm32")]
+//    let _spawner = {
+//        use futures::{future::LocalFutureObj, task::SpawnError};
+//        use winit::platform::web::WindowExtWebSys;
+//
+//        struct WebSpawner {}
+//        impl LocalSpawn for WebSpawner {
+//            fn spawn_local_obj(
+//                &self,
+//                future: LocalFutureObj<'static, ()>,
+//            ) -> Result<(), SpawnError> {
+//                Ok(wasm_bindgen_futures::spawn_local(future))
+//            }
+//        }
+//
+//        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+//
+//        // On wasm, append the canvas to the document body
+//        web_sys::window()
+//            .and_then(|win| win.document())
+//            .and_then(|doc| doc.body())
+//            .and_then(|body| {
+//                body.append_child(&web_sys::Element::from(window.canvas()))
+//                    .ok()
+//            })
+//            .expect("couldn't append canvas to document body");
+//
+//        WebSpawner {}
+//    };
+    let spawner = Spawner::new();
 
     let mut input = InputCache::init();
 
@@ -154,7 +156,8 @@ impl Loop for BasicLoop {
             Event::MainEventsCleared => {
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    pool.run_until_stalled();
+                    //pool.run_until_stalled();
+                    spawner.run_until_stalled();
                 }
 
                 #[cfg(target_arch = "wasm32")]
@@ -229,7 +232,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
             .expect("couldn't append canvas to document body.");
     }
 
-    log::info!("Initializing the surface...");
+    //log::info!("Initializing the surface...");
 
     let backend = if let Ok(backend) = std::env::var("WGPU_BACKEND") {
         match backend.to_lowercase().as_str() {
@@ -275,7 +278,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
                 label: None,
                 features: (optional_features & adapter_features) | required_features,
                 limits: needed_limits,
-                shader_validation: true,
+                //shader_validation: true,
             },
             trace_dir.ok().as_ref().map(std::path::Path::new),
         )
@@ -313,7 +316,8 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
 /// Initializes wgpu-rs basic components, application and starts the loop. Native version.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
-    let configuration = futures::executor::block_on(setup::<F>("jihuu")).expect("Failed to create WGPUConfiguration.");
+    let configuration = pollster::block_on(setup::<F>("jihuu")).expect("Failed to create WGPUConfiguration.");
+    //let configuration = futures::executor::block_on(setup::<F>("jihuu")).expect("Failed to create WGPUConfiguration.");
     let app = A::init(&configuration);
     let lo = L::init();
     lo.run(app, configuration); 
@@ -329,4 +333,43 @@ pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
         //basic_loop<HelloApp>(application: A, WGPUConfiguration {
         lo.run(app, configuration); 
     });
+}
+
+
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Spawner<'a> {
+    executor: async_executor::LocalExecutor<'a>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<'a> Spawner<'a> {
+    fn new() -> Self {
+        Self {
+            executor: async_executor::LocalExecutor::new(),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn spawn_local(&self, future: impl Future<Output = ()> + 'a) {
+        self.executor.spawn(future).detach();
+    }
+
+    fn run_until_stalled(&self) {
+        while self.executor.try_tick() {}
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub struct Spawner {}
+
+#[cfg(target_arch = "wasm32")]
+impl Spawner {
+    fn new() -> Self {
+        Self {}
+    }
+
+    #[allow(dead_code)]
+    pub fn spawn_local(&self, future: impl Future<Output = ()> + 'static) {
+        wasm_bindgen_futures::spawn_local(future);
+    }
 }

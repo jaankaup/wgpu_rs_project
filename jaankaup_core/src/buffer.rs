@@ -5,6 +5,7 @@ use wgpu::util::DeviceExt;
 use std::mem;
 
 /// A struct that holds information for one draw call.
+#[allow(dead_code)]
 pub struct VertexBufferInfo {
     vertex_buffer_name: String,
     _index_buffer: Option<String>,

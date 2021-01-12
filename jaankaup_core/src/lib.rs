@@ -5,6 +5,8 @@ pub mod misc;
 pub mod buffer; 
 pub mod texture; 
 pub mod pipeline; 
+pub mod assets; 
+pub mod temp; 
 
 #[cfg(test)]
 mod tests {

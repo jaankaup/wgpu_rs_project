@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use crate::texture::*;
 use crate::buffer::Buffer as JBuffer;
 use crate::misc::multisampled;
-use crate::shader::ShaderModule;
 
 //#[derive(Clone, Copy)]
 //struct ShaderModuleInfo {
@@ -15,68 +14,70 @@ use crate::shader::ShaderModule;
 //}
 
 /// A struct that holds information for one draw call.
-pub struct VertexBufferInfo {
-    vertex_buffer_name: String,
-    _index_buffer: Option<String>,
-    start_index: u32,
-    end_index: u32,
-    instances: u32,
-}
+//#[allow(dead_code)]
+//pub struct VertexBufferInfo {
+//    vertex_buffer_name: String,
+//    _index_buffer: Option<String>,
+//    start_index: u32,
+//    end_index: u32,
+//    instances: u32,
+//}
 
+#[allow(dead_code)]
 pub enum Resource {
     TextureView(&'static str),
     TextureSampler(&'static str),
     Buffer(&'static str),
 }
 
+#[allow(dead_code)]
 pub struct RenderPipelineInfo<'a> {
-    vertex_shader: String, //ShaderModule, //ShaderModuleInfo,
-    fragment_shader: Option<&'a str>,
-    bind_groups: Vec<Vec<BindGroupInfo>>,
-    input_formats: Vec<(wgpu::VertexFormat, u64)>,
+    pub vertex_shader: String, //ShaderModule, //ShaderModuleInfo,
+    pub fragment_shader: Option<&'a str>,
+    pub bind_groups: Vec<Vec<BindGroupInfo>>,
+    pub input_formats: Vec<(wgpu::VertexFormat, u64)>,
 }
 
+#[allow(dead_code)]
 pub struct ComputePipelineInfo {
     compute_shader: String,
     bind_groups: Vec<Vec<BindGroupInfo>>,
 }
 
-/// A struct for a single render pass.
-pub struct RenderPass {
+struct DrawInfo {
+    buffer_name: String,
+    start_index: u32,
+    end_index: u32,
+    instances: u32,
+    samples: u32,
+    clear: bool,
+}
+
+pub struct RPass {
     pipeline: wgpu::RenderPipeline,
     bind_groups: Vec<wgpu::BindGroup>,
+    draw_info: DrawInfo,
 }
 
-/// A struct for a single compute pass.
-pub struct ComputePass {
-    pipeline: wgpu::ComputePipeline,
-    bind_groups: Vec<wgpu::BindGroup>,
-    dispatch_x: u32,
-    dispatch_y: u32,
-    dispatch_z: u32,
-}
-
-impl RenderPass {
-    /// Execute current render pass. TODO: multisampled doesn't work as expected. 
+impl RPass {
+    pub fn init() {}
     fn execute(&self,
                encoder: &mut wgpu::CommandEncoder,
                frame: &wgpu::SwapChainTexture,
-               multisampled_framebuffer: &wgpu::TextureView,
+               multisampled_framebuffer: Option<&wgpu::TextureView>,
                textures: &HashMap<String, Texture>,
-               buffers: &HashMap<String, JBuffer>,
-               vertex_buffer_info: &VertexBufferInfo,
-               sample_count: u32,
-               clear: bool) {
+               buffers: &HashMap<String, JBuffer>) {
 
-            let multi_sampled = multisampled(sample_count);
+            let multi_sampled = multisampled(self.draw_info.samples);
 
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
                 color_attachments: &[
                     wgpu::RenderPassColorAttachmentDescriptor {
-                            attachment: match multi_sampled { false => &frame.view, true => &multisampled_framebuffer, },
+                            attachment: match multi_sampled { false => &frame.view, true => multisampled_framebuffer.unwrap()},
                             resolve_target: match multi_sampled { false => None, true => Some(&frame.view), },
                             ops: wgpu::Operations {
-                                load: match clear {
+                                load: match self.draw_info.clear {
                                     true => {
                                         wgpu::LoadOp::Clear(wgpu::Color { 
                                             r: 0.0,
@@ -96,7 +97,7 @@ impl RenderPass {
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachmentDescriptor {
                     attachment: &textures.get("depth_texture").unwrap().view, // TODO: depth texture from function parameter?
                     depth_ops: Some(wgpu::Operations {
-                            load: match clear { true => wgpu::LoadOp::Clear(1.0), false => wgpu::LoadOp::Load }, 
+                            load: match self.draw_info.clear { true => wgpu::LoadOp::Clear(1.0), false => wgpu::LoadOp::Load }, 
                             store: true,
                     }),
                     stencil_ops: None,
@@ -113,21 +114,123 @@ impl RenderPass {
             // Set vertex buffer.
             render_pass.set_vertex_buffer(
                 0,
-                buffers.get(&vertex_buffer_info.vertex_buffer_name).unwrap().buffer.slice(..)
+                buffers.get(&self.draw_info.buffer_name).unwrap().buffer.slice(..)
+                //buffers.get(&vertex_buffer_info.vertex_buffer_name).unwrap().buffer.slice(..)
             );
 
             // TODO: handle index buffer.
 
             // Draw.
-            render_pass.draw(vertex_buffer_info.start_index..vertex_buffer_info.end_index, 0..vertex_buffer_info.instances);
+            render_pass.draw(self.draw_info.start_index..self.draw_info.end_index, 0..self.draw_info.instances);
     }
 }
 
+struct CPass {
+    pipeline: wgpu::ComputePipeline,
+    bind_groups: Vec<wgpu::BindGroup>,
+    dispatch_x: u32,
+    dispatch_y: u32,
+    dispatch_z: u32,
+}
+
+impl CPass {
+    pub fn init() {}
+    pub fn execute() {}
+}
+
+/// A struct for a single render pass.
+#[allow(dead_code)]
+pub struct RenderPass {
+    pipeline: wgpu::RenderPipeline,
+    bind_groups: Vec<wgpu::BindGroup>,
+}
+
+/// A struct for a single compute pass.
+#[allow(dead_code)]
+pub struct ComputePass {
+    pipeline: wgpu::ComputePipeline,
+    bind_groups: Vec<wgpu::BindGroup>,
+    dispatch_x: u32,
+    dispatch_y: u32,
+    dispatch_z: u32,
+}
+
+#[allow(dead_code)]
+impl RenderPass {
+    // Execute current render pass. TODO: multisampled doesn't work as expected. 
+//    fn execute(&self,
+//               encoder: &mut wgpu::CommandEncoder,
+//               frame: &wgpu::SwapChainTexture,
+//               multisampled_framebuffer: &wgpu::TextureView,
+//               textures: &HashMap<String, Texture>,
+//               buffers: &HashMap<String, JBuffer>,
+//               vertex_buffer_info: &VertexBufferInfo,
+//               sample_count: u32,
+//               clear: bool) {
+//
+//            let multi_sampled = multisampled(sample_count);
+//
+//            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+//                color_attachments: &[
+//                    wgpu::RenderPassColorAttachmentDescriptor {
+//                            attachment: match multi_sampled { false => &frame.view, true => &multisampled_framebuffer, },
+//                            resolve_target: match multi_sampled { false => None, true => Some(&frame.view), },
+//                            ops: wgpu::Operations {
+//                                load: match clear {
+//                                    true => {
+//                                        wgpu::LoadOp::Clear(wgpu::Color { 
+//                                            r: 0.0,
+//                                            g: 0.0,
+//                                            b: 0.0,
+//                                            a: 1.0,
+//                                        })
+//                                    }
+//                                    false => {
+//                                        wgpu::LoadOp::Load
+//                                    }
+//                                },
+//                                store: true,
+//                            },
+//                    }
+//                ],
+//                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachmentDescriptor {
+//                    attachment: &textures.get("depth_texture").unwrap().view, // TODO: depth texture from function parameter?
+//                    depth_ops: Some(wgpu::Operations {
+//                            load: match clear { true => wgpu::LoadOp::Clear(1.0), false => wgpu::LoadOp::Load }, 
+//                            store: true,
+//                    }),
+//                    stencil_ops: None,
+//                    }),
+//            });
+//
+//            render_pass.set_pipeline(&self.pipeline);
+//
+//            // Set bind groups. TODO: bundles.
+//            for (e, bgs) in self.bind_groups.iter().enumerate() {
+//                render_pass.set_bind_group(e as u32, &bgs, &[]);
+//            }
+//
+//            // Set vertex buffer.
+//            render_pass.set_vertex_buffer(
+//                0,
+//                buffers.get(&vertex_buffer_info.vertex_buffer_name).unwrap().buffer.slice(..)
+//            );
+//
+//            // TODO: handle index buffer.
+//
+//            // Draw.
+//            render_pass.draw(vertex_buffer_info.start_index..vertex_buffer_info.end_index, 0..vertex_buffer_info.instances);
+//    }
+}
+
+#[allow(dead_code)]
 impl ComputePass {
 
     fn execute(&self, encoder: &mut wgpu::CommandEncoder) {
 
-        let mut ray_pass = encoder.begin_compute_pass();
+        let mut ray_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: None,    
+        });
         ray_pass.set_pipeline(&self.pipeline);
         for (e, bgs) in self.bind_groups.iter().enumerate() {
             ray_pass.set_bind_group(e as u32, &bgs, &[]);
@@ -138,10 +241,10 @@ impl ComputePass {
 
 /// A struct that keep information about one binding.
 pub struct BindGroupInfo {
-    binding: u32,
-    visibility: wgpu::ShaderStage,
-    resource: Resource, 
-    binding_type: wgpu::BindingType,
+    pub binding: u32,
+    pub visibility: wgpu::ShaderStage,
+    pub resource: Resource, 
+    pub binding_type: wgpu::BindingType,
 }
 
 pub fn create_render_pipeline_and_bind_groups(device: &wgpu::Device,
@@ -192,7 +295,6 @@ pub fn create_render_pipeline_and_bind_groups(device: &wgpu::Device,
                             wgpu::BindingResource::Sampler(&textures.get(ts).expect(&format!("Failed to get texture {}.", ts)).sampler),
                         Resource::Buffer(b) =>
                             buffers.get(b).expect(&format!("Failed to get buffer {}.", b)).buffer.as_entire_binding(),
-                            //wgpu::BindingResource::Buffer(buffers.get(b).expect(&format!("Failed to get buffer {}.", b)).buffer.slice(..)),
                 }
             }).collect();
 
@@ -233,59 +335,58 @@ pub fn create_render_pipeline_and_bind_groups(device: &wgpu::Device,
       }
 
       let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: None,
-        layout: Some(&render_pipeline_layout),
-        vertex_stage: wgpu::ProgrammableStageDescriptor {
-            module: &shaders.get(&rpi.vertex_shader).expect(&format!("Failed to get vertex shader {}.", &rpi.vertex_shader)),
-            entry_point: &"main",
-        },
-        fragment_stage: match rpi.fragment_shader {
-            None => None,
-            Some(s)    => Some(wgpu::ProgrammableStageDescriptor {
-                            module: &shaders.get(s).expect(&format!("Failed to fragment shader {}.", s)),
-                            entry_point: &"main",
-                    }),
-        },
-        rasterization_state: Some(wgpu::RasterizationStateDescriptor {
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: wgpu::CullMode::None, // Back
-            ..Default::default()
-        }),
-        primitive_topology: *primitive_topology, //wgpu::PrimitiveTopology::TriangleList,
-        color_states: &[
-            wgpu::ColorStateDescriptor {
-                format: sc_desc.format,
-                color_blend: wgpu::BlendDescriptor::REPLACE,
-                alpha_blend: wgpu::BlendDescriptor::REPLACE,
-                write_mask: wgpu::ColorWrite::ALL,
+            label: None,
+            layout: Some(&render_pipeline_layout),
+            vertex_stage: wgpu::ProgrammableStageDescriptor {
+                module: &shaders.get(&rpi.vertex_shader).expect(&format!("Failed to get vertex shader {}.", &rpi.vertex_shader)),
+                entry_point: &"main",
             },
-        ],
-        //depth_stencil_state: None,
-        depth_stencil_state: Some(wgpu::DepthStencilStateDescriptor {
-            format: Texture::DEPTH_FORMAT,
-            depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::Less, // Less
-            stencil: wgpu::StencilStateDescriptor {
-                front: wgpu::StencilStateFaceDescriptor::IGNORE,
-                back: wgpu::StencilStateFaceDescriptor::IGNORE,
-                read_mask: 0,
-                write_mask: 0,
+            fragment_stage: match rpi.fragment_shader {
+                None => None,
+                Some(s)    => Some(wgpu::ProgrammableStageDescriptor {
+                                module: &shaders.get(s).expect(&format!("Failed to fragment shader {}.", s)),
+                                entry_point: &"main",
+                        }),
             },
-            //stencil_read_only: false,
-        }),
-        vertex_state: wgpu::VertexStateDescriptor {
-            index_format: wgpu::IndexFormat::Uint16,
-            vertex_buffers: &[wgpu::VertexBufferDescriptor {
-                stride: stride,
-                step_mode: wgpu::InputStepMode::Vertex,
-                attributes: &Borrowed(&vertex_attributes),
-            }],
-        },
-        sample_count: sample_count,
-        sample_mask: !0,
-        alpha_to_coverage_enabled: false,
+            rasterization_state: Some(wgpu::RasterizationStateDescriptor {
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: wgpu::CullMode::None, // Back
+                ..Default::default()
+            }),
+            primitive_topology: *primitive_topology, //wgpu::PrimitiveTopology::TriangleList,
+            color_states: &[
+                wgpu::ColorStateDescriptor {
+                    format: sc_desc.format,
+                    color_blend: wgpu::BlendDescriptor::REPLACE,
+                    alpha_blend: wgpu::BlendDescriptor::REPLACE,
+                    write_mask: wgpu::ColorWrite::ALL,
+                },
+            ],
+            //depth_stencil_state: None,
+            depth_stencil_state: Some(wgpu::DepthStencilStateDescriptor {
+                format: Texture::DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less, // Less
+                stencil: wgpu::StencilStateDescriptor {
+                    front: wgpu::StencilStateFaceDescriptor::IGNORE,
+                    back: wgpu::StencilStateFaceDescriptor::IGNORE,
+                    read_mask: 0,
+                    write_mask: 0,
+                },
+                //stencil_read_only: false,
+            }),
+            vertex_state: wgpu::VertexStateDescriptor {
+                index_format: Some(wgpu::IndexFormat::Uint16),
+                vertex_buffers: &[wgpu::VertexBufferDescriptor {
+                    stride: stride,
+                    step_mode: wgpu::InputStepMode::Vertex,
+                    attributes: &Borrowed(&vertex_attributes),
+                }],
+            },
+            sample_count: sample_count,
+            sample_mask: !0,
+            alpha_to_coverage_enabled: false,
       });
-
 
     println!(" OK'");
     (bind_groups, render_pipeline)
