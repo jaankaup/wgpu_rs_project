@@ -1,3 +1,4 @@
+use std::borrow::Cow::Borrowed;
 use bytemuck::{Pod, Zeroable};
 use cgmath::{prelude::*, Vector3};
 
@@ -83,3 +84,89 @@ pub fn map_range(a1: f32, a2: f32, b1: f32, b2: f32, s: f32) -> f32 {
 pub fn multisampled(sample_count: u32) -> bool {
   match sample_count { 1 => false, 2 => true, 4 => true, 8 => true, 16 => true, _ => panic!("Illegal sample count {}.", sample_count) }
 }
+
+/// Takes wgpu::VertexFormats as input and returns (stride, Vec<wgpu::VertexBufferDescriptor>)
+pub fn create_vb_descriptor(formats: &Vec<wgpu::VertexFormat>) -> (u64, Vec<wgpu::VertexAttributeDescriptor>) { 
+
+    let mut attribute_descriptors: Vec<wgpu::VertexAttributeDescriptor> = Vec::new();
+    let mut stride: u64 = 0;
+    for (i, format) in formats.iter().enumerate() {
+        let size = match format {
+                wgpu::VertexFormat::Uchar2 => 2 * std::mem::size_of::<u8> as u64, 
+                wgpu::VertexFormat::Uchar4 => 4 * std::mem::size_of::<u8> as u64,
+                wgpu::VertexFormat::Char2 => 2 * std::mem::size_of::<i8> as u64,
+                wgpu::VertexFormat::Char4 => 4 * std::mem::size_of::<i8> as u64,
+                wgpu::VertexFormat::Uchar2Norm => 2 * std::mem::size_of::<u8> as u64,
+                wgpu::VertexFormat::Uchar4Norm => 4 * std::mem::size_of::<u8> as u64,
+                wgpu::VertexFormat::Char2Norm => 2 * std::mem::size_of::<u8> as u64,
+                wgpu::VertexFormat::Char4Norm => 4 * std::mem::size_of::<u8> as u64,
+                wgpu::VertexFormat::Ushort2 => 2 * std::mem::size_of::<u16> as u64,
+                wgpu::VertexFormat::Ushort4 => 4 * std::mem::size_of::<u16> as u64,
+                wgpu::VertexFormat::Short2 => 2 * std::mem::size_of::<i16> as u64,
+                wgpu::VertexFormat::Short4 => 4 * std::mem::size_of::<i16> as u64,
+                wgpu::VertexFormat::Ushort2Norm => 2 * std::mem::size_of::<u16> as u64,
+                wgpu::VertexFormat::Ushort4Norm => 4 * std::mem::size_of::<u16> as u64,
+                wgpu::VertexFormat::Short2Norm => 2 * std::mem::size_of::<i16> as u64,
+                wgpu::VertexFormat::Short4Norm => 4 * std::mem::size_of::<i16> as u64,
+                wgpu::VertexFormat::Half2 => unimplemented!(),
+                wgpu::VertexFormat::Half4 => unimplemented!(),
+                wgpu::VertexFormat::Float => std::mem::size_of::<f32> as u64,
+                wgpu::VertexFormat::Float2 => 2 * std::mem::size_of::<f32> as u64,
+                wgpu::VertexFormat::Float3 => 3 * std::mem::size_of::<f32> as u64,
+                wgpu::VertexFormat::Float4 => 4 * std::mem::size_of::<f32> as u64,
+                wgpu::VertexFormat::Uint => std::mem::size_of::<u32> as u64,
+                wgpu::VertexFormat::Uint2 => 2 * std::mem::size_of::<u32> as u64,
+                wgpu::VertexFormat::Uint3 => 3 * std::mem::size_of::<u32> as u64,
+                wgpu::VertexFormat::Uint4 => 4 * std::mem::size_of::<u32> as u64,
+                wgpu::VertexFormat::Int => std::mem::size_of::<i32> as u64,
+                wgpu::VertexFormat::Int2 => 2 * std::mem::size_of::<i32> as u64,
+                wgpu::VertexFormat::Int3 => 3 * std::mem::size_of::<i32> as u64,
+                wgpu::VertexFormat::Int4 => 4 * std::mem::size_of::<i32> as u64,
+        };
+        attribute_descriptors.push(
+            wgpu::VertexAttributeDescriptor {
+                format: *format,
+                offset: stride,
+                shader_location: i as u32, 
+            }
+        );
+        stride = stride + size;
+    }
+
+    (stride, attribute_descriptors)
+}
+
+    
+
+//pub enum VertexFormat {
+//    Uchar2,
+//    Uchar4,
+//    Char2,
+//    Char4,
+//    Uchar2Norm,
+//    Uchar4Norm,
+//    Char2Norm,
+//    Char4Norm,
+//    Ushort2,
+//    Ushort4,
+//    Short2,
+//    Short4,
+//    Ushort2Norm,
+//    Ushort4Norm,
+//    Short2Norm,
+//    Short4Norm,
+//    Half2,
+//    Half4,
+//    Float,
+//    Float2,
+//    Float3,
+//    Float4,
+//    Uint,
+//    Uint2,
+//    Uint3,
+//    Uint4,
+//    Int,
+//    Int2,
+//    Int3,
+//    Int4,
+//}

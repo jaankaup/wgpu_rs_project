@@ -1,4 +1,4 @@
-use crate::buffer::Buffer;
+use crate::buffer::*;
 
 /// Data for textured cube. vvvttnnn vvvttnnn vvvttnnn ...
 //#[allow(dead_code)]
@@ -71,9 +71,9 @@ pub fn create_cube() -> Vec<f32> {
 }
 
 /// Creates a buffer for screen filling texture.
-pub fn create_screen_texture_buffer(device: &wgpu::Device) -> Buffer {
+pub fn create_screen_texture_buffer(device: &wgpu::Device) -> wgpu::Buffer {
 
-    Buffer::create_buffer_from_data::<f32>(
+    buffer_from_data::<f32>(
         device,
         // gl_Position     |    point_pos
         &[-1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,

@@ -3,7 +3,7 @@ use std::borrow::Cow::Borrowed;
 //use std::borrow::Cow::Borrowed;
 use std::collections::HashMap;
 use crate::texture::*;
-use crate::buffer::Buffer as JBuffer;
+use crate::buffer::*;
 use crate::misc::multisampled;
 
 //#[derive(Clone, Copy)]
@@ -66,7 +66,7 @@ impl RPass {
                frame: &wgpu::SwapChainTexture,
                multisampled_framebuffer: Option<&wgpu::TextureView>,
                textures: &HashMap<String, Texture>,
-               buffers: &HashMap<String, JBuffer>) {
+               buffers: &HashMap<String, wgpu::Buffer>) {
 
             let multi_sampled = multisampled(self.draw_info.samples);
 
@@ -114,7 +114,7 @@ impl RPass {
             // Set vertex buffer.
             render_pass.set_vertex_buffer(
                 0,
-                buffers.get(&self.draw_info.buffer_name).unwrap().buffer.slice(..)
+                buffers.get(&self.draw_info.buffer_name).unwrap().slice(..)
                 //buffers.get(&vertex_buffer_info.vertex_buffer_name).unwrap().buffer.slice(..)
             );
 
@@ -251,7 +251,7 @@ pub fn create_render_pipeline_and_bind_groups(device: &wgpu::Device,
                                    sc_desc: &wgpu::SwapChainDescriptor,
                                    shaders: &HashMap<String, wgpu::ShaderModule>,
                                    textures: &HashMap<String, Texture>,
-                                   buffers: &HashMap<String, JBuffer>,
+                                   buffers: &HashMap<String, wgpu::Buffer>,
                                    rpi: &RenderPipelineInfo,
                                    primitive_topology: &wgpu::PrimitiveTopology,
                                    sample_count: u32)
@@ -294,7 +294,7 @@ pub fn create_render_pipeline_and_bind_groups(device: &wgpu::Device,
                         Resource::TextureSampler(ts) =>
                             wgpu::BindingResource::Sampler(&textures.get(ts).expect(&format!("Failed to get texture {}.", ts)).sampler),
                         Resource::Buffer(b) =>
-                            buffers.get(b).expect(&format!("Failed to get buffer {}.", b)).buffer.as_entire_binding(),
+                            buffers.get(b).expect(&format!("Failed to get buffer {}.", b)).as_entire_binding(),
                 }
             }).collect();
 
@@ -395,7 +395,7 @@ pub fn create_render_pipeline_and_bind_groups(device: &wgpu::Device,
 pub fn create_compute_pipeline_and_bind_groups(device: &wgpu::Device,
                                            shaders: &HashMap<String, wgpu::ShaderModule>,
                                            textures: &HashMap<String, Texture>,
-                                           buffers: &HashMap<String, JBuffer>,
+                                           buffers: &HashMap<String, wgpu::Buffer>,
                                            rpi: &ComputePipelineInfo)
     -> (Vec<wgpu::BindGroup>, wgpu::ComputePipeline) {
 
@@ -430,7 +430,7 @@ pub fn create_compute_pipeline_and_bind_groups(device: &wgpu::Device,
                         Resource::TextureSampler(ts) =>
                             wgpu::BindingResource::Sampler(&textures.get(ts).expect(&format!("Failed to get texture {}.", ts)).sampler),
                         Resource::Buffer(b) =>
-                            buffers.get(b).expect(&format!("Failed to get buffer {}.", b)).buffer.as_entire_binding(),
+                            buffers.get(b).expect(&format!("Failed to get buffer {}.", b)).as_entire_binding(),
                             //wgpu::BindingResource::Buffer(buffers.get(b).expect(&format!("Failed to get buffer {}.", b)).buffer.slice(..)),
                 }
             }).collect();

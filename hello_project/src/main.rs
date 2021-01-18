@@ -8,7 +8,7 @@ use jaankaup_core::wgpu_system::{
 };
 use jaankaup_core::shader::ShaderModule;
 use jaankaup_core::pipeline::{BindGroupInfo, RenderPipelineInfo, Resource};
-use jaankaup_core::buffer::Buffer as JBuffer;
+use jaankaup_core::buffer::*;
 use jaankaup_core::texture::Texture as JTexture;
 use jaankaup_core::assets::create_screen_texture_buffer;
 
@@ -20,7 +20,7 @@ impl WGPUFeatures for MyFeatures {
 // State for this application.
 struct HelloApp {
     textures: HashMap<String, JTexture>, 
-    buffers: HashMap<String, JBuffer>,
+    buffers: HashMap<String, wgpu::Buffer>,
     shaders: HashMap<String, ShaderModule>,
     //render_passes: HashMap<String, RenderPass>,
 }
@@ -30,7 +30,7 @@ impl Application for HelloApp {
     fn init(configuration: &WGPUConfiguration) -> Self {
         
         // Create buffer container.
-        let mut buffers: HashMap<String, JBuffer> = HashMap::new();
+        let mut buffers: HashMap<String, wgpu::Buffer> = HashMap::new();
 
         let screen_buffer = create_screen_texture_buffer(&configuration.device);
         buffers.insert("screen".to_string(),screen_buffer);
