@@ -92,36 +92,36 @@ pub fn create_vb_descriptor(formats: &Vec<wgpu::VertexFormat>) -> (u64, Vec<wgpu
     let mut stride: u64 = 0;
     for (i, format) in formats.iter().enumerate() {
         let size = match format {
-                wgpu::VertexFormat::Uchar2 => 2 * std::mem::size_of::<u8> as u64, 
-                wgpu::VertexFormat::Uchar4 => 4 * std::mem::size_of::<u8> as u64,
-                wgpu::VertexFormat::Char2 => 2 * std::mem::size_of::<i8> as u64,
-                wgpu::VertexFormat::Char4 => 4 * std::mem::size_of::<i8> as u64,
-                wgpu::VertexFormat::Uchar2Norm => 2 * std::mem::size_of::<u8> as u64,
-                wgpu::VertexFormat::Uchar4Norm => 4 * std::mem::size_of::<u8> as u64,
-                wgpu::VertexFormat::Char2Norm => 2 * std::mem::size_of::<u8> as u64,
-                wgpu::VertexFormat::Char4Norm => 4 * std::mem::size_of::<u8> as u64,
-                wgpu::VertexFormat::Ushort2 => 2 * std::mem::size_of::<u16> as u64,
-                wgpu::VertexFormat::Ushort4 => 4 * std::mem::size_of::<u16> as u64,
-                wgpu::VertexFormat::Short2 => 2 * std::mem::size_of::<i16> as u64,
-                wgpu::VertexFormat::Short4 => 4 * std::mem::size_of::<i16> as u64,
-                wgpu::VertexFormat::Ushort2Norm => 2 * std::mem::size_of::<u16> as u64,
-                wgpu::VertexFormat::Ushort4Norm => 4 * std::mem::size_of::<u16> as u64,
-                wgpu::VertexFormat::Short2Norm => 2 * std::mem::size_of::<i16> as u64,
-                wgpu::VertexFormat::Short4Norm => 4 * std::mem::size_of::<i16> as u64,
+                wgpu::VertexFormat::Uchar2 => 2 * std::mem::size_of::<u8>() as u64, 
+                wgpu::VertexFormat::Uchar4 => 4 * std::mem::size_of::<u8>() as u64,
+                wgpu::VertexFormat::Char2 => 2 * std::mem::size_of::<i8>() as u64,
+                wgpu::VertexFormat::Char4 => 4 * std::mem::size_of::<i8>() as u64,
+                wgpu::VertexFormat::Uchar2Norm => 2 * std::mem::size_of::<u8>() as u64,
+                wgpu::VertexFormat::Uchar4Norm => 4 * std::mem::size_of::<u8>() as u64,
+                wgpu::VertexFormat::Char2Norm => 2 * std::mem::size_of::<u8>() as u64,
+                wgpu::VertexFormat::Char4Norm => 4 * std::mem::size_of::<u8>() as u64,
+                wgpu::VertexFormat::Ushort2 => 2 * std::mem::size_of::<u16>() as u64,
+                wgpu::VertexFormat::Ushort4 => 4 * std::mem::size_of::<u16>() as u64,
+                wgpu::VertexFormat::Short2 => 2 * std::mem::size_of::<i16>() as u64,
+                wgpu::VertexFormat::Short4 => 4 * std::mem::size_of::<i16>() as u64,
+                wgpu::VertexFormat::Ushort2Norm => 2 * std::mem::size_of::<u16>() as u64,
+                wgpu::VertexFormat::Ushort4Norm => 4 * std::mem::size_of::<u16>() as u64,
+                wgpu::VertexFormat::Short2Norm => 2 * std::mem::size_of::<i16>() as u64,
+                wgpu::VertexFormat::Short4Norm => 4 * std::mem::size_of::<i16>() as u64,
                 wgpu::VertexFormat::Half2 => unimplemented!(),
                 wgpu::VertexFormat::Half4 => unimplemented!(),
-                wgpu::VertexFormat::Float => std::mem::size_of::<f32> as u64,
-                wgpu::VertexFormat::Float2 => 2 * std::mem::size_of::<f32> as u64,
-                wgpu::VertexFormat::Float3 => 3 * std::mem::size_of::<f32> as u64,
-                wgpu::VertexFormat::Float4 => 4 * std::mem::size_of::<f32> as u64,
-                wgpu::VertexFormat::Uint => std::mem::size_of::<u32> as u64,
-                wgpu::VertexFormat::Uint2 => 2 * std::mem::size_of::<u32> as u64,
-                wgpu::VertexFormat::Uint3 => 3 * std::mem::size_of::<u32> as u64,
-                wgpu::VertexFormat::Uint4 => 4 * std::mem::size_of::<u32> as u64,
-                wgpu::VertexFormat::Int => std::mem::size_of::<i32> as u64,
-                wgpu::VertexFormat::Int2 => 2 * std::mem::size_of::<i32> as u64,
-                wgpu::VertexFormat::Int3 => 3 * std::mem::size_of::<i32> as u64,
-                wgpu::VertexFormat::Int4 => 4 * std::mem::size_of::<i32> as u64,
+                wgpu::VertexFormat::Float => std::mem::size_of::<f32>() as u64,
+                wgpu::VertexFormat::Float2 => 2 * std::mem::size_of::<f32>() as u64,
+                wgpu::VertexFormat::Float3 => 3 * std::mem::size_of::<f32>() as u64,
+                wgpu::VertexFormat::Float4 => 4 * std::mem::size_of::<f32>() as u64,
+                wgpu::VertexFormat::Uint => std::mem::size_of::<u32>() as u64,
+                wgpu::VertexFormat::Uint2 => 2 * std::mem::size_of::<u32>() as u64,
+                wgpu::VertexFormat::Uint3 => 3 * std::mem::size_of::<u32>() as u64,
+                wgpu::VertexFormat::Uint4 => 4 * std::mem::size_of::<u32>() as u64,
+                wgpu::VertexFormat::Int => std::mem::size_of::<i32>() as u64,
+                wgpu::VertexFormat::Int2 => 2 * std::mem::size_of::<i32>() as u64,
+                wgpu::VertexFormat::Int3 => 3 * std::mem::size_of::<i32>() as u64,
+                wgpu::VertexFormat::Int4 => 4 * std::mem::size_of::<i32>() as u64,
         };
         attribute_descriptors.push(
             wgpu::VertexAttributeDescriptor {
@@ -135,6 +135,33 @@ pub fn create_vb_descriptor(formats: &Vec<wgpu::VertexFormat>) -> (u64, Vec<wgpu
 
     (stride, attribute_descriptors)
 }
+
+///// Input: Vec<(u32, wgpu::BindingResource)>
+//pub fn create_bindgroup(
+//    device: &wgpu::Device,
+//    binding_resources: &Vec<wgpu::BindGroupLayoutEntry>,
+//    ) -> wgpu::BindGroup {
+//
+//    // Create wgpu::BindGroupLayoutEntry
+//    //let mut bind_group_layouts: Vec<wgpu::BindGroupEntry> = Vec::new();
+//
+//    let bind_group_layout = 
+//        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+//            entries: Borrowed(&layout_entries),
+//            label: None,
+//        });
+//
+//
+//
+//
+//    // Create wgpu::BindGroupLayout
+//
+//    // Create wgpu::BindGroupLayout
+//
+//    // Create wgpu::BindGroupDescriptor
+//
+//    // Create wgpu::BindGroup
+//}
 
     
 

@@ -1,8 +1,10 @@
 // TODO: define shader_modules
-
+use std::borrow::Cow::*;
 use crate::buffer::*;
+use crate::texture as jaankaup;
 use crate::misc::create_vb_descriptor;
 
+/// Resources for rendering a single texture on the whole screen.
 pub struct TwoTriangles {
     pipeline: wgpu::RenderPipeline,
     draw_buffer: wgpu::Buffer,
@@ -10,6 +12,7 @@ pub struct TwoTriangles {
 
 impl TwoTriangles {
 
+    /// Creates resources.
     pub fn init(device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor) -> Self {
         
         Self {
@@ -18,24 +21,34 @@ impl TwoTriangles {
         }
     }
 
-    /// Load shaders and compile.
-    fn load_shaders(device: &wgpu::Device) -> (wgpu::ShaderModule, wgpu::ShaderModule) {
-    
-        let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/screen_texture.vert.spv");
-        let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/screen_texture.frag.spv");
-    
-        let vert = device.create_shader_module(&vertex_shader_src);
-        let frag = device.create_shader_module(&fragment_shader_src);
-        
-        (vert, frag)
+    /// Create a bind group for TwoTriangles using 2d texture.
+    pub fn create_bind_group(device: &wgpu::Device, texture: &jaankaup::Texture) -> wgpu::BindGroup {
+
+        let bind_group_layout = TwoTriangles::get_bind_group_layout(&device);
+
+        // Create bindings.
+        let bind_group_entry0 = wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&texture.view),
+        };
+
+        let bind_group_entry1 = wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&texture.sampler),
+        };
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[bind_group_entry0, bind_group_entry1],
+            label: None,
+        });
+
+        bind_group
     }
-    
-    /// Creates pipeline for drawing texture on the screen (two triangles).
-    fn create_pipeline(device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor) -> wgpu::RenderPipeline {
-    
-        let (vs_module, fs_module) = TwoTriangles::load_shaders(&device);
-        
-        // Create bind group layout for pipeline.
+
+    /// Creates the BindGroupLayout for TwoTriangles pipeline and bindgroup.
+    fn get_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+
         let bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -59,22 +72,111 @@ impl TwoTriangles {
                         count: None,
                     },
                 ],
-                label: None,
+                label: Some("two_triangles_bind_group_layout"),
         });
+
+        bind_group_layout
+
+    }
+
+//    pub fn draw(&self,
+//                encoder: &mut wgpu::CommandEncoder,
+//                frame: &wgpu::SwapChainTexture,
+//                texture: &wgpu::Texture,
+//                clear: bool) {
+//
+//        let mut render_pass = encoder.begin_render_pass(
+//                &wgpu::RenderPassDescriptor {
+//                    color_attachments: Borrowed(&[
+//                        wgpu::RenderPassColorAttachmentDescriptor {
+//                                attachment: &frame.view,
+//                                resolve_target: None,
+//                                ops: wgpu::Operations {
+//                                    load: match clear {
+//                                        true => {
+//                                            wgpu::LoadOp::Clear(wgpu::Color {
+//                                                r: 0.0,
+//                                                g: 0.0,
+//                                                b: 0.0,
+//                                                a: 1.0,
+//                                            })
+//                                        }
+//                                        false => {
+//                                            wgpu::LoadOp::Load
+//                                        }
+//                                    },
+//                                    store: true,
+//                                },
+//                        }
+//                    ]),
+//                depth_stencil_attachment: None,
+//                //depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachmentDescriptor {
+//                //    attachment: &textures.get(TEXTURES.depth.name).unwrap().view,
+//                //    depth_ops: Some(wgpu::Operations {
+//                //            load: match clear { true => wgpu::LoadOp::Clear(1.0), false => wgpu::LoadOp::Load },
+//                //            store: true,
+//                //    }),
+//                //    stencil_ops: None,
+//                //    }),
+//            });
+//
+//            render_pass.set_pipeline(&self.pipeline);
+//            render_pass.set_bind_group(0,
+//                                       &wgpu::BindGroup
+//
+//            // Set bind groups.
+//            for (e, bgs) in self.bind_groups.iter().enumerate() {
+//                render_pass.set_bind_group(e as u32, &bgs, &[]);
+//            }
+//
+//            // Set vertex buffer.
+//            render_pass.set_vertex_buffer(
+//                0,
+//                buffers.get(&vertex_buffer_info.vertex_buffer_name).unwrap().buffer.slice(..)
+//            );
+//
+//            // TODO: handle index buffer.
+//
+//
+//           // Draw.
+//            render_pass.draw(vertex_buffer_info.start_index..vertex_buffer_info.end_index, 0..vertex_buffer_info.instances);
+//    }
+
+    /// Load and compile shaders for TwoTriangles.
+    fn load_shaders(device: &wgpu::Device) -> (wgpu::ShaderModule, wgpu::ShaderModule) {
+    
+        let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/screen_texture.vert.spv");
+        let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/screen_texture.frag.spv");
+    
+        let vert = device.create_shader_module(&vertex_shader_src);
+        let frag = device.create_shader_module(&fragment_shader_src);
+        
+        (vert, frag)
+    }
+    
+    /// Create the pipeline for TwoTriangles.
+    fn create_pipeline(device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor) -> wgpu::RenderPipeline {
+    
+        let (vs_module, fs_module) = TwoTriangles::load_shaders(&device);
+        
+        // Create bind group layout for pipeline.
+        let bind_group_layout = TwoTriangles::get_bind_group_layout(&device);
         
         // Create pipeline layout.
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("main"),
+            label: Some("two_triangles_pipeline_layout"),
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
         
         // Create stride and vertex attribute descriptors.
-        let (stride, vb_desc) =  create_vb_descriptor(&vec![wgpu::VertexFormat::Float3]);
+        let (stride, vb_desc) =  create_vb_descriptor(
+            &vec![wgpu::VertexFormat::Float4, wgpu::VertexFormat::Float4]
+        );
         
         // Create the pipeline.
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("main"),
+            label: Some("two_triangles_pipeline"),
             layout: Some(&pipeline_layout),
             vertex_stage: wgpu::ProgrammableStageDescriptor {
                 module: &vs_module,
@@ -109,7 +211,7 @@ impl TwoTriangles {
                         stride: stride,
                         step_mode: wgpu::InputStepMode::Vertex, 
                         attributes: &vb_desc,
-                    }], // TODO: create function!
+                    }],
             },
             sample_count: 1,
             sample_mask: !0,
