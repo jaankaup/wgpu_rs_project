@@ -17,7 +17,12 @@ pub trait Application: Sized + 'static {
     fn init(configuration: &WGPUConfiguration) -> Self;
 
     /// The render function for application.
-    fn render(self);
+    fn render(&mut self,
+              device: &wgpu::Device,
+              queue: &mut wgpu::Queue,
+              swap_chain: &mut wgpu::SwapChain,
+              surface: &wgpu::Surface,
+              sc_desc: &wgpu::SwapChainDescriptor);
 
     /// A function that handles inputs.
     fn input(self);
@@ -84,8 +89,8 @@ impl Loop for BasicLoop {
         surface,
         adapter,
         device,
-        queue,
-        swap_chain,
+        mut queue,
+        mut swap_chain,
         sc_desc
         }: WGPUConfiguration,) {
 
@@ -142,8 +147,8 @@ impl Loop for BasicLoop {
                 &surface,
                 &adapter,
                 &device,
-                &queue,
-                &swap_chain,
+                &mut queue,
+                &mut swap_chain,
                 &sc_desc,
                 &mut application,
                 &mut input);
@@ -181,7 +186,7 @@ impl Loop for BasicLoop {
                 }
             }
             Event::RedrawRequested(_) => {
-                //state.render(&window);
+                application.render( &device, &mut queue, &mut swap_chain, &surface, &sc_desc)
             }
             _ => { } // Any other events
         } // match event

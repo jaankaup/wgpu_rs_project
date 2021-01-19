@@ -22,8 +22,25 @@ impl WGPUFeatures for MyFeatures {
 struct HelloApp {
     textures: HashMap<String, JTexture>, 
     buffers: HashMap<String, wgpu::Buffer>,
+    two_triangles: TwoTriangles,
+    two_triangles_bind_group: wgpu::BindGroup,
+    depth_texture: JTexture,
     //shaders: HashMap<String, ShaderModule>,
     //render_passes: HashMap<String, RenderPass>,
+}
+
+impl HelloApp {
+
+    fn create_texture(configuration: &WGPUConfiguration) -> JTexture {
+        let grass_texture = JTexture::create_from_bytes(
+            &configuration.queue,
+            &configuration.device,
+            &configuration.sc_desc,
+            1,
+            &include_bytes!("../../textures/grass2.png")[..],
+            None);
+        grass_texture
+    }
 }
 
 impl Application for HelloApp {
@@ -32,22 +49,63 @@ impl Application for HelloApp {
         
         // Create buffer container.
         let mut buffers: HashMap<String, wgpu::Buffer> = HashMap::new();
+        let mut textures: HashMap<String, JTexture> = HashMap::new();
 
         //let screen_buffer = create_screen_texture_buffer(&configuration.device);
         //buffers.insert("screen".to_string(),screen_buffer);
 
         let two_triangles = TwoTriangles::init(&configuration.device, &configuration.sc_desc);
+        let grass_texture = HelloApp::create_texture(&configuration); 
+        let depth_texture = JTexture::create_depth_texture(
+            &configuration.device,
+            &configuration.sc_desc,
+            Some("depth_texture")
+        ); 
+        let bind_group = TwoTriangles::create_bind_group(
+            &configuration.device,
+            &grass_texture
+        );
+
+        textures.insert("grass".to_string(), grass_texture); 
 
         HelloApp { 
-            textures: HashMap::<String, JTexture>::new(),
+            textures: textures,
             buffers: buffers,
+            two_triangles: two_triangles,
+            two_triangles_bind_group: bind_group,
+            depth_texture: depth_texture,
             //shaders: load_shaders(&configuration.device),
             //render_passes: HashMap::<String, RenderPass>::new(),
         }
     }
 
-    fn render(self) {
+    fn render(&mut self,
+              device: &wgpu::Device,
+              queue: &mut wgpu::Queue,
+              swap_chain: &mut wgpu::SwapChain,
+              surface: &wgpu::Surface,
+              sc_desc: &wgpu::SwapChainDescriptor) {
 
+        //let frame = match self.swap_chain.get_current_frame() {
+        let frame = match swap_chain.get_current_frame() {
+            Ok(frame) => { frame.output },
+            Err(_) => {
+                println!("FAILED");
+                *swap_chain = device.create_swap_chain(surface, sc_desc);
+                swap_chain.get_current_frame().expect("Failed to acquire next swap chain texture").output
+            },
+        };
+
+        let mut encoder = device.create_command_encoder(
+            &wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+        });
+
+        self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true); 
+
+        queue.submit(Some(encoder.finish()));
+
+        
     }
 
     fn input(self) {
@@ -63,68 +121,6 @@ impl Application for HelloApp {
     }
 
 }
-
-//fn create_screen_texture_render_pass(
-
-// fn load_shaders(device: &wgpu::Device) -> HashMap<String,ShaderModule> {
-// 
-//     let mut hmap = HashMap::<String, ShaderModule>::new();
-//     
-//     println!("Creating vertex module 'screen texture shader' ...");
-//     let screen_module_vert = ShaderModule::build(
-//         &"screen_vert".to_string(),
-//         &wgpu::include_spirv!("../../shaders/spirv/screen_texture.vert.spv"),
-//         &device
-//     );
-// 
-//     println!("Creating fragment module 'screen texture shader' ...");
-//     let screen_module_vert = ShaderModule::build(
-//         &"screen_frag".to_string(),
-//         &wgpu::include_spirv!("../../shaders/spirv/screen_texture.frag.spv"),
-//         &device
-//     );
-//     hmap
-// }
-
-// Create a pipeline and binding groups for shader that renders a given texture to the screen.
-// Should be used with two_triangles buffer.
-//fn create_screen_texture_info(texture_name: &'static str, sample_count: u32) -> RenderPipelineInfo {
-//    use jaankaup_core::misc as jm;
-//
-//    let screen_texture_info: RenderPipelineInfo = RenderPipelineInfo {
-//        vertex_shader: "screen_vert".to_string(),
-//        fragment_shader: Some("sreen_frag"),
-//        bind_groups: vec![
-//                vec![
-//                    BindGroupInfo {
-//                        binding: 0,
-//                        visibility: wgpu::ShaderStage::FRAGMENT,
-//                        resource: Resource::TextureView(texture_name),
-//                        binding_type: wgpu::BindingType::Texture {
-//                           sample_type: wgpu::TextureSampleType::Float {filterable: true},
-//                           view_dimension: wgpu::TextureViewDimension::D2,
-//                           multisampled: jm::multisampled(sample_count),
-//                        },
-//                    },
-//                    BindGroupInfo {
-//                        binding: 1,
-//                        visibility: wgpu::ShaderStage::FRAGMENT,
-//                        resource: Resource::TextureSampler(texture_name),
-//                        binding_type: wgpu::BindingType::Sampler {
-//                           comparison: false,
-//                           filtering: true,
-//                        },
-//                    },
-//                ],
-//        ],
-//        input_formats: vec![
-//            (wgpu::VertexFormat::Float4, 4 * std::mem::size_of::<f32>() as u64),
-//            (wgpu::VertexFormat::Float4, 4 * std::mem::size_of::<f32>() as u64)
-//        ],
-//    };
-//    screen_texture_info
-//}
-
 
 fn main() {
     

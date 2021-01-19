@@ -79,68 +79,60 @@ impl TwoTriangles {
 
     }
 
-//    pub fn draw(&self,
-//                encoder: &mut wgpu::CommandEncoder,
-//                frame: &wgpu::SwapChainTexture,
-//                texture: &wgpu::Texture,
-//                clear: bool) {
-//
-//        let mut render_pass = encoder.begin_render_pass(
-//                &wgpu::RenderPassDescriptor {
-//                    color_attachments: Borrowed(&[
-//                        wgpu::RenderPassColorAttachmentDescriptor {
-//                                attachment: &frame.view,
-//                                resolve_target: None,
-//                                ops: wgpu::Operations {
-//                                    load: match clear {
-//                                        true => {
-//                                            wgpu::LoadOp::Clear(wgpu::Color {
-//                                                r: 0.0,
-//                                                g: 0.0,
-//                                                b: 0.0,
-//                                                a: 1.0,
-//                                            })
-//                                        }
-//                                        false => {
-//                                            wgpu::LoadOp::Load
-//                                        }
-//                                    },
-//                                    store: true,
-//                                },
-//                        }
-//                    ]),
-//                depth_stencil_attachment: None,
-//                //depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachmentDescriptor {
-//                //    attachment: &textures.get(TEXTURES.depth.name).unwrap().view,
-//                //    depth_ops: Some(wgpu::Operations {
-//                //            load: match clear { true => wgpu::LoadOp::Clear(1.0), false => wgpu::LoadOp::Load },
-//                //            store: true,
-//                //    }),
-//                //    stencil_ops: None,
-//                //    }),
-//            });
-//
-//            render_pass.set_pipeline(&self.pipeline);
-//            render_pass.set_bind_group(0,
-//                                       &wgpu::BindGroup
-//
-//            // Set bind groups.
-//            for (e, bgs) in self.bind_groups.iter().enumerate() {
-//                render_pass.set_bind_group(e as u32, &bgs, &[]);
-//            }
-//
-//            // Set vertex buffer.
-//            render_pass.set_vertex_buffer(
-//                0,
-//                buffers.get(&vertex_buffer_info.vertex_buffer_name).unwrap().buffer.slice(..)
-//            );
-//
-//            // TODO: handle index buffer.
-//
-//
-//           // Draw.
-//            render_pass.draw(vertex_buffer_info.start_index..vertex_buffer_info.end_index, 0..vertex_buffer_info.instances);
-//    }
+    pub fn draw(&self,
+                encoder: &mut wgpu::CommandEncoder,
+                frame: &wgpu::SwapChainTexture,
+                depth_texture: &jaankaup::Texture,
+                bind_group: &wgpu::BindGroup,
+                clear: bool) {
+
+        let mut render_pass = encoder.begin_render_pass(
+                &wgpu::RenderPassDescriptor {
+                    label: Some("two_triangles_rendes_pass_descriptor"),
+                    color_attachments: &[
+                        wgpu::RenderPassColorAttachmentDescriptor {
+                                attachment: &frame.view,
+                                resolve_target: None,
+                                ops: wgpu::Operations {
+                                    load: match clear {
+                                        true => {
+                                            wgpu::LoadOp::Clear(wgpu::Color {
+                                                r: 0.0,
+                                                g: 0.0,
+                                                b: 0.0,
+                                                a: 1.0,
+                                            })
+                                        }
+                                        false => {
+                                            wgpu::LoadOp::Load
+                                        }
+                                    },
+                                    store: true,
+                                },
+                        }
+                    ],
+                //depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachmentDescriptor {
+                    attachment: &depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                            load: match clear { true => wgpu::LoadOp::Clear(1.0), false => wgpu::LoadOp::Load },
+                            store: true,
+                    }),
+                    stencil_ops: None,
+                    }),
+            });
+
+            render_pass.set_pipeline(&self.pipeline);
+            render_pass.set_bind_group(0, &bind_group, &[]);
+
+            // Set vertex buffer.
+            render_pass.set_vertex_buffer(
+                0,
+                self.draw_buffer.slice(..)
+            );
+
+            render_pass.draw(0..6, 0..1);
+    }
 
     /// Load and compile shaders for TwoTriangles.
     fn load_shaders(device: &wgpu::Device) -> (wgpu::ShaderModule, wgpu::ShaderModule) {
@@ -205,7 +197,7 @@ impl TwoTriangles {
                 },
             }),
             vertex_state: wgpu::VertexStateDescriptor {
-                index_format: Some(wgpu::IndexFormat::Uint16),
+                index_format: None, //Some(wgpu::IndexFormat::Uint16),
                 vertex_buffers: &[
                     wgpu::VertexBufferDescriptor {
                         stride: stride,
@@ -223,7 +215,7 @@ impl TwoTriangles {
     
     /// Creates a buffer for screen filling texture (two triangles).
     pub fn create_screen_texture_buffer(device: &wgpu::Device) -> wgpu::Buffer {
-    
+
         buffer_from_data::<f32>(
             device,
             // gl_Position     |    point_pos
