@@ -25,13 +25,13 @@ pub trait Application: Sized + 'static {
               sc_desc: &wgpu::SwapChainDescriptor);
 
     /// A function that handles inputs.
-    fn input(self);
+    fn input(&mut self, input_cache: &InputCache);
 
     /// A function for resizing.
-    fn resize(self);
+    fn resize(&self);
 
     /// A function for updating the state of the application.
-    fn update(self);
+    fn update(&self);
 }
 
 /// A trait for Loops.
@@ -42,7 +42,7 @@ pub trait Loop: Sized + 'static {
 
     /// Run function that starts the loop. Beware: run takes ownership of application and
     /// configuration.
-    fn run<A: Application>(self, application: A, configuration: WGPUConfiguration);
+    fn run<A: Application>(&self, application: A, configuration: WGPUConfiguration);
 }
 
 /// A struct that holds the wgpu-rs application resources.
@@ -81,7 +81,7 @@ impl Loop for BasicLoop {
         BasicLoop {}
     }
 
-    fn run<A: Application>(self, mut application: A, WGPUConfiguration {
+    fn run<A: Application>(&self, mut application: A, WGPUConfiguration {
         window,
         event_loop,
         instance,
@@ -94,45 +94,6 @@ impl Loop for BasicLoop {
         sc_desc
         }: WGPUConfiguration,) {
 
-    // Create thread pool and spawner for native version.
-//    #[cfg(not(target_arch = "wasm32"))]
-//    let (mut pool, _spawner) = {
-//
-//        let local_pool = futures::executor::LocalPool::new();
-//        let spawner = local_pool.spawner();
-//        (local_pool, spawner)
-//    };
-//
-//    // Define spawner for wasm version.
-//    #[cfg(target_arch = "wasm32")]
-//    let _spawner = {
-//        use futures::{future::LocalFutureObj, task::SpawnError};
-//        use winit::platform::web::WindowExtWebSys;
-//
-//        struct WebSpawner {}
-//        impl LocalSpawn for WebSpawner {
-//            fn spawn_local_obj(
-//                &self,
-//                future: LocalFutureObj<'static, ()>,
-//            ) -> Result<(), SpawnError> {
-//                Ok(wasm_bindgen_futures::spawn_local(future))
-//            }
-//        }
-//
-//        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-//
-//        // On wasm, append the canvas to the document body
-//        web_sys::window()
-//            .and_then(|win| win.document())
-//            .and_then(|doc| doc.body())
-//            .and_then(|body| {
-//                body.append_child(&web_sys::Element::from(window.canvas()))
-//                    .ok()
-//            })
-//            .expect("couldn't append canvas to document body");
-//
-//        WebSpawner {}
-//    };
     let spawner = Spawner::new();
 
     let mut input = InputCache::init();
@@ -184,6 +145,8 @@ impl Loop for BasicLoop {
                     }
                     _ => {}
                 }
+                
+                application.input(&input);
             }
             Event::RedrawRequested(_) => {
                 application.render( &device, &mut queue, &mut swap_chain, &surface, &sc_desc)
@@ -293,11 +256,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
     let sc_desc = wgpu::SwapChainDescriptor {
         usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
         // TODO: Allow srgb unconditionally
-        format: if cfg!(target_arch = "wasm32") {
-            wgpu::TextureFormat::Bgra8Unorm
-        } else {
-            wgpu::TextureFormat::Bgra8UnormSrgb
-        },
+        format: adapter.get_swap_chain_preferred_format(&surface),
         width: size.width,
         height: size.height,
         present_mode: wgpu::PresentMode::Mailbox,

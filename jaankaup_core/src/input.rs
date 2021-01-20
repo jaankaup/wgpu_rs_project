@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::time::{Instant};
+//use std::time::{Instant};
+use instant;
 
 use winit::event as ev;
 
@@ -127,7 +128,7 @@ impl MouseButtons {
     }
 }
 
-/// A stuct for holdin information about the mouse cursor position.
+/// A stuct for keep track on mouse cursor position.
 #[derive(Clone, Copy)]
 pub struct CursorPosition {
     pos: Option<PhysicalPosition<f64>>,
@@ -153,7 +154,7 @@ pub struct InputCache {
     pub scroll_delta: f32,
     pub time_now: u128,
     pub time_delta: u128,
-    pub timer: Instant,
+    pub timer: instant::Instant,
 }
 
 impl InputCache {
@@ -162,7 +163,7 @@ impl InputCache {
         let keyboard = HashMap::<Key, InputState>::with_capacity(128);
         let mouse_buttons = MouseButtons::init();
         let mouse_position = CursorPosition::init();
-        let timer = Instant::now(); 
+        let timer = instant::Instant::now();
 
         Self {
             keyboard: keyboard,
@@ -176,13 +177,13 @@ impl InputCache {
         }
     }
 
-
     /// This should be called before the actual update to ensure the all events takes effect even
     /// winit doesn't produce any events..
     pub fn pre_update(&mut self) {
         // If mouse buttons were released previously, apply None to those states.
         self.mouse_buttons.forced_update();
 
+        // Remove key from hashmap if its previous state was 'released'.
         self.keyboard.retain(|_, state| match state { InputState::Released(_,_) => false, _ => true }); 
 
         // Update timer.
@@ -206,7 +207,7 @@ impl InputCache {
         }
     }
     /// Get the InputState of keyboard key.
-    pub fn key_state(self, key: &Key) -> Option<InputState> {
+    pub fn key_state(&self, key: &Key) -> Option<InputState> {
         if let Some(val) = self.keyboard.get(key) {
             Some(val.clone())
         }
@@ -214,11 +215,11 @@ impl InputCache {
     }
 
     /// Get the InputState of mouse button.
-    pub fn mouse_button_state(self, button: &ev::MouseButton) -> Option<InputState> {
+    pub fn mouse_button_state(&self, button: &ev::MouseButton) -> Option<InputState> {
         match button {
-            ev::MouseButton::Left => { self.mouse_buttons.left.state } 
-            ev::MouseButton::Middle => { self.mouse_buttons.middle.state } 
-            ev::MouseButton::Right => { self.mouse_buttons.right.state } 
+            ev::MouseButton::Left => { self.mouse_buttons.left.state.clone() } 
+            ev::MouseButton::Middle => { self.mouse_buttons.middle.state.clone() } 
+            ev::MouseButton::Right => { self.mouse_buttons.right.state.clone() } 
             _ => None
         }
     }
@@ -227,9 +228,21 @@ impl InputCache {
         if let Some(key) = evt.virtual_keycode {
             match self.keyboard.get_mut(&key) {
                 Some(state) => {
+                    //println!("updating state");
+                    //match state {
+                    //    InputState::Pressed(time) => { println!("InputState::Pressed({})", time) } 
+                    //    InputState::Down(start,prev) => { println!("InputState::Down({},{})", start,prev) } 
+                    //    InputState::Released(start, prev) => { println!("InputState::Released({},{})", start,prev) }
+                    //}
+
+                    // Update the key time value.
                     state.update(&evt.state, self.time_now) 
                 }
                 None => {
+                    // match key {
+                    //     Key::A => println!("A pressed! :: {}", self.time_now),
+                    //     _ => println!("Something else pressed")
+                    // }
                     let _ = self.keyboard.insert(key, InputState::Pressed(self.time_now));
                 }
             }

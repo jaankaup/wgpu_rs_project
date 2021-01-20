@@ -6,6 +6,7 @@ pub mod buffer;
 pub mod texture; 
 pub mod pipeline; 
 pub mod assets; 
+pub mod camera; 
 pub mod two_triangles; 
 pub mod temp; 
 

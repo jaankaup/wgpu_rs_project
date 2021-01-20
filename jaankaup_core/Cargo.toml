@@ -11,12 +11,13 @@ edition = "2018"
 [dependencies]
 wgpu = { git = "https://github.com/gfx-rs/wgpu-rs" }
 #wgpu-core = "0.6.5"
-winit = { version = "0.23.0", features = ["web-sys"] }
+winit = { version = "0.24.0", features = ["web-sys"] }
 #futures = "0.3"
 async-executor = "1.0"
 cgmath = "0.17"
 bytemuck = { version = "1.4", features = ["derive"] }
 png = "0.16"
+instant = {version = "0.1", features = ["wasm-bindgen"]}
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 pollster = "0.2"
