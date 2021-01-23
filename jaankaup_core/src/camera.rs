@@ -39,17 +39,17 @@ unsafe impl bytemuck::Pod for RayCamera {}
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct Camera {
-    pub pos: cgmath::Vector3<f32>,
-    pub view: cgmath::Vector3<f32>,
-    pub up: cgmath::Vector3<f32>,
-    pub aspect: f32,
-    pub fov: cgmath::Vector2<f32>,
-    pub znear: f32,
-    pub zfar: f32,
-    pub movement_sensitivity: f32,
-    pub rotation_sensitivity: f32,
-    pub pitch: f32,
-    pub yaw: f32,
+    pos: cgmath::Vector3<f32>,
+    view: cgmath::Vector3<f32>,
+    up: cgmath::Vector3<f32>,
+    aspect: f32,
+    fov: cgmath::Vector2<f32>,
+    znear: f32,
+    zfar: f32,
+    movement_sensitivity: f32,
+    rotation_sensitivity: f32,
+    pitch: f32,
+    yaw: f32,
 }
 
 unsafe impl bytemuck::Zeroable for Camera {}
@@ -60,7 +60,8 @@ impl Camera {
     /// TODO: something better.
     pub fn new(aspect_width: f32, aspect_height: f32) -> Self {
 
-        assert!(aspect_height != 0.0, "voeha etta");
+        assert!(aspect_height > 0.0, "Height must be > 0.");
+        assert!(aspect_width > 0.0, "Width must be > 0.");
 
         Self {
             pos: (1.0, 1.0, 1.0).into(),
@@ -91,6 +92,8 @@ impl Camera {
 
         // Get the delta time between previous and current tick.
         let time_delta_nanos = input_cache.get_time_delta();
+
+        // Convert time delta to milli seconds.
         let time_delta_milli_f32 = time_delta_nanos as f32 / 1000000.0;
 
         // println!("time_delta_nanos == {}", time_delta_nanos);
@@ -115,25 +118,31 @@ impl Camera {
         //println!("movement == ({}, {}, {})", movement.x, movement.y,movement.z);
 
 
-        match left_mouse_button {
-            Some(InputState::Pressed(_)) => { println!("Left mouse is Pressed.") } ,
-            Some(InputState::Down(_,_)) => { println!("Left mouse is Down.") } ,
-            Some(InputState::Released(_, _)) => { println!("Left mouse is Released.") } ,
-            None => { println!("Left mouse is None.") } ,
-        }
+        // match left_mouse_button {
+        //     Some(InputState::Pressed(_)) => { println!("Left mouse is Pressed.") } ,
+        //     Some(InputState::Down(_,_)) => { println!("Left mouse is Down.") } ,
+        //     Some(InputState::Released(_, _)) => { println!("Left mouse is Released.") } ,
+        //     None => { println!("Left mouse is None.") } ,
+        // }
         
         let md = input_cache.get_mouse_delta();
         // Rotation.
         if let Some(InputState::Down(_,_)) = left_mouse_button {
-            println!("mouse_delta == ({}, {})", md.x, md.y);
+
             self.pitch = clamp(
                 self.pitch + (self.rotation_sensitivity as f32 * (md.y * (-1.0)) as f32),
                 -89.0,89.0);
             self.yaw = self.yaw + self.rotation_sensitivity * md.x as f32 ;
+
+            self.view = Vector3::new(
+                self.pitch.to_radians().cos() * self.yaw.to_radians().cos(),
+                self.pitch.to_radians().sin(),
+                self.pitch.to_radians().cos() * self.yaw.to_radians().sin()
+            ).normalize_to(1.0);
         }
 
-        println!("camera position == ({}, {}, {})", self.pos.x, self.pos.y, self.pos.z);
-        println!("camera view == ({}, {}, {})", self.view.x, self.view.y, self.view.z);
+        // println!("camera position == ({}, {}, {})", self.pos.x, self.pos.y, self.pos.z);
+        // println!("camera view == ({}, {}, {})", self.view.x, self.view.y, self.view.z);
     }
 
     /// Creates a pv matrix for wgpu.

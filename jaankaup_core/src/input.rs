@@ -24,8 +24,10 @@ impl InputState {
                     InputState::Pressed(start_time) => {
                         *self = InputState::Down(start_time,time_now)
                     }
+                    // TODO: Fix. Remove. This is updated in InputCache::pre_update function.
                     InputState::Down(start_time, _) => {
-                        *self = InputState::Down(start_time,time_now)
+                        println!("Heko heko");
+                        *self = InputState::Down(start_time,time_now);
                     }
                     InputState::Released(_,_) => {
                         *self = InputState::Pressed(time_now)
@@ -116,26 +118,19 @@ impl MouseButtons {
         }
     }
 
-    /// Clears the released mouse button states.
-    pub fn forced_update(&mut self) {
-        if let Some(InputState::Released(_,_)) = self.left.state   { self.left.state = None }
-        if let Some(InputState::Released(_,_)) = self.middle.state { self.middle.state = None }
-        if let Some(InputState::Released(_,_)) = self.right.state  { self.right.state = None }
-    }
-
     /// Get the state of the left mouse button.
-    pub fn get_left(self) -> Option<InputState> {
-        self.left.state
+    pub fn get_left(&self) -> Option<InputState> {
+        self.left.state.clone()
     }
 
     /// Get the state of the middle mouse button.
-    pub fn get_middle(self) -> Option<InputState> {
-        self.middle.state
+    pub fn get_middle(&self) -> Option<InputState> {
+        self.middle.state.clone()
     }
     
     /// Get the state of the right mouse button.
-    pub fn get_right(self) -> Option<InputState> {
-        self.right.state
+    pub fn get_right(&self) -> Option<InputState> {
+        self.right.state.clone()
     }
 }
 
@@ -220,8 +215,17 @@ impl InputCache {
     /// This should be called before the actual update to ensure the all events takes effect even
     /// winit doesn't produce any events.
     pub fn pre_update(&mut self) {
+
         // If mouse buttons were released previously, apply None to those states.
-        self.mouse_buttons.forced_update();
+        if let Some(InputState::Released(_,_)) = self.mouse_buttons.left.state   { self.mouse_buttons.left.state = None }
+        if let Some(InputState::Released(_,_)) = self.mouse_buttons.middle.state { self.mouse_buttons.middle.state = None }
+        if let Some(InputState::Released(_,_)) = self.mouse_buttons.right.state  { self.mouse_buttons.right.state = None }
+
+        // If mouse button is pressed, add the the to 'down'. This is a bit complicate. Maybe all 
+        // mouse button states should be added here (consider TODO).
+        if let Some(InputState::Pressed(start_time)) = self.mouse_buttons.left.state {
+            self.mouse_buttons.left.state = Some(InputState::Down(start_time,self.time_now));
+        }
 
         // Remove key from hashmap if its previous state was 'released'.
         self.keyboard.retain(|_, state| match state { InputState::Released(_,_) => false, _ => true }); 
