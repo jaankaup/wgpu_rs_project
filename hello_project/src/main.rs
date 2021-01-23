@@ -6,12 +6,9 @@ use jaankaup_core::wgpu_system::{
         Application,
         BasicLoop
 };
-use jaankaup_core::shader::ShaderModule;
-use jaankaup_core::pipeline::{BindGroupInfo, RenderPipelineInfo, Resource};
-use jaankaup_core::buffer::*;
 use jaankaup_core::texture::Texture as JTexture;
 use jaankaup_core::two_triangles::*;
-use jaankaup_core::camera::{Camera, CameraController};
+use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
 //use jaankaup_core::assets::create_screen_texture_buffer;
 
@@ -22,12 +19,11 @@ impl WGPUFeatures for MyFeatures {
 
 // State for this application.
 struct HelloApp {
-    textures: HashMap<String, JTexture>, 
-    buffers: HashMap<String, wgpu::Buffer>,
+    _textures: HashMap<String, JTexture>, 
+    _buffers: HashMap<String, wgpu::Buffer>,
     two_triangles: TwoTriangles,
     two_triangles_bind_group: wgpu::BindGroup,
     depth_texture: JTexture,
-    camera_controller: CameraController,
     camera: Camera,
     //shaders: HashMap<String, ShaderModule>,
     //render_passes: HashMap<String, RenderPass>,
@@ -52,7 +48,7 @@ impl Application for HelloApp {
     fn init(configuration: &WGPUConfiguration) -> Self {
         
         // Create buffer container.
-        let mut buffers: HashMap<String, wgpu::Buffer> = HashMap::new();
+        let buffers: HashMap<String, wgpu::Buffer> = HashMap::new();
         let mut textures: HashMap<String, JTexture> = HashMap::new();
 
         //let screen_buffer = create_screen_texture_buffer(&configuration.device);
@@ -72,16 +68,14 @@ impl Application for HelloApp {
 
         textures.insert("grass".to_string(), grass_texture); 
 
-        let camera_controller = CameraController::new(0.5, 0.5);
         let camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
 
         HelloApp { 
-            textures: textures,
-            buffers: buffers,
+            _textures: textures,
+            _buffers: buffers,
             two_triangles: two_triangles,
             two_triangles_bind_group: bind_group,
             depth_texture: depth_texture,
-            camera_controller: camera_controller,
             camera: camera,
             //shaders: load_shaders(&configuration.device),
             //render_passes: HashMap::<String, RenderPass>::new(),
@@ -118,7 +112,7 @@ impl Application for HelloApp {
     }
 
     fn input(&mut self, input_cache: &InputCache) {
-        self.camera_controller.update_camera(&mut self.camera, input_cache);
+        self.camera.update_from_input(&input_cache);
     }
 
     fn resize(&self) {

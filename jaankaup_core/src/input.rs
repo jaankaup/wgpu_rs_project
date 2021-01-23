@@ -49,13 +49,14 @@ impl InputState {
     }
 }
 
+/// A struct for a single mouse button.
 #[derive(Clone)]
 pub struct MouseButton {
     state: Option<InputState>,
     tag: ev::MouseButton,
 }
 
-/// A struct for mouse buttons.
+/// A struct for mouse buttons (left, middle, right).
 #[derive(Clone)]
 pub struct MouseButtons {
     left: MouseButton,
@@ -71,6 +72,8 @@ impl MouseButtons {
             right: MouseButton  { state: None , tag: ev::MouseButton::Right},
         }
     }
+
+    /// Update mouse button.
     pub fn update(&mut self, button: &ev::MouseButton, state: &ev::ElementState, time_now: u128) {
         match button {
             ev::MouseButton::Left => {
@@ -112,17 +115,25 @@ impl MouseButtons {
             _ => { /* Some other mouse button clicked. */ }
         }
     }
+
+    /// Clears the released mouse button states.
     pub fn forced_update(&mut self) {
         if let Some(InputState::Released(_,_)) = self.left.state   { self.left.state = None }
         if let Some(InputState::Released(_,_)) = self.middle.state { self.middle.state = None }
         if let Some(InputState::Released(_,_)) = self.right.state  { self.right.state = None }
     }
+
+    /// Get the state of the left mouse button.
     pub fn get_left(self) -> Option<InputState> {
         self.left.state
     }
+
+    /// Get the state of the middle mouse button.
     pub fn get_middle(self) -> Option<InputState> {
         self.middle.state
     }
+    
+    /// Get the state of the right mouse button.
     pub fn get_right(self) -> Option<InputState> {
         self.right.state
     }
@@ -136,6 +147,8 @@ pub struct CursorPosition {
 }
 
 impl CursorPosition {
+
+    /// Create Cursor Position.
     pub fn init() -> Self {
         Self {
             pos: None,
@@ -144,20 +157,37 @@ impl CursorPosition {
     }
 }
 
-/// A stuct for input handling. The idea is derived from https:/github.com/MoleTrooper/starframe.
+/// Handles the keyboard, mouse and time information. The idea is derived from https:/github.com/MoleTrooper/starframe.
 #[derive(Clone)]
 pub struct InputCache {
-    pub keyboard: HashMap<Key, InputState>,
-    pub mouse_buttons: MouseButtons,
-    pub mouse_position: CursorPosition,
-    pub mouse_delta: PhysicalPosition::<f64>,
-    pub scroll_delta: f32,
-    pub time_now: u128,
-    pub time_delta: u128,
-    pub timer: instant::Instant,
+
+    /// HashMap for keyboard keys/states.
+    keyboard: HashMap<Key, InputState>,
+
+    /// Left, middle and right mouse buttons.
+    mouse_buttons: MouseButtons,
+
+    /// The current mouse_position.
+    mouse_position: CursorPosition,
+
+    /// The delta for the current and previous mouse position.
+    mouse_delta: PhysicalPosition::<f64>,
+
+    /// The delta for the mouse scroll.
+    scroll_delta: f32,
+
+    /// Time now in micro seconds.
+    time_now: u128,
+
+    /// Delta for the current time and previous tick.
+    time_delta: u128,
+
+    /// The timer instance.
+    timer: instant::Instant,
 }
 
 impl InputCache {
+
     /// Initialize InputCache.
     pub fn init() -> Self {
         let keyboard = HashMap::<Key, InputState>::with_capacity(128);
@@ -177,8 +207,18 @@ impl InputCache {
         }
     }
 
+    /// Get the difference between the current time and previous tick.
+    pub fn get_time_delta(&self) -> u128 {
+        self.time_delta
+    }
+
+    /// Get the difference between the current and previous mouse position.
+    pub fn get_mouse_delta(&self) -> PhysicalPosition::<f64> {
+        self.mouse_delta
+    }
+
     /// This should be called before the actual update to ensure the all events takes effect even
-    /// winit doesn't produce any events..
+    /// winit doesn't produce any events.
     pub fn pre_update(&mut self) {
         // If mouse buttons were released previously, apply None to those states.
         self.mouse_buttons.forced_update();
@@ -228,21 +268,11 @@ impl InputCache {
         if let Some(key) = evt.virtual_keycode {
             match self.keyboard.get_mut(&key) {
                 Some(state) => {
-                    //println!("updating state");
-                    //match state {
-                    //    InputState::Pressed(time) => { println!("InputState::Pressed({})", time) } 
-                    //    InputState::Down(start,prev) => { println!("InputState::Down({},{})", start,prev) } 
-                    //    InputState::Released(start, prev) => { println!("InputState::Released({},{})", start,prev) }
-                    //}
-
                     // Update the key time value.
                     state.update(&evt.state, self.time_now) 
                 }
                 None => {
-                    // match key {
-                    //     Key::A => println!("A pressed! :: {}", self.time_now),
-                    //     _ => println!("Something else pressed")
-                    // }
+                    // The key doesn't have any state. Add a new pressed state for this key.
                     let _ = self.keyboard.insert(key, InputState::Pressed(self.time_now));
                 }
             }

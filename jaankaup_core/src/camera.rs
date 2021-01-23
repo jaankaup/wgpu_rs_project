@@ -2,12 +2,12 @@ use crate::misc::clamp;
 use crate::input::{InputCache, InputState};
 //use cgmath::{prelude::*};
 use cgmath::{prelude::*, Vector3, Vector4, Point3};
-use bytemuck::{Pod, Zeroable};
-use winit::{
-    event::{WindowEvent,KeyboardInput,ElementState,VirtualKeyCode,MouseButton},
-};
+//use winit::{
+//    event::{WindowEvent,KeyboardInput,ElementState,VirtualKeyCode,MouseButton},
+//};
 
 pub use winit::event::VirtualKeyCode as Key;
+pub use winit::event::MouseButton as MouseButton;
 
 /// Opengl to wgpu matrix
 #[cfg_attr(rustfmt, surtfmt_skip)]
@@ -46,6 +46,10 @@ pub struct Camera {
     pub fov: cgmath::Vector2<f32>,
     pub znear: f32,
     pub zfar: f32,
+    pub movement_sensitivity: f32,
+    pub rotation_sensitivity: f32,
+    pub pitch: f32,
+    pub yaw: f32,
 }
 
 unsafe impl bytemuck::Zeroable for Camera {}
@@ -66,7 +70,70 @@ impl Camera {
             fov: (45.0,45.0).into(),
             znear: 0.01,
             zfar: 1000.0,
+            movement_sensitivity: 0.5,
+            rotation_sensitivity: 0.5,
+            pitch: -80.5,
+            yaw: -50.5,
         }
+    }
+
+    /// Update camera from user input.
+    pub fn update_from_input(&mut self, input_cache: &InputCache) {
+
+        // Get the keyboard state (camera movement).
+        let state_forward = input_cache.key_state(&Key::W);
+        let state_backward = input_cache.key_state(&Key::S);
+        let state_right = input_cache.key_state(&Key::D);
+        let state_left = input_cache.key_state(&Key::A);
+        let state_up = input_cache.key_state(&Key::E);
+        let state_down = input_cache.key_state(&Key::C);
+        let left_mouse_button = input_cache.mouse_button_state(&MouseButton::Left);
+
+        // Get the delta time between previous and current tick.
+        let time_delta_nanos = input_cache.get_time_delta();
+        let time_delta_milli_f32 = time_delta_nanos as f32 / 1000000.0;
+
+        // println!("time_delta_nanos == {}", time_delta_nanos);
+        // println!("movement == {}", (time_delta_nanos as f32) / 1000000.0);
+        // println!("********************************");
+
+        // The right vector.
+        let right = self.view.cross(self.up);
+
+        let mut movement = cgmath::Vector3::new(0.0, 0.0, 0.0);
+
+        // Moving forward. Moving forward if forward key is pressed, down or released. 
+        if !state_forward.is_none() { movement += time_delta_milli_f32 * self.view; }
+        if !state_backward.is_none() { movement -= time_delta_milli_f32 * self.view; }
+        if !state_right.is_none() { movement += time_delta_milli_f32 * right; }
+        if !state_left.is_none() { movement -= time_delta_milli_f32 * right; }
+        if !state_up.is_none() { movement += time_delta_milli_f32 * self.up; }
+        if !state_down.is_none() { movement -= time_delta_milli_f32 * self.up; }
+
+        self.pos += movement;
+
+        //println!("movement == ({}, {}, {})", movement.x, movement.y,movement.z);
+
+
+        match left_mouse_button {
+            Some(InputState::Pressed(_)) => { println!("Left mouse is Pressed.") } ,
+            Some(InputState::Down(_,_)) => { println!("Left mouse is Down.") } ,
+            Some(InputState::Released(_, _)) => { println!("Left mouse is Released.") } ,
+            None => { println!("Left mouse is None.") } ,
+        }
+        
+        let md = input_cache.get_mouse_delta();
+        // Rotation.
+        if let Some(InputState::Down(_,_)) = left_mouse_button {
+            println!("mouse_delta == ({}, {})", md.x, md.y);
+            self.pitch = clamp(
+                self.pitch + (self.rotation_sensitivity as f32 * (md.y * (-1.0)) as f32),
+                -89.0,89.0);
+            self.yaw = self.yaw + self.rotation_sensitivity * md.x as f32 ;
+        }
+
+        println!("camera position == ({}, {}, {})", self.pos.x, self.pos.y, self.pos.z);
+        println!("camera view == ({}, {}, {})", self.view.x, self.view.y, self.view.z);
     }
 
     /// Creates a pv matrix for wgpu.
@@ -124,7 +191,7 @@ impl CameraController {
         }
     }
 
-    pub fn process_events(&mut self, input_cache: &InputCache) -> bool {
+    pub fn process_events(&mut self, _input_cache: &InputCache) -> bool {
         true    
     }
     

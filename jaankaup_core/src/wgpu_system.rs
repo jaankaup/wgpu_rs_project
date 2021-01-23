@@ -120,6 +120,7 @@ impl Loop for BasicLoop {
 
             // Events except RedrawRequested are reported.
             Event::MainEventsCleared => {
+                input.pre_update();
                 #[cfg(not(target_arch = "wasm32"))]
                 {
                     //pool.run_until_stalled();
@@ -131,7 +132,6 @@ impl Loop for BasicLoop {
             }
             Event::WindowEvent { event, ..} => {
                 // Update input cache.
-                input.pre_update();
                 input.update(&event);
 
                 match event {
