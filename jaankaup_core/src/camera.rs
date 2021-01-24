@@ -1,10 +1,7 @@
 use crate::misc::clamp;
 use crate::input::{InputCache, InputState};
-//use cgmath::{prelude::*};
+use crate::buffer::buffer_from_data;
 use cgmath::{prelude::*, Vector3, Vector4, Point3};
-//use winit::{
-//    event::{WindowEvent,KeyboardInput,ElementState,VirtualKeyCode,MouseButton},
-//};
 
 pub use winit::event::VirtualKeyCode as Key;
 pub use winit::event::MouseButton as MouseButton;
@@ -18,22 +15,8 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
         0.0, 0.0, 0.5, 1.0,
 );
 
-/// A camera for ray tracing purposes.
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct RayCamera {
-    pub pos: cgmath::Vector3<f32>,
-    pub view: cgmath::Vector3<f32>,
-    pub up: cgmath::Vector3<f32>,
-    pub fov: cgmath::Vector2<f32>,
-    pub aperture_radius: f32,
-    pub focal_distance: f32,
-}
-
-unsafe impl bytemuck::Zeroable for RayCamera {}
-unsafe impl bytemuck::Pod for RayCamera {}
-
-/// Struct that represent uniform data in shader.
+/// Struct that represent camera uniform data in shader. The projection matrix and the position of
+/// the camera.
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct CameraUniform {
@@ -41,26 +24,25 @@ pub struct CameraUniform {
     pos: cgmath::Vector4<f32>,
 }
 
-impl CameraUniform {
-    pub fn new() -> Self {
-        Self {
-            view_proj: cgmath::Matrix4::identity(),
-            pos: cgmath::Vector4::new(1.0,1.0,1.0,1.0),
-        }
-    }
-
-    pub fn update_view_proj(&mut self, camera: &Camera) {
-        self.view_proj = camera.build_projection_matrix();
-        self.pos = Vector4::new(camera.pos.x, camera.pos.y, camera.pos.z, 1.0);
-    }
-}
- 
 unsafe impl bytemuck::Zeroable for CameraUniform {}
 unsafe impl bytemuck::Pod for CameraUniform {}
 
-/// A camera for basic rendering.
+/// Struct that represent ray tracing camera uniform data in shader.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Copy, Clone)]
+pub struct RayCameraUniform {
+    pos: cgmath::Vector3<f32>,
+    view: cgmath::Vector3<f32>,
+    up: cgmath::Vector3<f32>,
+    fov: cgmath::Vector2<f32>,
+    aperture_radius: f32,
+    focal_distance: f32,
+}
+
+unsafe impl bytemuck::Zeroable for RayCameraUniform {}
+unsafe impl bytemuck::Pod for RayCameraUniform {}
+
+/// A camera for basic rendering and ray tracing purposes.
 pub struct Camera {
     pos: cgmath::Vector3<f32>,
     view: cgmath::Vector3<f32>,
@@ -73,12 +55,63 @@ pub struct Camera {
     rotation_sensitivity: f32,
     pitch: f32,
     yaw: f32,
+    aperture_radius: f32, // For ray tracer camera.
+    focal_distance: f32, // For ray tracer camera.
+    camera_buffer: Option<wgpu::Buffer>, // A buffer to basic camera uniform buffer.
+    ray_camera_buffer: Option<wgpu::Buffer>, // A buffer to ray tracing camear uniform buffer.
 }
 
-unsafe impl bytemuck::Zeroable for Camera {}
-unsafe impl bytemuck::Pod for Camera {}
-
 impl Camera {
+
+    /// Get a reference to camera uniform buffer. Creates the buffer is it doens't already exist.
+    pub fn get_camera_uniform(&mut self, device: &wgpu::Device) -> &wgpu::Buffer {
+
+        // Create camera uniform data.
+        let camera_uniform = CameraUniform {
+            view_proj: self.build_projection_matrix(),
+            pos: Vector4::new(self.pos.x, self.pos.y, self.pos.z, 1.0),
+        };
+
+        // The camera uniform buffer doesn't exist. Create camera buffer.
+        if self.camera_buffer.is_none() {
+
+            self.camera_buffer = Some(buffer_from_data::<CameraUniform>(
+                &device,
+                &[camera_uniform],
+                wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+                None)
+            );
+        }
+
+        &self.camera_buffer.as_ref().unwrap()
+    }
+
+    /// Get a reference to ray tracing camera uniform buffer. Creates the buffer is it doens't already exist.
+    pub fn get_ray_camera_uniform(&mut self, device: &wgpu::Device) -> &wgpu::Buffer {
+
+        // Create ray camera uniform data.
+        let ray_camera_uniform = RayCameraUniform {
+            pos: self.pos,
+            view: self.view,
+            up: self.up,
+            fov: self.fov,
+            aperture_radius: self.aperture_radius,
+            focal_distance: self.focal_distance,
+        };
+
+        // The ray camera uniform buffer doesn't exist. Create ray camera buffer.
+        if self.ray_camera_buffer.is_none() {
+
+            self.ray_camera_buffer = Some(buffer_from_data::<RayCameraUniform>(
+                &device,
+                &[ray_camera_uniform],
+                wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+                None)
+            );
+        }
+
+        &self.ray_camera_buffer.as_ref().unwrap()
+    }
 
     /// TODO: something better.
     pub fn new(aspect_width: f32, aspect_height: f32) -> Self {
@@ -98,10 +131,15 @@ impl Camera {
             rotation_sensitivity: 0.5,
             pitch: -80.5,
             yaw: -50.5,
+            aperture_radius: 0.01,
+            focal_distance: 1.0,
+            camera_buffer: None,
+            ray_camera_buffer: None,
         }
     }
 
-    /// Update camera from user input.
+    /// Update camera from user input. TODO: create a method for 
+    /// Bezier-curvers and B-splines.
     pub fn update_from_input(&mut self, input_cache: &InputCache) {
 
         // Get the keyboard state (camera movement).
@@ -124,7 +162,7 @@ impl Camera {
 
         let mut movement = cgmath::Vector3::new(0.0, 0.0, 0.0);
 
-        // Moving forward. Moving forward if forward key is pressed, down or released. 
+        // Calculate the amount of movement based on user input.
         if !state_forward.is_none() { movement += time_delta_milli_f32 * self.view; }
         if !state_backward.is_none() { movement -= time_delta_milli_f32 * self.view; }
         if !state_right.is_none() { movement += time_delta_milli_f32 * right; }
@@ -132,8 +170,8 @@ impl Camera {
         if !state_up.is_none() { movement += time_delta_milli_f32 * self.up; }
         if !state_down.is_none() { movement -= time_delta_milli_f32 * self.up; }
 
-        self.pos += movement;
-
+        // Update the camera position.
+        self.pos += self.movement_sensitivity * movement;
 
         // Rotation.
           
@@ -161,9 +199,11 @@ impl Camera {
         let view = self.build_view_matrix();
         let proj = cgmath::perspective(cgmath::Rad(std::f32::consts::PI/2.0), self.aspect, self.znear, self.zfar);
 
+        // Convert "opengl" matrix to wgpu matris.
         OPENGL_TO_WGPU_MATRIX * (proj * view)
     }
 
+    /// Build view projection matrix.
     pub fn build_view_matrix(&self) -> cgmath::Matrix4<f32> {
         let pos3 = Point3::new(self.pos.x, self.pos.y,self.pos.z);
         let view3 = Point3::new(self.view.x + pos3.x, self.view.y + pos3.y, self.view.z + pos3.z);
@@ -171,45 +211,3 @@ impl Camera {
         view
     }
 }
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct RayCameraUniform {
-    pos: cgmath::Vector4<f32>,  // eye
-    view: cgmath::Vector4<f32>, // target    // original: float3
-    up: cgmath::Vector4<f32>,
-    fov: cgmath::Vector4<f32>, // fovy
-    aperture_radius: f32, // new!
-    focal_distance: f32, // new!
-}
-
-impl RayCameraUniform {
-    pub fn new() -> Self {
-        Self {
-            pos: (1.0, 1.0, 1.0, 1.0).into(),
-            view: Vector4::new(0.0, 0.0, -1.0, 0.0).normalize(),
-            up: cgmath::Vector4::unit_y(),
-            fov: ((45.0 as f32).to_radians(),
-                 (45.0 as f32).to_radians(),
-                 111.0,
-                 222.0).into(),
-            aperture_radius: 0.0,
-            focal_distance: 1.0,
-        }
-    }
-
-    pub fn update(&mut self, camera: &RayCamera) {
-            self.pos  = cgmath::Vector4::new(camera.pos.x, camera.pos.y,  camera.pos.z, 1.0);  
-            self.view = cgmath::Vector4::new(camera.view.x, camera.view.y, camera.view.z, 0.0);
-            self.up   = cgmath::Vector4::new(camera.up.x, camera.up.y,   camera.up.z, 0.0);  
-            self.fov  = cgmath::Vector4::new(camera.fov.x, camera.fov.y, 123.0, 234.0); // 2 dummy values. 
-            self.aperture_radius = camera.aperture_radius;
-            self.focal_distance = camera.focal_distance;
-    }
-}
-
-unsafe impl bytemuck::Zeroable for RayCameraUniform {}
-unsafe impl bytemuck::Pod for RayCameraUniform {}
-
-///////////////////////////////////////////////////////////////////////////////////////
-
