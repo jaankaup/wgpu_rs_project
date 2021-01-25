@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use winit::dpi::PhysicalSize;
+//use winit::dpi::PhysicalSize;
 use jaankaup_core::wgpu_system as ws;
 use jaankaup_core::wgpu_system::{
         WGPUFeatures,
@@ -9,6 +9,7 @@ use jaankaup_core::wgpu_system::{
 };
 use jaankaup_core::texture::Texture as JTexture;
 use jaankaup_core::two_triangles::*;
+use jaankaup_core::mc::*;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
 //use jaankaup_core::assets::create_screen_texture_buffer;
@@ -26,6 +27,7 @@ struct HelloApp {
     two_triangles_bind_group: wgpu::BindGroup,
     depth_texture: JTexture,
     camera: Camera,
+    mc: MarchingCubes,
     //shaders: HashMap<String, ShaderModule>,
     //render_passes: HashMap<String, RenderPass>,
 }
@@ -71,8 +73,12 @@ impl Application for HelloApp {
 
         let camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
 
-        // let _ = camera.get_camera_uniform(&configuration.device);
+        //let _ = camera.get_camera_uniform(&configuration.device);
         // let _ = camera.get_ray_camera_uniform(&configuration.device);
+        let mc = MarchingCubes::init(
+            &configuration.device,
+            &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv"))
+        );
 
         HelloApp { 
             _textures: textures,
@@ -81,6 +87,7 @@ impl Application for HelloApp {
             two_triangles_bind_group: bind_group,
             depth_texture: depth_texture,
             camera: camera,
+            mc: mc,
             //shaders: load_shaders(&configuration.device),
             //render_passes: HashMap::<String, RenderPass>::new(),
         }
@@ -93,7 +100,6 @@ impl Application for HelloApp {
               surface: &wgpu::Surface,
               sc_desc: &wgpu::SwapChainDescriptor) {
 
-        //let frame = match self.swap_chain.get_current_frame() {
         let frame = match swap_chain.get_current_frame() {
             Ok(frame) => { frame.output },
             Err(_) => {
@@ -117,10 +123,8 @@ impl Application for HelloApp {
         self.camera.update_from_input(&input_cache);
     }
 
-    fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, new_size: winit::dpi::PhysicalSize<u32>) {
-
+    fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, _new_size: winit::dpi::PhysicalSize<u32>) {
         self.depth_texture = JTexture::create_depth_texture(&device, &sc_desc, Some("depth-texture"));
-
     }
 
     fn update(&self) {

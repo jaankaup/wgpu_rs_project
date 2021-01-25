@@ -73,9 +73,7 @@ impl TwoTriangles {
                 ],
                 label: Some("two_triangles_bind_group_layout"),
         });
-
         bind_group_layout
-
     }
 
     pub fn draw(&self,
@@ -110,7 +108,6 @@ impl TwoTriangles {
                                 },
                         }
                     ],
-                //depth_stencil_attachment: None,
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachmentDescriptor {
                     attachment: &depth_texture.view,
                     depth_ops: Some(wgpu::Operations {
