@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use winit::dpi::PhysicalSize;
 use jaankaup_core::wgpu_system as ws;
 use jaankaup_core::wgpu_system::{
         WGPUFeatures,
@@ -70,6 +71,9 @@ impl Application for HelloApp {
 
         let camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
 
+        // let _ = camera.get_camera_uniform(&configuration.device);
+        // let _ = camera.get_ray_camera_uniform(&configuration.device);
+
         HelloApp { 
             _textures: textures,
             _buffers: buffers,
@@ -107,15 +111,15 @@ impl Application for HelloApp {
         self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true); 
 
         queue.submit(Some(encoder.finish()));
-
-        
     }
 
     fn input(&mut self, input_cache: &InputCache) {
         self.camera.update_from_input(&input_cache);
     }
 
-    fn resize(&self) {
+    fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, new_size: winit::dpi::PhysicalSize<u32>) {
+
+        self.depth_texture = JTexture::create_depth_texture(&device, &sc_desc, Some("depth-texture"));
 
     }
 

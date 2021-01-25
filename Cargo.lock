@@ -853,10 +853,10 @@ dependencies = [
 name = "hello_project"
 version = "0.1.0"
 dependencies = [
- "futures",
  "jaankaup_core",
  "wasm-bindgen-futures",
  "wgpu",
+ "winit",
 ]
 
 [[package]]

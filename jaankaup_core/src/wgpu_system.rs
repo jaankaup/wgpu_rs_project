@@ -28,7 +28,7 @@ pub trait Application: Sized + 'static {
     fn input(&mut self, input_cache: &InputCache);
 
     /// A function for resizing.
-    fn resize(&self);
+    fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, new_size: winit::dpi::PhysicalSize<u32>);
 
     /// A function for updating the state of the application.
     fn update(&self);
@@ -85,13 +85,13 @@ impl Loop for BasicLoop {
         window,
         event_loop,
         instance,
-        size,
+        mut size,
         surface,
         adapter,
         device,
         mut queue,
         mut swap_chain,
-        sc_desc
+        mut sc_desc
         }: WGPUConfiguration,) {
 
     let spawner = Spawner::new();
@@ -104,13 +104,13 @@ impl Loop for BasicLoop {
         // Force the ownerships to this closure.
         let _ = (&window,
                 &instance,
-                &size,
+                &mut size,
                 &surface,
                 &adapter,
                 &device,
                 &mut queue,
                 &mut swap_chain,
-                &sc_desc,
+                &mut sc_desc,
                 &mut application,
                 &mut input);
 
@@ -135,9 +135,13 @@ impl Loop for BasicLoop {
                 input.update(&event);
 
                 match event {
-                    WindowEvent::Resized(_size) => {
+                    WindowEvent::Resized(new_size) => {
                         // TODO: change the size and and modify the sc_desc and create new swap_chain.
-                        //application.resize(size);
+                        size = new_size;
+                        sc_desc.width = new_size.width;
+                        sc_desc.height = new_size.height;
+                        swap_chain = device.create_swap_chain(&surface, &sc_desc);
+                        application.resize(&device, &sc_desc, size);
                     }
                     WindowEvent::CloseRequested => {
                         // TODO: application.close()
