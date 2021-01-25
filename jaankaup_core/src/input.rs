@@ -24,9 +24,10 @@ impl InputState {
                     InputState::Pressed(start_time) => {
                         *self = InputState::Down(start_time,time_now)
                     }
-                    // TODO: Fix. Remove. This is updated in InputCache::pre_update function.
+                    // This is updated in InputCache::pre_update function for mouse buttons.
+                    // This won't never happen for mouse events.
                     InputState::Down(start_time, _) => {
-                        println!("Heko heko");
+                        println!("start_time == {}", start_time);
                         *self = InputState::Down(start_time,time_now);
                     }
                     InputState::Released(_,_) => {
@@ -216,24 +217,42 @@ impl InputCache {
     /// winit doesn't produce any events.
     pub fn pre_update(&mut self) {
 
-        // If mouse buttons were released previously, apply None to those states.
-        if let Some(InputState::Released(_,_)) = self.mouse_buttons.left.state   { self.mouse_buttons.left.state = None }
-        if let Some(InputState::Released(_,_)) = self.mouse_buttons.middle.state { self.mouse_buttons.middle.state = None }
-        if let Some(InputState::Released(_,_)) = self.mouse_buttons.right.state  { self.mouse_buttons.right.state = None }
-
-        // If mouse button is pressed, add the the to 'down'. This is a bit complicate. Maybe all 
-        // mouse button states should be added here (consider TODO).
-        if let Some(InputState::Pressed(start_time)) = self.mouse_buttons.left.state {
-            self.mouse_buttons.left.state = Some(InputState::Down(start_time,self.time_now));
-        }
-
-        // Remove key from hashmap if its previous state was 'released'.
-        self.keyboard.retain(|_, state| match state { InputState::Released(_,_) => false, _ => true }); 
-
         // Update timer.
         let now = self.timer.elapsed().as_nanos();
         self.time_delta = now - self.time_now;
         self.time_now = now;
+
+        // If mouse buttons were released previously, apply None to those states.
+        // TODO: loop.
+        if let Some(InputState::Released(_,_)) = self.mouse_buttons.left.state   { self.mouse_buttons.left.state = None }
+        if let Some(InputState::Released(_,_)) = self.mouse_buttons.middle.state { self.mouse_buttons.middle.state = None }
+        if let Some(InputState::Released(_,_)) = self.mouse_buttons.right.state  { self.mouse_buttons.right.state = None }
+
+        // If left mouse button was pressed in previous tick, change the state to down.
+        if let Some(InputState::Pressed(start_time)) = self.mouse_buttons.left.state {
+            self.mouse_buttons.left.state = Some(InputState::Down(start_time,self.time_now));
+        }
+        if let Some(InputState::Pressed(start_time)) = self.mouse_buttons.middle.state {
+            self.mouse_buttons.middle.state = Some(InputState::Down(start_time,self.time_now));
+        }
+        if let Some(InputState::Pressed(start_time)) = self.mouse_buttons.right.state {
+            self.mouse_buttons.right.state = Some(InputState::Down(start_time,self.time_now));
+        }
+
+        // If the buttons are down, they stay down.
+        // TODO: loop
+        if let Some(InputState::Down(start_time, _)) = self.mouse_buttons.left.state {
+            self.mouse_buttons.left.state = Some(InputState::Down(start_time,self.time_now));
+        }
+        if let Some(InputState::Down(start_time, _)) = self.mouse_buttons.middle.state {
+            self.mouse_buttons.middle.state = Some(InputState::Down(start_time,self.time_now));
+        }
+        if let Some(InputState::Down(start_time, _)) = self.mouse_buttons.right.state {
+            self.mouse_buttons.right.state = Some(InputState::Down(start_time,self.time_now));
+        }
+
+        // Remove key from hashmap if its previous state was 'released'.
+        self.keyboard.retain(|_, state| match state { InputState::Released(_,_) => false, _ => true }); 
     }
 
     /// Process the new inputs.
