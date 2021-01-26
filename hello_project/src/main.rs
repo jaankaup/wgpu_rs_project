@@ -75,6 +75,7 @@ impl Application for HelloApp {
 
         //let _ = camera.get_camera_uniform(&configuration.device);
         // let _ = camera.get_ray_camera_uniform(&configuration.device);
+
         let mc = MarchingCubes::init(
             &configuration.device,
             &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv"))
