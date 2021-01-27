@@ -27,7 +27,7 @@ impl InputState {
                     // This is updated in InputCache::pre_update function for mouse buttons.
                     // This won't never happen for mouse events.
                     InputState::Down(start_time, _) => {
-                        println!("start_time == {}", start_time);
+                        log::info!("start_time == {}", start_time);
                         *self = InputState::Down(start_time,time_now);
                     }
                     InputState::Released(_,_) => {
@@ -83,11 +83,11 @@ impl MouseButtons {
                 match &mut self.left.state {
                     Some(s) => {
                         s.update(&state, time_now);
-                        println!("Left mouse : {:?}", self.left.state.as_ref());
+                        log::info!("Left mouse : {:?}", self.left.state.as_ref());
                     }
                     None => {
                         self.left.state = Some(InputState::Pressed(time_now));
-                        println!("Left mouse : {:?}", self.left.state.as_ref());
+                        log::info!("Left mouse : {:?}", self.left.state.as_ref());
                     }
                 }
             }
@@ -95,11 +95,11 @@ impl MouseButtons {
                 match &mut self.middle.state {
                     Some(s) => {
                         s.update(&state, time_now);
-                        println!("Middle mouse : {:?}", self.middle.state.as_ref());
+                        log::info!("Middle mouse : {:?}", self.middle.state.as_ref());
                     }
                     None => {
                         self.middle.state = Some(InputState::Pressed(time_now));
-                        println!("Middle mouse : {:?}", self.middle.state.as_ref());
+                        log::info!("Middle mouse : {:?}", self.middle.state.as_ref());
                     }
                 }
             }
@@ -107,11 +107,11 @@ impl MouseButtons {
                 match &mut self.right.state {
                     Some(s) => {
                         s.update(&state, time_now);
-                        println!("Right mouse : {:?}", self.right.state.as_ref());
+                        log::info!("Right mouse : {:?}", self.right.state.as_ref());
                     }
                     None => {
                         self.right.state = Some(InputState::Pressed(time_now));
-                        println!("Right mouse : {:?}", self.right.state.as_ref());
+                        log::info!("Right mouse : {:?}", self.right.state.as_ref());
                     }
                 }
             }
@@ -307,7 +307,7 @@ impl InputCache {
     }
     /// Update the state of mouse wheel.
     fn track_mouse_wheel(&mut self, _delta: ev::MouseScrollDelta) {
-        println!("track_mouse_wheel");
+        log::info!("track_mouse_wheel");
     }
     /// Update the state of mouse movement.
     fn track_cursor_movement(&mut self, new_pos: PhysicalPosition<f64>) {
@@ -322,12 +322,12 @@ impl InputCache {
     /// Handle the cursor enter event. TODO: implement.
     fn track_cursor_enter(&mut self) {
         self.mouse_position.inside = true;
-        println!("track_cursor_enter");
+        log::info!("track_cursor_enter");
     }
     /// Handle the cursor leave event. TODO: implement.
     fn track_cursor_leave(&mut self) {
         self.mouse_delta = PhysicalPosition::<f64>::new(0.0, 0.0);
         self.mouse_position.inside = false;
-        println!("track_cursor_leave");
+        log::info!("track_cursor_leave");
     }
 }

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-//use winit::dpi::PhysicalSize;
 use jaankaup_core::wgpu_system as ws;
 use jaankaup_core::wgpu_system::{
         WGPUFeatures,
@@ -12,7 +11,6 @@ use jaankaup_core::two_triangles::*;
 use jaankaup_core::mc::*;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
-//use jaankaup_core::assets::create_screen_texture_buffer;
 
 // Redefine needed features for this application.
 struct MyFeatures {}

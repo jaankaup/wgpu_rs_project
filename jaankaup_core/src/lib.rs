@@ -8,6 +8,7 @@ pub mod assets;
 pub mod camera; 
 pub mod two_triangles; 
 pub mod mc; 
+pub mod vvvvnnnn; 
 pub mod temp; 
 
 #[cfg(test)]

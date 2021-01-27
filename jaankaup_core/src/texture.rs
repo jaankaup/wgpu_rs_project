@@ -40,7 +40,7 @@ impl Texture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: Self::DEPTH_FORMAT,
-            usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsage::SAMPLED, //wgpu::TextureUsage::RENDER_ATTACHMENT,
             //    | wgpu::TextureUsage::SAMPLED
             //    | wgpu::TextureUsage::COPY_SRC,
         };

@@ -121,6 +121,11 @@ pub fn create_vb_descriptor(formats: &Vec<wgpu::VertexFormat>) -> (u64, Vec<wgpu
                 wgpu::VertexFormat::Int2 => 2 * std::mem::size_of::<i32>() as u64,
                 wgpu::VertexFormat::Int3 => 3 * std::mem::size_of::<i32>() as u64,
                 wgpu::VertexFormat::Int4 => 4 * std::mem::size_of::<i32>() as u64,
+                wgpu::VertexFormat::Double
+                | wgpu::VertexFormat::Double2
+                | wgpu::VertexFormat::Double3
+                | wgpu::VertexFormat::Double4
+                => panic!("VERTEX_ATTRIBUTE_64BIT must be enabled to use Double formats")
         };
         attribute_descriptors.push(
             wgpu::VertexAttributeDescriptor {
