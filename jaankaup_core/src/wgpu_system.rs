@@ -1,6 +1,14 @@
 //#[cfg(target_arch = "wasm32")]
 //use futures::task::LocalSpawn;
 use std::future::Future;
+//use env_logger::*;
+
+#[cfg(not(target_arch = "wasm32"))]
+use simple_logger::SimpleLogger;
+
+use log::LevelFilter;
+//use simplelog::*;
+//use std::fs::File;
 
 use winit::{
     event::{Event, WindowEvent},
@@ -120,15 +128,16 @@ impl Loop for BasicLoop {
 
             // Events except RedrawRequested are reported.
             Event::MainEventsCleared => {
+                // log::info!("MainEventsCleared....");
                 input.pre_update();
                 #[cfg(not(target_arch = "wasm32"))]
                 {
                     //pool.run_until_stalled();
                     spawner.run_until_stalled();
                 }
-
-                #[cfg(target_arch = "wasm32")]
                 window.request_redraw();
+
+                //#[cfg(target_arch = "wasm32")]
             }
             Event::WindowEvent { event, ..} => {
                 // Update input cache.
@@ -153,7 +162,8 @@ impl Loop for BasicLoop {
                 application.input(&input);
             }
             Event::RedrawRequested(_) => {
-                application.render( &device, &mut queue, &mut swap_chain, &surface, &sc_desc)
+                //log::info!("Nyt piirrellaan.");
+                application.render(&device, &mut queue, &mut swap_chain, &surface, &sc_desc);
             }
             _ => { } // Any other events
         } // match event
@@ -167,14 +177,23 @@ impl Loop for BasicLoop {
 pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'static str> {
 
     let title = title.to_owned();
+    // env_logger::init();
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let chrome_tracing_dir = std::env::var("WGPU_CHROME_TRACE");
-        subscriber::initialize_default_subscriber(
-            chrome_tracing_dir.as_ref().map(std::path::Path::new).ok(),
-        );
-    };
+        SimpleLogger::new()
+        .with_level(LevelFilter::Off)
+        .with_module_level("jaankaup", LevelFilter::Info)
+        .with_module_level("hello_project", LevelFilter::Info)
+        .init()
+        .unwrap();
+    }
+    // {
+    //     let chrome_tracing_dir = std::env::var("WGPU_CHROME_TRACE");
+    //     subscriber::initialize_default_subscriber(
+    //         chrome_tracing_dir.as_ref().map(std::path::Path::new).ok(),
+    //     );
+    // };
 
     let event_loop = EventLoop::new();
     let mut builder = winit::window::WindowBuilder::new();
@@ -189,7 +208,8 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
     #[cfg(target_arch = "wasm32")]
     {
         use winit::platform::web::WindowExtWebSys;
-        console_log::init().expect("could not initialize logger");
+        //console_log::init().expect("could not initialize logger");
+        console_log::init_with_level(log::Level::Trace).expect("could not initialize logger");
         std::panic::set_hook(Box::new(console_error_panic_hook::hook));
         // On wasm, append the canvas to the document body
         web_sys::window()
@@ -203,19 +223,32 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
     }
 
     log::info!("Initializing the surface...");
+    if let Ok(backend) = std::env::var("WGPU_BACKEND") {
+        log::info!("Backend == {}", backend.to_lowercase().as_str());
+    }
     let backend = if let Ok(backend) = std::env::var("WGPU_BACKEND") {
         match backend.to_lowercase().as_str() {
             "vulkan" => wgpu::BackendBit::VULKAN,
             "metal" => wgpu::BackendBit::METAL,
             "dx12" => wgpu::BackendBit::DX12,
             "dx11" => wgpu::BackendBit::DX11,
-            "gl" => wgpu::BackendBit::GL,
-            "webgpu" => wgpu::BackendBit::BROWSER_WEBGPU,
+            "gl" =>  wgpu::BackendBit::GL,
+            "webgpu" =>  wgpu::BackendBit::BROWSER_WEBGPU, 
             other => panic!("Unknown backend: {}", other),
         }
     } else {
         wgpu::BackendBit::PRIMARY
     };
+    
+    log::info!("Backend == {}", match backend {
+            wgpu::BackendBit::VULKAN => "vulkan",
+            wgpu::BackendBit::METAL => "metal",
+            wgpu::BackendBit::DX12 => "dx12",
+            wgpu::BackendBit::DX11 => "dx11",
+            wgpu::BackendBit::GL => "gl",
+            wgpu::BackendBit::BROWSER_WEBGPU => "webgpu", 
+            other => "other",
+    });
     let power_preference = if let Ok(power_preference) = std::env::var("WGPU_POWER_PREF") {
         match power_preference.to_lowercase().as_str() {
             "low" => wgpu::PowerPreference::LowPower,
@@ -265,7 +298,6 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
 
     let sc_desc = wgpu::SwapChainDescriptor {
         usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
-        // TODO: Allow srgb unconditionally
         format: adapter.get_swap_chain_preferred_format(&surface),
         width: size.width,
         height: size.height,
@@ -384,7 +416,6 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
     let configuration = pollster::block_on(setup::<F>("jihuu")).expect("Failed to create WGPUConfiguration.");
-    //let configuration = futures::executor::block_on(setup::<F>("jihuu")).expect("Failed to create WGPUConfiguration.");
     let app = A::init(&configuration);
     let lo = L::init();
     lo.run(app, configuration); 
@@ -397,8 +428,7 @@ pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
         let configuration = setup::<F>("jihuu").await.unwrap();
         let app = A::init(&configuration); 
         let lo = L::init();
-        //basic_loop<HelloApp>(application: A, WGPUConfiguration {
-        lo.run(app, configuration); 
+        lo.run(app, configuration);
     });
 }
 

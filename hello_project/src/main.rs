@@ -98,11 +98,11 @@ impl Application for HelloApp {
               swap_chain: &mut wgpu::SwapChain,
               surface: &wgpu::Surface,
               sc_desc: &wgpu::SwapChainDescriptor) {
-
+        
         let frame = match swap_chain.get_current_frame() {
             Ok(frame) => { frame.output },
             Err(_) => {
-                println!("FAILED");
+                log::info!("FAILED");
                 *swap_chain = device.create_swap_chain(surface, sc_desc);
                 swap_chain.get_current_frame().expect("Failed to acquire next swap chain texture").output
             },
@@ -113,7 +113,7 @@ impl Application for HelloApp {
                 label: Some("Render Encoder"),
         });
 
-        self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true); 
+        self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true);
 
         queue.submit(Some(encoder.finish()));
     }

@@ -94,7 +94,7 @@ impl TwoTriangles {
                                     load: match clear {
                                         true => {
                                             wgpu::LoadOp::Clear(wgpu::Color {
-                                                r: 0.0,
+                                                r: 1.0,
                                                 g: 0.0,
                                                 b: 0.0,
                                                 a: 1.0,
@@ -127,7 +127,7 @@ impl TwoTriangles {
                 self.draw_buffer.slice(..)
             );
 
-            render_pass.draw(0..6, 0..1);
+            render_pass.draw(0..3, 0..1);
     }
 
     /// Load and compile shaders for TwoTriangles.

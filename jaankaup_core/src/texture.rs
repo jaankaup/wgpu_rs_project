@@ -40,7 +40,7 @@ impl Texture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: Self::DEPTH_FORMAT,
-            usage: wgpu::TextureUsage::SAMPLED, //wgpu::TextureUsage::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::RENDER_ATTACHMENT, // TODO: SAMPLED?
             //    | wgpu::TextureUsage::SAMPLED
             //    | wgpu::TextureUsage::COPY_SRC,
         };
@@ -57,7 +57,8 @@ impl Texture {
             mipmap_filter: wgpu::FilterMode::Nearest,
             lod_min_clamp: -100.0,
             lod_max_clamp: 100.0,
-            compare: Some(wgpu::CompareFunction::LessEqual),
+            compare: Some(wgpu::CompareFunction::Less),
+            //compare: Some(wgpu::CompareFunction::LessEqual),
             ..Default::default()
         });
 
