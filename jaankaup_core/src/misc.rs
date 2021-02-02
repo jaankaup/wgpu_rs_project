@@ -85,9 +85,9 @@ pub fn multisampled(sample_count: u32) -> bool {
 }
 
 /// Takes wgpu::VertexFormats as input and returns (stride, Vec<wgpu::VertexBufferDescriptor>)
-pub fn create_vb_descriptor(formats: &Vec<wgpu::VertexFormat>) -> (u64, Vec<wgpu::VertexAttributeDescriptor>) { 
+pub fn create_vb_descriptor(formats: &Vec<wgpu::VertexFormat>) -> (u64, Vec<wgpu::VertexAttribute>) { 
 
-    let mut attribute_descriptors: Vec<wgpu::VertexAttributeDescriptor> = Vec::new();
+    let mut attribute_descriptors: Vec<wgpu::VertexAttribute> = Vec::new();
     let mut stride: u64 = 0;
     for (i, format) in formats.iter().enumerate() {
         let size = match format {
@@ -128,7 +128,7 @@ pub fn create_vb_descriptor(formats: &Vec<wgpu::VertexFormat>) -> (u64, Vec<wgpu
                 => panic!("VERTEX_ATTRIBUTE_64BIT must be enabled to use Double formats")
         };
         attribute_descriptors.push(
-            wgpu::VertexAttributeDescriptor {
+            wgpu::VertexAttribute {
                 format: *format,
                 offset: stride,
                 shader_location: i as u32, 

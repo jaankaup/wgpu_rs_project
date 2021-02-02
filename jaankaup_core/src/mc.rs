@@ -240,10 +240,8 @@ impl MarchingCubes {
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("mc_pipeline"),
             layout: Some(&pipeline_layout),
-            compute_stage: wgpu::ProgrammableStageDescriptor {
-                module: &shader_module,
-                entry_point: "main",
-            },
+            module: &shader_module, // : wgpu::ProgrammableStageDescriptor {
+            entry_point: "main",
         });
 
         pipeline
