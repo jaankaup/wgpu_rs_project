@@ -11,6 +11,7 @@ use jaankaup_core::two_triangles::*;
 use jaankaup_core::mc::*;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
+use jaankaup_core::render_pipelines::{TestLayoutEntry, create_bind_groups};
 
 // Redefine needed features for this application.
 struct MyFeatures {}
@@ -73,6 +74,15 @@ impl Application for HelloApp {
 
         //let _ = camera.get_camera_uniform(&configuration.device);
         // let _ = camera.get_ray_camera_uniform(&configuration.device);
+
+        let t =  TestLayoutEntry::init();
+
+        create_bind_groups(
+            &t.entry_layout,
+            &vec![
+                vec![&wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
+                     &wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler)]
+            ]);
 
         let mc = MarchingCubes::init(
             &configuration.device,

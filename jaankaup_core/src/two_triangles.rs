@@ -158,7 +158,7 @@ impl TwoTriangles {
         });
         
         // Create stride and vertex attribute descriptors.
-        let (stride, vb_desc) =  create_vb_descriptor(
+        let (stride, attributes) =  create_vb_descriptor(
             &vec![wgpu::VertexFormat::Float4, wgpu::VertexFormat::Float4]
         );
         
@@ -173,9 +173,8 @@ impl TwoTriangles {
                     wgpu::VertexBufferLayout {
                         array_stride: stride,
                         step_mode: wgpu::InputStepMode::Vertex, 
-                        attributes: &vb_desc,
-                    }
-                ],
+                        attributes: &attributes,
+                    }],
             },
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,

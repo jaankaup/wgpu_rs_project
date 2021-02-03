@@ -120,7 +120,8 @@ impl Loop for BasicLoop {
                 &mut swap_chain,
                 &mut sc_desc,
                 &mut application,
-                &mut input);
+                &mut input,
+                &spawner);
 
         *control_flow = ControlFlow::Poll;
 
@@ -135,9 +136,9 @@ impl Loop for BasicLoop {
                     //pool.run_until_stalled();
                     spawner.run_until_stalled();
                 }
-                window.request_redraw();
 
-                //#[cfg(target_arch = "wasm32")]
+                #[cfg(target_arch = "wasm32")]
+                window.request_redraw();
             }
             Event::WindowEvent { event, ..} => {
                 // Update input cache.
@@ -162,7 +163,6 @@ impl Loop for BasicLoop {
                 application.input(&input);
             }
             Event::RedrawRequested(_) => {
-                //log::info!("Nyt piirrellaan.");
                 application.render(&device, &mut queue, &mut swap_chain, &surface, &sc_desc);
             }
             _ => { } // Any other events
@@ -202,6 +202,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
     {
         use winit::platform::windows::WindowBuilderExtWindows;
         builder = builder.with_no_redirection_bitmap(true);
+        log::info!("windows_OFF :: True");
     }
     let window = builder.build(&event_loop).unwrap();
 
@@ -240,15 +241,6 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
         wgpu::BackendBit::PRIMARY
     };
     
-    log::info!("Backend == {}", match backend {
-            wgpu::BackendBit::VULKAN => "vulkan",
-            wgpu::BackendBit::METAL => "metal",
-            wgpu::BackendBit::DX12 => "dx12",
-            wgpu::BackendBit::DX11 => "dx11",
-            wgpu::BackendBit::GL => "gl",
-            wgpu::BackendBit::BROWSER_WEBGPU => "webgpu", 
-            other => "other",
-    });
     let power_preference = if let Ok(power_preference) = std::env::var("WGPU_POWER_PREF") {
         match power_preference.to_lowercase().as_str() {
             "low" => wgpu::PowerPreference::LowPower,
@@ -424,14 +416,18 @@ pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
 /// Initializes wgpu-rs basic components, application and starts the loop. wasm version.
 #[cfg(target_arch = "wasm32")]
 pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
+
     wasm_bindgen_futures::spawn_local(async move {
+        log::info!("Setting up wgpu-rs.");
         let configuration = setup::<F>("jihuu").await.unwrap();
+        log::info!("Configurating application.");
         let app = A::init(&configuration); 
+        log::info!("Creating the application.");
         let lo = L::init();
+        log::info!("Run the application.");
         lo.run(app, configuration);
     });
 }
-
 
 #[cfg(not(target_arch = "wasm32"))]
 pub struct Spawner<'a> {
