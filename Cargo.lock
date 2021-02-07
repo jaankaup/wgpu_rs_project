@@ -1520,9 +1520,9 @@ checksum = "92d5161132722baa40d802cc70b15262b98258453e85e5d1d365c757c73869ae"
 
 [[package]]
 name = "serde_json"
-version = "1.0.61"
+version = "1.0.62"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fceb2595057b6891a4ee808f70054bd2d12f0e97f1cbb78689b59f676df325a"
+checksum = "ea1c6153794552ea7cf7cf63b1231a25de00ec90db326ba6264440fa08e31486"
 dependencies = [
  "itoa",
  "ryu",
@@ -1668,9 +1668,9 @@ dependencies = [
 
 [[package]]
 name = "thread_local"
-version = "1.1.2"
+version = "1.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8208a331e1cb318dd5bd76951d2b8fc48ca38a69f5f4e4af1b6a9f8c6236915"
+checksum = "8018d24e04c95ac8790716a5987d0fec4f8b27249ffa0f7d33f1369bdfb88cbd"
 dependencies = [
  "once_cell",
 ]
@@ -1703,9 +1703,9 @@ dependencies = [
 
 [[package]]
 name = "tracing"
-version = "0.1.22"
+version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f47026cdc4080c07e49b37087de021820269d996f581aac150ef9e5583eefe3"
+checksum = "f7d40a22fd029e33300d8d89a5cc8ffce18bb7c587662f54629e94c9de5487f3"
 dependencies = [
  "cfg-if 1.0.0",
  "pin-project-lite",
@@ -1715,9 +1715,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-attributes"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80e0ccfc3378da0cce270c946b676a376943f5cd16aeba64568e7939806f4ada"
+checksum = "43f080ea7e4107844ef4766459426fa2d5c1ada2e47edba05dc7fa99d9629f47"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1990,7 +1990,7 @@ dependencies = [
 [[package]]
 name = "wgpu"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/wgpu-rs#f891e86e87f0733f04a8078f4be8ead2f24551cf"
+source = "git+https://github.com/gfx-rs/wgpu-rs#cd74c8d9a49187771f317af437305d23681039a0"
 dependencies = [
  "arrayvec",
  "js-sys",
@@ -2009,7 +2009,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=7c7501cab72fd01b14def06b9d9bc63a8dd44b45#7c7501cab72fd01b14def06b9d9bc63a8dd44b45"
+source = "git+https://github.com/gfx-rs/wgpu?rev=3ebe198911b46cb77fcdc481f7d0daf9a962b82e#3ebe198911b46cb77fcdc481f7d0daf9a962b82e"
 dependencies = [
  "arrayvec",
  "bitflags",
@@ -2050,7 +2050,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=7c7501cab72fd01b14def06b9d9bc63a8dd44b45#7c7501cab72fd01b14def06b9d9bc63a8dd44b45"
+source = "git+https://github.com/gfx-rs/wgpu?rev=3ebe198911b46cb77fcdc481f7d0daf9a962b82e#3ebe198911b46cb77fcdc481f7d0daf9a962b82e"
 dependencies = [
  "bitflags",
 ]

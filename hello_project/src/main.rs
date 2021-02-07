@@ -6,12 +6,13 @@ use jaankaup_core::wgpu_system::{
         Application,
         BasicLoop
 };
+use jaankaup_core::buffer::*;
 use jaankaup_core::texture::Texture as JTexture;
 use jaankaup_core::two_triangles::*;
 use jaankaup_core::mc::*;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
-use jaankaup_core::render_pipelines::{TestLayoutEntry, create_bind_groups};
+use jaankaup_core::render_pipelines::*;
 
 // Redefine needed features for this application.
 struct MyFeatures {}
@@ -21,12 +22,14 @@ impl WGPUFeatures for MyFeatures {
 // State for this application.
 struct HelloApp {
     _textures: HashMap<String, JTexture>, 
-    _buffers: HashMap<String, wgpu::Buffer>,
+    buffers: HashMap<String, wgpu::Buffer>,
     two_triangles: TwoTriangles,
     two_triangles_bind_group: wgpu::BindGroup,
     depth_texture: JTexture,
     camera: Camera,
     mc: MarchingCubes,
+    test_layout: TestLayoutEntry,
+    bind: Vec<wgpu::BindGroup>,
     //shaders: HashMap<String, ShaderModule>,
     //render_passes: HashMap<String, RenderPass>,
 }
@@ -50,7 +53,7 @@ impl Application for HelloApp {
     fn init(configuration: &WGPUConfiguration) -> Self {
         
         // Create buffer container.
-        let buffers: HashMap<String, wgpu::Buffer> = HashMap::new();
+        let mut buffers: HashMap<String, wgpu::Buffer> = HashMap::new();
         let mut textures: HashMap<String, JTexture> = HashMap::new();
 
         //let screen_buffer = create_screen_texture_buffer(&configuration.device);
@@ -67,6 +70,22 @@ impl Application for HelloApp {
             &configuration.device,
             &grass_texture
         );
+        buffers.insert(
+            "two".to_string(),
+            buffer_from_data::<f32>(
+            &configuration.device,
+            // gl_Position     |    point_pos
+            &[-1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+               1.0, -1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
+               1.0,  1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0,
+               1.0,  1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0,
+              -1.0,  1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0,
+              -1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+            ],
+            wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC,
+            None
+            )
+        );
 
         textures.insert("grass".to_string(), grass_texture); 
 
@@ -75,14 +94,33 @@ impl Application for HelloApp {
         //let _ = camera.get_camera_uniform(&configuration.device);
         // let _ = camera.get_ray_camera_uniform(&configuration.device);
 
-        let t =  TestLayoutEntry::init();
+        let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/screen_texture.vert.spv");
+        let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/screen_texture.frag.spv");
 
-        create_bind_groups(
-            &t.entry_layout,
-            &vec![
-                vec![&wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
-                     &wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler)]
-            ]);
+        let t = TestLayoutEntry::init(
+                    &configuration.device,
+                    &configuration.sc_desc,
+                    &configuration.device.create_shader_module(&vertex_shader_src),
+                    &configuration.device.create_shader_module(&fragment_shader_src)
+        );
+        check_correspondence(
+            &t.layout_entries,
+            &vec![vec![wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
+                                      wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler)]]
+        );
+        let t_bindgroups = create_bind_groups(
+                                &configuration.device, 
+                                &t.layout_entries,
+                                &vec![vec![&wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
+                                      &wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler)]]
+        );
+
+        //create_bind_groups(
+        //    &t.entry_layout,
+        //    &vec![
+        //        vec![&wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
+        //             &wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler)]
+        //    ]);
 
         let mc = MarchingCubes::init(
             &configuration.device,
@@ -91,12 +129,14 @@ impl Application for HelloApp {
 
         HelloApp { 
             _textures: textures,
-            _buffers: buffers,
+            buffers: buffers,
             two_triangles: two_triangles,
             two_triangles_bind_group: bind_group,
             depth_texture: depth_texture,
             camera: camera,
             mc: mc,
+            test_layout: t,
+            bind: t_bindgroups,
             //shaders: load_shaders(&configuration.device),
             //render_passes: HashMap::<String, RenderPass>::new(),
         }
@@ -123,7 +163,17 @@ impl Application for HelloApp {
                 label: Some("Render Encoder"),
         });
 
-        self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true);
+        draw(&mut encoder,
+             &frame,
+             &self.depth_texture,
+             &self.bind,
+             &self.test_layout.pipeline,
+             &self.buffers.get("two").unwrap(),
+             (0..6), 
+             true
+        ); 
+
+        //self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true);
 
         queue.submit(Some(encoder.finish()));
     }
