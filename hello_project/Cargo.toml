@@ -10,6 +10,10 @@ wgpu = { git = "https://github.com/gfx-rs/wgpu-rs" }
 winit = { version = "0.24.0", features = ["web-sys"] }
 jaankaup_core = { path = "../jaankaup_core" }
 log = "0.4"
+cgmath = "0.18"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+pollster = "0.2"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 #wasm-bindgen = "=0.2.69"

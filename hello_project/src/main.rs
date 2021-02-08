@@ -127,7 +127,65 @@ impl Application for HelloApp {
             &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv"))
         );
 
-        HelloApp { 
+        buffers.insert(
+            "mc_output".to_string(),
+            buffer_from_data::<f32>(
+            &configuration.device,
+            // gl_Position     |    point_pos
+            &vec![0 as f32 ; 64*64*64*24],
+            wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+            None)
+        );
+
+        let mut mc_params = McParams::init(
+                &configuration.device, 
+                &cgmath::Vector4::<f32>::new(0.0, 0.0, 0.0, 1.0),
+                0.0,
+                0.5
+        );
+
+        let mc_bind_groups = mc.create_bind_groups(
+            &configuration.device,
+            &mc_params,
+            &buffers.get("mc_output").unwrap()
+        );
+
+        mc_params.bind_groups = Some(mc_bind_groups); 
+        
+        let mut encoder = configuration.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Juuu") });
+
+        mc.dispatch(&mc_params.bind_groups.as_ref().unwrap(),
+                    &mut encoder,
+                    32,
+                    32,
+                    32
+        ); 
+
+        configuration.queue.submit(Some(encoder.finish()));
+
+        let k =  pollster::block_on(to_vec::<u32>(&configuration.device,
+                                              &configuration.queue,
+                                              &mc_params.counter_buffer,
+                                              0 as wgpu::BufferAddress,
+                                              4 as wgpu::BufferAddress));
+        println!("yeaaaaah");
+        log::info!("Mc counter == {}", k[0]);
+        // let k =  to_vec::<u32>(&configuration.device,
+        //                        &configuration.queue,
+        //                        &mc_params.counter_buffer,
+        //                        0 as wgpu::BufferAddress,
+        //                        4 as wgpu::BufferAddress);
+        // println!("yeaaaaah");
+        // log::info!("Mc counter == {}", k.poll());
+// pub async fn to_vec<T: Convert2Vec>(
+//     device: &wgpu::Device,
+//     queue: &wgpu::Queue,
+//     buffer: &wgpu::Buffer,
+//     _src_offset: wgpu::BufferAddress,
+//     copy_size: wgpu::BufferAddress,
+//     ) -> Vec<T> {
+
+        HelloApp {
             _textures: textures,
             buffers: buffers,
             two_triangles: two_triangles,
@@ -171,7 +229,7 @@ impl Application for HelloApp {
              &self.buffers.get("two").unwrap(),
              (0..6), 
              true
-        ); 
+        );
 
         //self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true);
 

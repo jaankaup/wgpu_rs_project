@@ -857,8 +857,10 @@ dependencies = [
 name = "hello_project"
 version = "0.1.0"
 dependencies = [
+ "cgmath",
  "jaankaup_core",
  "log",
+ "pollster",
  "wasm-bindgen-futures",
  "wgpu",
  "winit",

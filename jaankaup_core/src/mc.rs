@@ -18,6 +18,8 @@ unsafe impl Zeroable for McUniform {}
 pub struct McParams {
     params: McUniform,
     buffer: wgpu::Buffer,
+    pub counter_buffer: wgpu::Buffer,
+    pub bind_groups: Option<Vec<wgpu::BindGroup>>,
 }
 
 impl McParams {
@@ -41,6 +43,12 @@ impl McParams {
                 &[uniform],
                 wgpu::BufferUsage::COPY_DST |wgpu::BufferUsage::UNIFORM,
                 None),
+            counter_buffer: buffer_from_data::<u32>(
+                &device,
+                &[0 as u32],
+                wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST |wgpu::BufferUsage::COPY_SRC,
+                None),
+            bind_groups: None,
         }
     }
 
@@ -86,8 +94,6 @@ impl McParams {
 pub struct MarchingCubes {
     // The mc pipeline.
     pipeline: wgpu::ComputePipeline,
-    // Counter buffer for mc.
-    counter_buffer: wgpu::Buffer,
 }
 
 impl MarchingCubes {
@@ -95,11 +101,6 @@ impl MarchingCubes {
     pub fn init(device: &wgpu::Device, mc_shader: &wgpu::ShaderModule) -> Self {
         Self {
             pipeline: MarchingCubes::create_pipeline(&device, &mc_shader),
-            counter_buffer: buffer_from_data::<u32>(
-                &device,
-                &[0 as u32],
-                wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST |wgpu::BufferUsage::COPY_SRC,
-                None),
         }
     }
 
@@ -126,7 +127,7 @@ impl MarchingCubes {
         let mc_counter_buffer = wgpu::BindGroupEntry {
                 binding: 1,
                 resource: wgpu::BindingResource::Buffer {
-                    buffer: &self.counter_buffer,    
+                    buffer: &params.counter_buffer,    
                     offset: 0,
                     size: None, //wgpu::BufferSize::new(std::mem::size_of::<u32>()),
                 },
@@ -157,7 +158,9 @@ impl MarchingCubes {
         vec![bind_group_0, bind_group_1]
     }
 
-    pub fn dispatch(&self, bind_groups: &Vec<wgpu::BindGroup>, encoder: &mut wgpu::CommandEncoder, x: u32, y: u32, z: u32) {
+    pub fn dispatch(&self, bind_groups: &Vec<wgpu::BindGroup>,
+                    encoder: &mut wgpu::CommandEncoder,
+                    x: u32, y: u32, z: u32) {
 
         let mut pass = encoder.begin_compute_pass(
             &wgpu::ComputePassDescriptor { label: None}
