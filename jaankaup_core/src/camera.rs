@@ -85,8 +85,14 @@ impl Camera {
 
         &self.camera_buffer.as_ref().unwrap()
     }
+    
+    // // TODO: update uniform?
+    // pub fn resize(&mut self, aspect_width: f32, aspect_height: f32) {
+    //     self.aspect = aspect_width / aspect_height as f32;
+    // }
 
     /// Get a reference to ray tracing camera uniform buffer. Creates the buffer is it doens't already exist.
+    /// TODO: create buffer on init().
     pub fn get_ray_camera_uniform(&mut self, device: &wgpu::Device) -> &wgpu::Buffer {
 
         // Create ray camera uniform data.
@@ -127,8 +133,8 @@ impl Camera {
             fov: (45.0,45.0).into(),
             znear: 0.01,
             zfar: 1000.0,
-            movement_sensitivity: 0.5,
-            rotation_sensitivity: 0.5,
+            movement_sensitivity: 0.1,
+            rotation_sensitivity: 0.1,
             pitch: -80.5,
             yaw: -50.5,
             aperture_radius: 0.01,
@@ -140,7 +146,7 @@ impl Camera {
 
     /// Update camera from user input. TODO: create a method for 
     /// Bezier-curvers and B-splines.
-    pub fn update_from_input(&mut self, input_cache: &InputCache) {
+    pub fn update_from_input(&mut self, queue: &wgpu::Queue, input_cache: &InputCache) {
 
         // Get the keyboard state (camera movement).
         let state_forward = input_cache.key_state(&Key::W);
@@ -190,6 +196,21 @@ impl Camera {
                 self.pitch.to_radians().sin(),
                 self.pitch.to_radians().cos() * self.yaw.to_radians().sin()
             ).normalize_to(1.0);
+        }
+
+        // Update the camera uniform and the camera uniform buffer.
+        if !self.camera_buffer.is_none() {
+
+            // Create camera uniform data. TODO: refactor.
+            let camera_uniform = CameraUniform {
+                view_proj: self.build_projection_matrix(),
+                pos: Vector4::new(self.pos.x, self.pos.y, self.pos.z, 1.0),
+            };
+            queue.write_buffer(
+                &self.camera_buffer.as_ref().unwrap(),
+                0,
+                bytemuck::cast_slice(&[camera_uniform])
+            );
         }
     }
 

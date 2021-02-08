@@ -21,7 +21,7 @@ impl WGPUFeatures for MyFeatures {
 
 // State for this application.
 struct HelloApp {
-    _textures: HashMap<String, JTexture>, 
+    textures: HashMap<String, JTexture>, 
     buffers: HashMap<String, wgpu::Buffer>,
     two_triangles: TwoTriangles,
     two_triangles_bind_group: wgpu::BindGroup,
@@ -30,13 +30,14 @@ struct HelloApp {
     mc: MarchingCubes,
     test_layout: TestLayoutEntry,
     bind: Vec<wgpu::BindGroup>,
+    draw_count_mc: u32,
     //shaders: HashMap<String, ShaderModule>,
     //render_passes: HashMap<String, RenderPass>,
 }
 
 impl HelloApp {
 
-    fn create_texture(configuration: &WGPUConfiguration) -> JTexture {
+    fn create_textures(configuration: &WGPUConfiguration) -> (JTexture, JTexture) {
         let grass_texture = JTexture::create_from_bytes(
             &configuration.queue,
             &configuration.device,
@@ -44,7 +45,14 @@ impl HelloApp {
             1,
             &include_bytes!("../../textures/grass2.png")[..],
             None);
-        grass_texture
+        let rock_texture = JTexture::create_from_bytes(
+            &configuration.queue,
+            &configuration.device,
+            &configuration.sc_desc,
+            1,
+            &include_bytes!("../../textures/rock.png")[..],
+            None);
+        (grass_texture, rock_texture)
     }
 }
 
@@ -60,7 +68,7 @@ impl Application for HelloApp {
         //buffers.insert("screen".to_string(),screen_buffer);
 
         let two_triangles = TwoTriangles::init(&configuration.device, &configuration.sc_desc);
-        let grass_texture = HelloApp::create_texture(&configuration); 
+        let (grass_texture, rock_texture) = HelloApp::create_textures(&configuration); 
         let depth_texture = JTexture::create_depth_texture(
             &configuration.device,
             &configuration.sc_desc,
@@ -88,14 +96,16 @@ impl Application for HelloApp {
         );
 
         textures.insert("grass".to_string(), grass_texture); 
+        textures.insert("rock".to_string(), rock_texture); 
 
-        let camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
+        let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
+        log::info!("Aspect ratio == {} / {}", configuration.size.width as f32, configuration.size.height as f32);
 
         //let _ = camera.get_camera_uniform(&configuration.device);
         // let _ = camera.get_ray_camera_uniform(&configuration.device);
 
-        let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/screen_texture.vert.spv");
-        let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/screen_texture.frag.spv");
+        let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.vert.spv");
+        let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.frag.spv");
 
         let t = TestLayoutEntry::init(
                     &configuration.device,
@@ -105,14 +115,33 @@ impl Application for HelloApp {
         );
         check_correspondence(
             &t.layout_entries,
-            &vec![vec![wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
-                                      wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler)]]
+            &vec![
+                vec![wgpu::BindingResource::Buffer {
+                    buffer: &camera.get_camera_uniform(&configuration.device),
+                    offset: 0,
+                    size: None,
+                }], 
+                vec![wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
+                     wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler),
+                     wgpu::BindingResource::TextureView(&textures.get("rock").unwrap().view),
+                     wgpu::BindingResource::Sampler(&textures.get("rock").unwrap().sampler)
+                ]
+            ]
         );
         let t_bindgroups = create_bind_groups(
                                 &configuration.device, 
                                 &t.layout_entries,
-                                &vec![vec![&wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
-                                      &wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler)]]
+                                &vec![
+                                    vec![&wgpu::BindingResource::Buffer {
+                                            buffer: &camera.get_camera_uniform(&configuration.device),
+                                            offset: 0,
+                                            size: None,
+                                    }], 
+                                    vec![&wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
+                                         &wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler),
+                                         &wgpu::BindingResource::TextureView(&textures.get("rock").unwrap().view),
+                                         &wgpu::BindingResource::Sampler(&textures.get("rock").unwrap().sampler)]
+                                ]
         );
 
         //create_bind_groups(
@@ -156,9 +185,9 @@ impl Application for HelloApp {
 
         mc.dispatch(&mc_params.bind_groups.as_ref().unwrap(),
                     &mut encoder,
-                    32,
-                    32,
-                    32
+                    64,
+                    64,
+                    64
         ); 
 
         configuration.queue.submit(Some(encoder.finish()));
@@ -170,23 +199,20 @@ impl Application for HelloApp {
                                               4 as wgpu::BufferAddress));
         println!("yeaaaaah");
         log::info!("Mc counter == {}", k[0]);
-        // let k =  to_vec::<u32>(&configuration.device,
-        //                        &configuration.queue,
-        //                        &mc_params.counter_buffer,
-        //                        0 as wgpu::BufferAddress,
-        //                        4 as wgpu::BufferAddress);
-        // println!("yeaaaaah");
-        // log::info!("Mc counter == {}", k.poll());
-// pub async fn to_vec<T: Convert2Vec>(
-//     device: &wgpu::Device,
-//     queue: &wgpu::Queue,
-//     buffer: &wgpu::Buffer,
-//     _src_offset: wgpu::BufferAddress,
-//     copy_size: wgpu::BufferAddress,
-//     ) -> Vec<T> {
+
+        // let k2 =  pollster::block_on(to_vec::<f32>(&configuration.device,
+        //                                       &configuration.queue,
+        //                                       &buffers.get("mc_output").unwrap(),
+        //                                       0 as wgpu::BufferAddress,
+        //                                       (k[0] * 8 * std::mem::size_of::<f32>() as u32) as wgpu::BufferAddress));
+        // log::info!("k2.len() == {}", k2.len());
+        // for i in 0..k[0] * 8 {
+        //     if i % 4 == 0 { println!(""); } 
+        //     print!("{} ", k2[i as usize]);
+        // }
 
         HelloApp {
-            _textures: textures,
+            textures: textures,
             buffers: buffers,
             two_triangles: two_triangles,
             two_triangles_bind_group: bind_group,
@@ -195,6 +221,7 @@ impl Application for HelloApp {
             mc: mc,
             test_layout: t,
             bind: t_bindgroups,
+            draw_count_mc: k[0],
             //shaders: load_shaders(&configuration.device),
             //render_passes: HashMap::<String, RenderPass>::new(),
         }
@@ -226,22 +253,23 @@ impl Application for HelloApp {
              &self.depth_texture,
              &self.bind,
              &self.test_layout.pipeline,
-             &self.buffers.get("two").unwrap(),
-             (0..6), 
+             &self.buffers.get("mc_output").unwrap(),
+             0..self.draw_count_mc, 
              true
         );
 
-        //self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true);
+        // self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true);
 
         queue.submit(Some(encoder.finish()));
     }
 
-    fn input(&mut self, input_cache: &InputCache) {
-        self.camera.update_from_input(&input_cache);
+    fn input(&mut self, queue: &wgpu::Queue, input_cache: &InputCache) {
+        self.camera.update_from_input(&queue, &input_cache);
     }
 
     fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, _new_size: winit::dpi::PhysicalSize<u32>) {
         self.depth_texture = JTexture::create_depth_texture(&device, &sc_desc, Some("depth-texture"));
+        // self.camera.resize(sc_desc.width as f32, sc_desc.height as f32);
     }
 
     fn update(&self) {

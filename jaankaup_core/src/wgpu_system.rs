@@ -33,7 +33,7 @@ pub trait Application: Sized + 'static {
               sc_desc: &wgpu::SwapChainDescriptor);
 
     /// A function that handles inputs.
-    fn input(&mut self, input_cache: &InputCache);
+    fn input(&mut self, queue: &wgpu::Queue, input_cache: &InputCache);
 
     /// A function for resizing.
     fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, new_size: winit::dpi::PhysicalSize<u32>);
@@ -137,7 +137,7 @@ impl Loop for BasicLoop {
                     spawner.run_until_stalled();
                 }
 
-                #[cfg(target_arch = "wasm32")]
+                //#[cfg(target_arch = "wasm32")]
                 window.request_redraw();
             }
             Event::WindowEvent { event, ..} => {
@@ -160,7 +160,7 @@ impl Loop for BasicLoop {
                     _ => {}
                 }
                 
-                application.input(&input);
+                application.input(&queue, &input);
             }
             Event::RedrawRequested(_) => {
                 application.render(&device, &mut queue, &mut swap_chain, &surface, &sc_desc);
