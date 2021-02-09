@@ -60,13 +60,22 @@ impl McParams {
         &self.params
     }
 
+    pub fn reset_counter(&self, queue: &wgpu::Queue) {
+        queue.write_buffer(
+            &self.counter_buffer,
+            0,
+            bytemuck::cast_slice(&[0 as u32])
+        );
+    }
+
     /// Updates the given mc-parameters and updates the buffer.
     pub fn update_params(
         &mut self,
         queue: &wgpu::Queue,
         base_position: &Option<cgmath::Vector4<f32>>,
         isovalue: &Option<f32>,
-        cube_length: &Option<f32>) {
+        cube_length: &Option<f32>,
+        future1: &Option<f32>) {
 
         // Update params.
         if let Some(position) = *base_position {
@@ -78,6 +87,9 @@ impl McParams {
         if let Some(length) = *cube_length {
             assert!(length > 0.0, format!("length ==  {} > 0.0", length));
             self.params.cube_length = length;
+        }
+        if let Some(f) = *future1 {
+            self.params.future_usage1 = f;
         }
 
         // Update the buffer.

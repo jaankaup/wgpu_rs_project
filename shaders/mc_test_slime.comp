@@ -398,17 +398,10 @@ float fbm(vec3 x) {
 
 float calculate_density(vec3 v)
 {
-    float noise_a = fbm(v.z * 1.2);
-    float noise_d = fbm(v.yy * 0.2);
-    float noise_b = noise(v.zyx * 1.1);
-    float noise_c = noise((v.x + 5.0) * 1.1);
-    float heko = abs(6*fbm(v*0.4)); // + 10.0 * noise + 14.0 * noise2;
-    //return v.y - 3.0 +  4 * noise;
-    //float ball = pow(v.x - 2.1, 2.0) + pow(v.y - 2.2, 2.0) + pow(v.z - 1.5, 2.0) - 2.5;
-    float something = 1.5 * noise_a - 2.45 * noise_b - 4.5 * sin(v.z * 0.2);
-    return v.y + 0.62 * something - 0.1 * heko - 2.5 * noise_c + 5.0 * noise_d;
-    //return v.y - 0.5 + 0.5 * sin(v.x*3);
-    //return v.y + cos(10.0 * v.y);
+    //float noise_a = 5.0 * fbm(v.x * 0.5);
+    float noise_a = noise(vec3(1.5*for_future_usage1) + v.zyx);
+    //float noise_b = noise(5.0*v.zyx + 3.0);
+    return v.y - 1.9 - 0.2 * cos(3.0 * for_future_usage1 + v.y) + 0.1 * sin(2.5 * v.z + noise_a * 0.5) + 0.5 * noise_a;
 }
 
 uint calculate_case(in Cube cube, float isovalue)

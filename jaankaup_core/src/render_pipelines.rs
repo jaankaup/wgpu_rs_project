@@ -30,7 +30,7 @@ pub fn draw(encoder: &mut wgpu::CommandEncoder,
                                     load: match clear {
                                         true => {
                                             wgpu::LoadOp::Clear(wgpu::Color {
-                                                r: 1.0,
+                                                r: 0.0,
                                                 g: 0.0,
                                                 b: 0.0,
                                                 a: 1.0,
@@ -327,7 +327,7 @@ impl TestLayoutEntry {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: wgpu::CullMode::Back,
+                cull_mode: wgpu::CullMode::Front,
                 polygon_mode: wgpu::PolygonMode::Fill,
             },
             depth_stencil: Some(wgpu::DepthStencilState {

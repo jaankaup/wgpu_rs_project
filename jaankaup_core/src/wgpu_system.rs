@@ -39,7 +39,7 @@ pub trait Application: Sized + 'static {
     fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, new_size: winit::dpi::PhysicalSize<u32>);
 
     /// A function for updating the state of the application.
-    fn update(&self);
+    fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, input: &InputCache);
 }
 
 /// A trait for Loops.
@@ -131,6 +131,7 @@ impl Loop for BasicLoop {
             Event::MainEventsCleared => {
                 // log::info!("MainEventsCleared....");
                 input.pre_update();
+                application.update(&device, &queue, &input);
                 #[cfg(not(target_arch = "wasm32"))]
                 {
                     //pool.run_until_stalled();

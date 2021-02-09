@@ -203,6 +203,11 @@ impl InputCache {
         }
     }
 
+    /// Get the current time.
+    pub fn get_time(&self) -> u128 {
+        self.time_now
+    }
+
     /// Get the difference between the current time and previous tick.
     pub fn get_time_delta(&self) -> u128 {
         self.time_delta

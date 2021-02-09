@@ -28,16 +28,20 @@ struct HelloApp {
     depth_texture: JTexture,
     camera: Camera,
     mc: MarchingCubes,
+    mc_slime: MarchingCubes,
     test_layout: TestLayoutEntry,
     bind: Vec<wgpu::BindGroup>,
+    bind_slime: Vec<wgpu::BindGroup>,
     draw_count_mc: u32,
+    draw_count_mc_slime: u32,
+    mc_params_slime: McParams,
     //shaders: HashMap<String, ShaderModule>,
     //render_passes: HashMap<String, RenderPass>,
 }
 
 impl HelloApp {
 
-    fn create_textures(configuration: &WGPUConfiguration) -> (JTexture, JTexture) {
+    fn create_textures(configuration: &WGPUConfiguration) -> (JTexture, JTexture, JTexture, JTexture) {
         let grass_texture = JTexture::create_from_bytes(
             &configuration.queue,
             &configuration.device,
@@ -52,7 +56,21 @@ impl HelloApp {
             1,
             &include_bytes!("../../textures/rock.png")[..],
             None);
-        (grass_texture, rock_texture)
+        let slime_texture = JTexture::create_from_bytes(
+            &configuration.queue,
+            &configuration.device,
+            &configuration.sc_desc,
+            1,
+            &include_bytes!("../../textures/slime.png")[..],
+            None);
+        let slime_texture2 = JTexture::create_from_bytes(
+            &configuration.queue,
+            &configuration.device,
+            &configuration.sc_desc,
+            1,
+            &include_bytes!("../../textures/slime2.png")[..],
+            None);
+        (grass_texture, rock_texture, slime_texture, slime_texture2)
     }
 }
 
@@ -68,7 +86,7 @@ impl Application for HelloApp {
         //buffers.insert("screen".to_string(),screen_buffer);
 
         let two_triangles = TwoTriangles::init(&configuration.device, &configuration.sc_desc);
-        let (grass_texture, rock_texture) = HelloApp::create_textures(&configuration); 
+        let (grass_texture, rock_texture, slime, slime2) = HelloApp::create_textures(&configuration); 
         let depth_texture = JTexture::create_depth_texture(
             &configuration.device,
             &configuration.sc_desc,
@@ -97,6 +115,8 @@ impl Application for HelloApp {
 
         textures.insert("grass".to_string(), grass_texture); 
         textures.insert("rock".to_string(), rock_texture); 
+        textures.insert("slime".to_string(), slime); 
+        textures.insert("slime2".to_string(), slime2); 
 
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
         log::info!("Aspect ratio == {} / {}", configuration.size.width as f32, configuration.size.height as f32);
@@ -144,6 +164,22 @@ impl Application for HelloApp {
                                 ]
         );
 
+        let t_slime_bindgroups = create_bind_groups(
+                                     &configuration.device, 
+                                     &t.layout_entries,
+                                     &vec![
+                                         vec![&wgpu::BindingResource::Buffer {
+                                                 buffer: &camera.get_camera_uniform(&configuration.device),
+                                                 offset: 0,
+                                                 size: None,
+                                         }], 
+                                         vec![&wgpu::BindingResource::TextureView(&textures.get("slime").unwrap().view),
+                                              &wgpu::BindingResource::Sampler(&textures.get("slime").unwrap().sampler),
+                                              &wgpu::BindingResource::TextureView(&textures.get("slime2").unwrap().view),
+                                              &wgpu::BindingResource::Sampler(&textures.get("slime2").unwrap().sampler)]
+                                     ]
+        );
+
         //create_bind_groups(
         //    &t.entry_layout,
         //    &vec![
@@ -151,6 +187,7 @@ impl Application for HelloApp {
         //             &wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler)]
         //    ]);
 
+        // The environment.
         let mc = MarchingCubes::init(
             &configuration.device,
             &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv"))
@@ -161,16 +198,16 @@ impl Application for HelloApp {
             buffer_from_data::<f32>(
             &configuration.device,
             // gl_Position     |    point_pos
-            &vec![0 as f32 ; 64*64*64*24],
+            &vec![0 as f32 ; 128*128*128*24],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
         );
 
         let mut mc_params = McParams::init(
                 &configuration.device, 
-                &cgmath::Vector4::<f32>::new(0.0, 0.0, 0.0, 1.0),
+                &cgmath::Vector4::<f32>::new(0.0, -1.0, 0.0, 1.0),
                 0.0,
-                0.5
+                0.05
         );
 
         let mc_bind_groups = mc.create_bind_groups(
@@ -181,12 +218,62 @@ impl Application for HelloApp {
 
         mc_params.bind_groups = Some(mc_bind_groups); 
         
+        //let mut encoder = configuration.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Juuu") });
+
+        //mc.dispatch(&mc_params.bind_groups.as_ref().unwrap(),
+        //            &mut encoder,
+        //            64,
+        //            128,
+        //            64
+        //); 
+
+        //configuration.queue.submit(Some(encoder.finish()));
+
+
+        // The slime.
+        let mc_slime = MarchingCubes::init(
+            &configuration.device,
+            &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test_slime.comp.spv"))
+        );
+
+        buffers.insert(
+            "mc_output_slime".to_string(),
+            buffer_from_data::<f32>(
+            &configuration.device,
+            // gl_Position     |    point_pos
+            &vec![0 as f32 ; 256*256*128*24],
+            wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+            None)
+        );
+
+        let mut mc_params_slime = McParams::init(
+                &configuration.device, 
+                &cgmath::Vector4::<f32>::new(0.0, -1.0, 0.0, 1.0),
+                0.0,
+                0.05
+        );
+
+        let mc_bind_groups_slime = mc_slime.create_bind_groups(
+            &configuration.device,
+            &mc_params_slime,
+            &buffers.get("mc_output_slime").unwrap()
+        );
+
+        mc_params_slime.bind_groups = Some(mc_bind_groups_slime); 
+        
         let mut encoder = configuration.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Juuu") });
 
         mc.dispatch(&mc_params.bind_groups.as_ref().unwrap(),
                     &mut encoder,
                     64,
+                    128,
+                    64
+        ); 
+
+        mc_slime.dispatch(&mc_params_slime.bind_groups.as_ref().unwrap(),
+                    &mut encoder,
                     64,
+                    32,
                     64
         ); 
 
@@ -197,8 +284,14 @@ impl Application for HelloApp {
                                               &mc_params.counter_buffer,
                                               0 as wgpu::BufferAddress,
                                               4 as wgpu::BufferAddress));
-        println!("yeaaaaah");
         log::info!("Mc counter == {}", k[0]);
+
+        let k_slime =  pollster::block_on(to_vec::<u32>(&configuration.device,
+                                              &configuration.queue,
+                                              &mc_params_slime.counter_buffer,
+                                              0 as wgpu::BufferAddress,
+                                              4 as wgpu::BufferAddress));
+        log::info!("Mc counter_slime == {}", k_slime[0]);
 
         // let k2 =  pollster::block_on(to_vec::<f32>(&configuration.device,
         //                                       &configuration.queue,
@@ -219,9 +312,13 @@ impl Application for HelloApp {
             depth_texture: depth_texture,
             camera: camera,
             mc: mc,
+            mc_slime: mc_slime,
             test_layout: t,
             bind: t_bindgroups,
+            bind_slime: t_slime_bindgroups,
             draw_count_mc: k[0],
+            draw_count_mc_slime: k_slime[0],
+            mc_params_slime: mc_params_slime,
             //shaders: load_shaders(&configuration.device),
             //render_passes: HashMap::<String, RenderPass>::new(),
         }
@@ -258,6 +355,16 @@ impl Application for HelloApp {
              true
         );
 
+        draw(&mut encoder,
+             &frame,
+             &self.depth_texture,
+             &self.bind_slime,
+             &self.test_layout.pipeline,
+             &self.buffers.get("mc_output_slime").unwrap(),
+             0..self.draw_count_mc_slime, 
+             false
+        );
+
         // self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true);
 
         queue.submit(Some(encoder.finish()));
@@ -269,11 +376,38 @@ impl Application for HelloApp {
 
     fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, _new_size: winit::dpi::PhysicalSize<u32>) {
         self.depth_texture = JTexture::create_depth_texture(&device, &sc_desc, Some("depth-texture"));
-        // self.camera.resize(sc_desc.width as f32, sc_desc.height as f32);
+        self.camera.resize(sc_desc.width as f32, sc_desc.height as f32);
     }
 
-    fn update(&self) {
+    fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, input: &InputCache) {
+        
+        self.mc_params_slime.reset_counter(&queue);
+        self.mc_params_slime.update_params(
+            &queue,
+            &None,
+            &Some(0.15 * (((input.get_time() / 30000000) as f32) * 0.005).sin()),
+            &None,
+            &Some(((input.get_time() / 30000000) as f32) * 0.0015),
+        ); 
 
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Juuu") });
+
+        self.mc_slime.dispatch(&self.mc_params_slime.bind_groups.as_ref().unwrap(),
+                    &mut encoder,
+                    64,
+                    32,
+                    64
+        );
+
+        queue.submit(Some(encoder.finish()));
+
+        let k_slime =  pollster::block_on(to_vec::<u32>(&device,
+                                              &queue,
+                                              &self.mc_params_slime.counter_buffer,
+                                              0 as wgpu::BufferAddress,
+                                              4 as wgpu::BufferAddress));
+
+        self.draw_count_mc_slime = k_slime[0];
     }
 }
 

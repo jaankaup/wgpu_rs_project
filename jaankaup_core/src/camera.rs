@@ -86,10 +86,10 @@ impl Camera {
         &self.camera_buffer.as_ref().unwrap()
     }
     
-    // // TODO: update uniform?
-    // pub fn resize(&mut self, aspect_width: f32, aspect_height: f32) {
-    //     self.aspect = aspect_width / aspect_height as f32;
-    // }
+    // TODO: update uniform?
+    pub fn resize(&mut self, aspect_width: f32, aspect_height: f32) {
+        self.aspect = aspect_width / aspect_height as f32;
+    }
 
     /// Get a reference to ray tracing camera uniform buffer. Creates the buffer is it doens't already exist.
     /// TODO: create buffer on init().
@@ -126,15 +126,15 @@ impl Camera {
         assert!(aspect_width > 0.0, "Width must be > 0.");
 
         Self {
-            pos: (1.0, 1.0, 1.0).into(),
+            pos: (1.0, 4.0, 1.0).into(),
             view: Vector3::new(0.0, 0.0, -1.0).normalize(),
             up: cgmath::Vector3::unit_y(),
             aspect: aspect_width / aspect_height as f32,
             fov: (45.0,45.0).into(),
             znear: 0.01,
             zfar: 1000.0,
-            movement_sensitivity: 0.1,
-            rotation_sensitivity: 0.1,
+            movement_sensitivity: 0.003,
+            rotation_sensitivity: 0.05,
             pitch: -80.5,
             yaw: -50.5,
             aperture_radius: 0.01,
