@@ -11,6 +11,7 @@ pub mod mc;
 pub mod vvvvnnnn; 
 pub mod temp; 
 pub mod render_pipelines; 
+pub mod noise3d; 
 
 #[cfg(test)]
 mod tests {

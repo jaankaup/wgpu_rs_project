@@ -535,7 +535,7 @@ void main() {
     uint pos_z = gl_GlobalInvocationID.z;
 
     // Create and scale cube base position.
-    vec3 position = vec3(pos_x, pos_y, pos_z) * cube_length;
+    vec3 position = vec3(pos_x, pos_y, pos_z) * cube_length + base_position.xyz;
 
     // Create cube corner coordinates. 
     vec3 p0 = position;
