@@ -180,21 +180,23 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
     let title = title.to_owned();
     // env_logger::init();
 
+    //#[cfg(not(target_arch = "wasm32"))]
+    //{
+    //    SimpleLogger::new()
+    //    .with_level(LevelFilter::Off)
+    //    .with_module_level("jaankaup", LevelFilter::Info)
+    //    .with_module_level("hello_project", LevelFilter::Info)
+    //    .with_module_level("wgpu", LevelFilter::Info)
+    //    .init()
+    //    .unwrap();
+    //}
     #[cfg(not(target_arch = "wasm32"))]
     {
-        SimpleLogger::new()
-        .with_level(LevelFilter::Off)
-        .with_module_level("jaankaup", LevelFilter::Info)
-        .with_module_level("hello_project", LevelFilter::Info)
-        .init()
-        .unwrap();
-    }
-    // {
-    //     let chrome_tracing_dir = std::env::var("WGPU_CHROME_TRACE");
-    //     subscriber::initialize_default_subscriber(
-    //         chrome_tracing_dir.as_ref().map(std::path::Path::new).ok(),
-    //     );
-    // };
+        let chrome_tracing_dir = std::env::var("WGPU_CHROME_TRACE");
+        subscriber::initialize_default_subscriber(
+            chrome_tracing_dir.as_ref().map(std::path::Path::new).ok(),
+        );
+    };
 
     let event_loop = EventLoop::new();
     let mut builder = winit::window::WindowBuilder::new();

@@ -12,3 +12,4 @@ output.txt
 *.info
 lib
 *.obj
+trace
