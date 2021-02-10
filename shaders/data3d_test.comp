@@ -818,10 +818,7 @@ void main() {
     //imageStore(myStorageImage, ivec3(x,y,z), vec4(cperlin_noise, fbm_noise, voronoi_noise, voronoi_noise2)); 
 //    imageStore(myStorageImage, ivec3(x,y,z), vec4(fx/256.0, fy/256, fz/256, 1.0)); 
   
-  uint output_index =
-    (gl_GlobalInvocationID.x ) +
-    gl_NumWorkGroups.x * gl_WorkGroupSize.x * (gl_GlobalInvocationID.y) + 
-    gl_NumWorkGroups.x * gl_WorkGroupSize.x * gl_NumWorkGroups.y * gl_WorkGroupSize.y * (gl_GlobalInvocationID.z);
+  uint output_index = gl_GlobalInvocationID.x + gl_NumWorkGroups.x * gl_WorkGroupSize.x * (gl_GlobalInvocationID.y) + gl_NumWorkGroups.x * gl_WorkGroupSize.x * gl_NumWorkGroups.y * gl_WorkGroupSize.y * (gl_GlobalInvocationID.z);
 
   //noise_output[output_index] = encode_vector(vec4(fx/256.0, fy/256, fz/256, 1.0));
   //noise_output[1] = gl_GlobalInvocationID.x; // encode_vector(vec4(fx/256.0, fy/256, fz/256, 1.0));

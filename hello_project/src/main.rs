@@ -13,6 +13,7 @@ use jaankaup_core::mc::*;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
 use jaankaup_core::render_pipelines::*;
+use jaankaup_core::noise3d::*;
 
 // Redefine needed features for this application.
 struct MyFeatures {}
@@ -127,12 +128,14 @@ impl Application for HelloApp {
         let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.vert.spv");
         let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.frag.spv");
 
+        // Render pipeline...
         let t = TestLayoutEntry::init(
                     &configuration.device,
                     &configuration.sc_desc,
                     &configuration.device.create_shader_module(&vertex_shader_src),
                     &configuration.device.create_shader_module(&fragment_shader_src)
         );
+        // Check the correspondence of resources and the pipeline interface.
         check_correspondence(
             &t.layout_entries,
             &vec![
@@ -148,6 +151,7 @@ impl Application for HelloApp {
                 ]
             ]
         );
+        // Create bind groups for basic render pipeline and grass/rock textures. 
         let t_bindgroups = create_bind_groups(
                                 &configuration.device, 
                                 &t.layout_entries,
@@ -164,6 +168,7 @@ impl Application for HelloApp {
                                 ]
         );
 
+        // Create bind groups for basic render pipeline and slime/slime2 textures. 
         let t_slime_bindgroups = create_bind_groups(
                                      &configuration.device, 
                                      &t.layout_entries,
@@ -180,19 +185,13 @@ impl Application for HelloApp {
                                      ]
         );
 
-        //create_bind_groups(
-        //    &t.entry_layout,
-        //    &vec![
-        //        vec![&wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
-        //             &wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler)]
-        //    ]);
-
-        // The environment.
+        // The environment (mountains marching cubes).
         let mc = MarchingCubes::init(
             &configuration.device,
             &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv"))
         );
 
+        // Create output buffer for "mountains", the output of mc.
         buffers.insert(
             "mc_output".to_string(),
             buffer_from_data::<f32>(
@@ -203,6 +202,7 @@ impl Application for HelloApp {
             None)
         );
 
+        // Create parameters for "mountain" marching cubes.
         let mut mc_params = McParams::init(
                 &configuration.device, 
                 &cgmath::Vector4::<f32>::new(0.0, 0.0, 0.0, 1.0),
@@ -210,42 +210,33 @@ impl Application for HelloApp {
                 0.05
         );
 
+        // Add bindings to the mc.
         let mc_bind_groups = mc.create_bind_groups(
             &configuration.device,
             &mc_params,
             &buffers.get("mc_output").unwrap()
         );
 
+        // Add create bind groups to the mc_params.
         mc_params.bind_groups = Some(mc_bind_groups); 
         
-        //let mut encoder = configuration.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Juuu") });
-
-        //mc.dispatch(&mc_params.bind_groups.as_ref().unwrap(),
-        //            &mut encoder,
-        //            64,
-        //            128,
-        //            64
-        //); 
-
-        //configuration.queue.submit(Some(encoder.finish()));
-
-
-        // The slime.
+        // The slime marching cubes.
         let mc_slime = MarchingCubes::init(
             &configuration.device,
             &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test_slime.comp.spv"))
         );
 
+        // Create output buffer for slime triangle mesh (the output of slime mc).
         buffers.insert(
             "mc_output_slime".to_string(),
             buffer_from_data::<f32>(
             &configuration.device,
-            // gl_Position     |    point_pos
             &vec![0 as f32 ; 64*64*64*24],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
         );
 
+        // Create parameters for "slime" marching cubes.
         let mut mc_params_slime = McParams::init(
                 &configuration.device, 
                 &cgmath::Vector4::<f32>::new(0.0, 1.0, 0.0, 1.0),
@@ -253,14 +244,27 @@ impl Application for HelloApp {
                 0.05
         );
 
+        // Create bind groups for slime.
         let mc_bind_groups_slime = mc_slime.create_bind_groups(
             &configuration.device,
             &mc_params_slime,
             &buffers.get("mc_output_slime").unwrap()
         );
 
+        // Add create bind groups to the mc_slime.
         mc_params_slime.bind_groups = Some(mc_bind_groups_slime); 
+
+        // Create nouse 3d "texture".
         
+        let shader_comp_3d_tex = wgpu::include_spirv!("../../shaders/spirv/data3d_test.comp.spv");
+        log::info!("Creating 3d.");
+        let texture3D = Custom3DTexture::init(
+                &configuration.device,
+                &configuration.device.create_shader_module(&shader_comp_3d_tex)
+        );
+        log::info!("Finished creating 3d.");
+
+        // Perform both mountain and slime marching cubes.
         let mut encoder = configuration.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Juuu") });
 
         mc.dispatch(&mc_params.bind_groups.as_ref().unwrap(),
@@ -279,6 +283,7 @@ impl Application for HelloApp {
 
         configuration.queue.submit(Some(encoder.finish()));
 
+        // TODO. Figure out how to do this with wasm.
         let mut k: Vec<u32>;
         let mut k_slime: Vec<u32>;
 

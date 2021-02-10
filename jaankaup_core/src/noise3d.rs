@@ -1,6 +1,6 @@
 use crate::render_pipelines::*;
 
-struct Custom3DTexture {
+pub struct Custom3DTexture {
     pub layout_entries: Vec<Vec<wgpu::BindGroupLayoutEntry>>, 
     pub bind_group_layouts: Vec<wgpu::BindGroupLayout>, 
     pub pipeline: wgpu::ComputePipeline,
