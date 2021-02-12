@@ -3,6 +3,7 @@
 members = [
     "jaankaup_core",
     "hello_project",
+    "cpu_version",
 ]
 
 [profile.dev]

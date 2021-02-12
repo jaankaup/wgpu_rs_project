@@ -257,12 +257,31 @@ impl Application for HelloApp {
         // Create nouse 3d "texture".
         
         let shader_comp_3d_tex = wgpu::include_spirv!("../../shaders/spirv/data3d_test.comp.spv");
-        log::info!("Creating 3d.");
+                                   
         let texture3D = Custom3DTexture::init(
                 &configuration.device,
                 &configuration.device.create_shader_module(&shader_comp_3d_tex)
         );
-        log::info!("Finished creating 3d.");
+
+        // Create density values buffer for slime.
+        buffers.insert(
+            "3dnoise_slime".to_string(),
+            buffer_from_data::<f32>(
+            &configuration.device,
+            &vec![0 as f32 ; 64*6*64*16*4],
+            wgpu::BufferUsage::STORAGE,
+            None)
+        );
+
+        // Create uniform buffer uvec3 for number of invocations.
+        buffers.insert(
+            "slime_invocations".to_string(),
+            buffer_from_data::<u32>(
+            &configuration.device,
+            &vec![64,6,64],
+            wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::UNIFORM,
+            None)
+        );
 
         // Perform both mountain and slime marching cubes.
         let mut encoder = configuration.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Juuu") });

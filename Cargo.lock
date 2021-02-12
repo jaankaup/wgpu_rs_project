@@ -392,6 +392,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "cpu_version"
+version = "0.1.0"
+
+[[package]]
 name = "crc32fast"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -869,6 +873,7 @@ dependencies = [
  "pollster",
  "wasm-bindgen-futures",
  "wgpu",
+ "wgpu-subscriber",
  "winit",
 ]
 
@@ -1432,9 +1437,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.8"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "991431c3519a3f36861882da93630ce66b52918dcf1b8e2fd66b397fc96f28df"
+checksum = "c3d0b9745dc2debf507c8422de05d7226cc1f0644216dfdfead988f9b1ab32a7"
 dependencies = [
  "proc-macro2",
 ]
@@ -2024,7 +2029,7 @@ dependencies = [
 [[package]]
 name = "wgpu"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/wgpu-rs#0234f2723a1fbbfaa48a88948c1554f8de6fa888"
+source = "git+https://github.com/gfx-rs/wgpu-rs#6864c0be84a7a9994486ac6704d390ffbd271641"
 dependencies = [
  "arrayvec",
  "js-sys",
@@ -2044,7 +2049,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=b1b44ca78c6a55e200f25da38f7b47b4c90928e9#b1b44ca78c6a55e200f25da38f7b47b4c90928e9"
+source = "git+https://github.com/gfx-rs/wgpu?rev=05a531191d4ce2927f2157e5dd54b7aa5d779406#05a531191d4ce2927f2157e5dd54b7aa5d779406"
 dependencies = [
  "arrayvec",
  "bitflags",
@@ -2087,7 +2092,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=b1b44ca78c6a55e200f25da38f7b47b4c90928e9#b1b44ca78c6a55e200f25da38f7b47b4c90928e9"
+source = "git+https://github.com/gfx-rs/wgpu?rev=05a531191d4ce2927f2157e5dd54b7aa5d779406#05a531191d4ce2927f2157e5dd54b7aa5d779406"
 dependencies = [
  "bitflags",
  "serde",
