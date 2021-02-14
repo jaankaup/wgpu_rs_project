@@ -110,9 +110,9 @@ pub struct MarchingCubes {
 
 impl MarchingCubes {
 
-    pub fn init(device: &wgpu::Device, mc_shader: &wgpu::ShaderModule) -> Self {
+    pub fn init(device: &wgpu::Device, mc_shader: &wgpu::ShaderModule, has_3d_texture: bool) -> Self {
         Self {
-            pipeline: MarchingCubes::create_pipeline(&device, &mc_shader),
+            pipeline: MarchingCubes::create_pipeline(&device, &mc_shader, has_3d_texture),
         }
     }
 
@@ -121,18 +121,29 @@ impl MarchingCubes {
         &self,
         device: &wgpu::Device,
         params: &McParams,
-        output_buffer: &wgpu::Buffer)
+        output_buffer: &wgpu::Buffer,
+        texture_3d: Option<&wgpu::Buffer>
+        )
         -> Vec<wgpu::BindGroup> {
 
-        let bind_group_layouts = MarchingCubes::get_bind_group_layout(&device);
+        let has_3d_texture = !texture_3d.is_none();
+
+        let bind_group_layouts = MarchingCubes::get_bind_group_layout(&device, has_3d_texture);
+        
+        // if let Some(tex) = texture_3d.as_ref() {
+        //     MarchingCubes::get_bind_group_layout(&device, has_3d_texture)
+        // }
+        // else {
+        //     MarchingCubes::get_bind_group_layout(&device, false)
+        // };
 
         // Create bindings. Group 0.
         let mc_param_buffer = wgpu::BindGroupEntry {
                 binding: 0,
                 resource: wgpu::BindingResource::Buffer {
-                    buffer: &params.get_uniform_buffer(),
+                    buffer: params.get_uniform_buffer(),
                     offset: 0,
-                    size: None, //wgpu::BufferSize::new(std::mem::size_of::<McParams>(),
+                    size: None,
                 },
         };
 
@@ -141,7 +152,7 @@ impl MarchingCubes {
                 resource: wgpu::BindingResource::Buffer {
                     buffer: &params.counter_buffer,    
                     offset: 0,
-                    size: None, //wgpu::BufferSize::new(std::mem::size_of::<u32>()),
+                    size: None,
                 },
         };
 
@@ -151,9 +162,31 @@ impl MarchingCubes {
                 resource: wgpu::BindingResource::Buffer {
                     buffer: &output_buffer,    
                     offset: 0,
-                    size: None, //wgpu::BufferSize::new(std::mem::size_of::<u32>(),
+                    size: None,
                 },
         };
+
+        let mc_texture_buffer = if let Some(tex3d) = texture_3d.as_ref() {
+                Some(wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Buffer {
+                        buffer: tex3d,    
+                        offset: 0,
+                        size: None,
+                    },
+                })
+            }
+            else {
+                None
+            };
+
+        //let mc_texture3d = if let Some(tex3d) = texture_3d.as_ref() {
+        //    device.create_bind_group(&wgpu::BindGroupDescriptor {
+        //        layout: &bind_group_layouts[0],
+        //        entries: &[mc_param_buffer, mc_counter_buffer],
+        //        label: None,
+        //    });
+        //};
 
         let bind_group_0 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layouts[0],
@@ -161,11 +194,19 @@ impl MarchingCubes {
             label: None,
         });
 
-        let bind_group_1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &bind_group_layouts[1],
-            entries: &[mc_output_buffer],
-            label: None,
-        });
+        println!("match mc_texture_buffer.is_none() == {}", mc_texture_buffer.is_none());
+        let bind_group_1 = match mc_texture_buffer.is_none() {
+            true => device.create_bind_group(&wgpu::BindGroupDescriptor {
+                        layout: &bind_group_layouts[1],
+                        entries: &[mc_output_buffer],
+                        label: None,
+                    }),
+            false => device.create_bind_group(&wgpu::BindGroupDescriptor {
+                        layout: &bind_group_layouts[1],
+                        entries: &[mc_output_buffer, mc_texture_buffer.unwrap()],
+                        label: None,
+                    }),
+        };
 
         vec![bind_group_0, bind_group_1]
     }
@@ -185,7 +226,7 @@ impl MarchingCubes {
     }
 
     /// Creates the BindGroupLayout for marching cubes pipeline and bindgroup.
-    fn get_bind_group_layout(device: &wgpu::Device) -> Vec<wgpu::BindGroupLayout> {
+    fn get_bind_group_layout(device: &wgpu::Device, has_3d_texture: bool) -> Vec<wgpu::BindGroupLayout> {
 
         let mut layouts = Vec::<wgpu::BindGroupLayout>::new();
 
@@ -216,6 +257,7 @@ impl MarchingCubes {
                 label: Some("Mc_test bind group layout 0"),
             })
         );
+        if !has_3d_texture {
         layouts.push(
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -232,17 +274,49 @@ impl MarchingCubes {
                 ],
                 label: Some("Mc_test bind group layout 1"),
             })
-        );
+        )
+        }
+        else {
+            println!("Does it has 3d_texture :: {}", has_3d_texture);
+            layouts.push(
+                device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStage::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: false },
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStage::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        }
+                    ],
+                    label: Some("Mc_test bind group layout 2"),
+                })
+            );
+        }
         layouts
     }
 
     /// Create the pipeline for marching cubes.
     fn create_pipeline(
         device: &wgpu::Device,
-        shader_module: &wgpu::ShaderModule)
+        shader_module: &wgpu::ShaderModule,
+        has_3d_texture: bool)
     -> wgpu::ComputePipeline {
     
-        let bind_group_layouts = MarchingCubes::get_bind_group_layout(&device);
+        let bind_group_layouts = MarchingCubes::get_bind_group_layout(&device, has_3d_texture);
         
         // Create pipeline layout.
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

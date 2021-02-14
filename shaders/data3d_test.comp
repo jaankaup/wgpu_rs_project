@@ -1,17 +1,29 @@
 #version 450
 
-layout(set = 0, binding = 0) buffer readonly Numb_of_works {
+//layout(set = 0, binding = 0) buffer readonly Numb_of_works {
+layout(set = 0, binding = 0) buffer Numb_of_works {
     uvec3 the_number_of_workgroups;
 };
 
-layout(set = 0, binding = 1) buffer NoiseOut {
+//layout(set = 0, binding = 1) buffer readonly Dimensions {
+layout(set = 0, binding = 1) buffer Dimensions {
+    uvec3 dimensions;
+};
+
+layout(set = 0, binding = 2) readonly buffer FutureUsage1 {
+    vec4 future_usage1;
+};
+
+//layout(set = 0, binding = 3) buffer writeonly NoiseOut {
+layout(set = 0, binding = 3) buffer NoiseOut {
     float[] noise_output;
 };
 
-layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
+// 4x4x4 area.
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 // Use shared memory to first calculate noise values and then scatter.
-shared float[4*4*4] temp_values;
+shared float[64] temp_values;
 
 //
 //  This noise codes are taken from: https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
@@ -37,7 +49,6 @@ float gen_noise_n(vec2 n) {
   vec2 b = floor(n), f = smoothstep(vec2(0.0), vec2(1.0), fract(n));
 	return mix(mix(rand(b), rand(b + d.yx), f.x), mix(rand(b + d.xy), rand(b + d.yy), f.x), f.y);
 }
-
 
 float gen_noise(vec2 p){
 	vec2 ip = floor(p);
@@ -798,48 +809,38 @@ uint encode_vector(vec4 v) {
          ( uint(v.x * 255) & 0xffff);          // w :: u8 
 }
 
+uvec3 index1D_to_index3D() {
+	uint index = gl_GlobalInvocationID.x;
+	uint wh = dimensions.x * dimensions.y;
+	uint z = index / wh;
+	index -= z * wh;
+	uint y = index / dimensions.x;
+	index -= y * dimensions.x;
+	uint x = index;
+	return uvec3(x, y, z);	
+}
+
 void main() {
-    
-    const uint x = gl_GlobalInvocationID.x;
-    const uint y = gl_GlobalInvocationID.y;
-    const uint z = gl_GlobalInvocationID.z;
 
-    const uint x_local = gl_LocalInvocationID.x;
-    const uint y_local = gl_LocalInvocationID.y;
-    const uint z_local = gl_LocalInvocationID.z;
-
-    const float fx = float(x) * 0.2;
-    const float fy = float(y) * 0.2;
-    const float fz = float(z) * 0.2;
-
-    //uint output_index = gl_GlobalInvocationID.x +
-    //                    gl_NumWorkGroups.x * gl_WorkGroupSize.x * gl_GlobalInvocationID.y + 
-    //                    gl_NumWorkGroups.x * gl_WorkGroupSize.x * gl_GlobalInvocationID.y + 
-	
-    float cperlin_noise = cnoise(vec4(fx, fy, fz, 1.0));
-    //float cperlin_noise2 = cnoise(vec4(fx*0.5 + 2.0f, fy*0.5 - 2.0f, -fz*0.5, 1.0));
-    //float cperlin_noise3 = cnoise(vec4(fx*0.1 + 50.0f, fy*0.1 + 50.0f, fz*0.1 + 50.0f, 1.0));
-    //float cperlin_noise4 = cnoise(vec4(-fx, -fy + 33.0f, -fz, 1.0));
-    //float fbm_noise = fbm2(vec3(fx, fy, fz));
-    //float voronoi_noise = voronoi(vec2(fx, fy) + vec2(fz, fz));
-    //float voronoi_noise2 = fbm2(vec3(fx, fy, fz));
-    //imageStore(myStorageImage, ivec3(x,y,z), vec4(cperlin_noise, fbm_noise, voronoi_noise, voronoi_noise2)); 
-//    imageStore(myStorageImage, ivec3(x,y,z), vec4(fx/256.0, fy/256, fz/256, 1.0)); 
+  uint index = gl_GlobalInvocationID.x;
+  uint local_index = gl_LocalInvocationID.x;
   
-  // uint output_index = gl_GlobalInvocationID.x
-  //                     + gl_NumWorkGroups.x * gl_WorkGroupSize.x * (gl_GlobalInvocationID.y)
-  //                     + gl_NumWorkGroups.x * gl_WorkGroupSize.x * gl_NumWorkGroups.y * gl_WorkGroupSize.y * (gl_GlobalInvocationID.z);
-  uint output_index = gl_GlobalInvocationID.x
-                      + the_number_of_workgroups.x * gl_WorkGroupSize.x * (gl_GlobalInvocationID.y)
-                      + the_number_of_workgroups.x * gl_WorkGroupSize.x * the_number_of_workgroups.y * gl_WorkGroupSize.y * (gl_GlobalInvocationID.z);
-
-  //noise_output[output_index] = encode_vector(vec4(fx/256.0, fy/256, fz/256, 1.0));
-  //noise_output[1] = gl_GlobalInvocationID.x; // encode_vector(vec4(fx/256.0, fy/256, fz/256, 1.0));
-
-  //noise_output[output_index] = encode_vector(vec4(cperlin_noise, cperlin_noise2, cperlin_noise3, cperlin_noise4));
-  
-  temp_values[x+y+z] = cperlin_noise;
+  const uvec3 coordinate3D = index1D_to_index3D();
+ 
+  const float fx = float(coordinate3D.x) * 0.1;
+  const float fy = float(coordinate3D.y) * 0.1;
+  const float fz = float(coordinate3D.z) * 0.1;
+ 
+  //float for_future_usage1 = 0.3;
+      
+  //float cperlin_noise = cnoise(vec4(fx, fy, fz, 1.0));
+  float noise_a = noise(vec3(1.5 + future_usage1.x) + vec3(fz, fy, fx)); //v.zyx);
+  //float noise_b = noise(5.0*v.zyx + 3.0);
+  float result_value = fy - 1.9 - 0.2 * cos(3.0 * future_usage1.x + fy) + 0.1 * sin(1.5 * fz + noise_a * 0.5) + 0.3 * noise_a;
+ 
+ 
+  temp_values[local_index] = result_value;
   barrier();
 
-  noise_output[output_index] = temp_values[x+y+z];
+  noise_output[index] = temp_values[local_index];
 }

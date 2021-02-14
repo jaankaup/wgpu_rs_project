@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use bytemuck::*;
 use jaankaup_core::wgpu_system as ws;
 use jaankaup_core::wgpu_system::{
         WGPUFeatures,
@@ -36,6 +37,8 @@ struct HelloApp {
     draw_count_mc: u32,
     draw_count_mc_slime: u32,
     mc_params_slime: McParams,
+    slime_texture3d_bindgroups: Vec<wgpu::BindGroup>,
+    custom_3d: Custom3DTexture,
     //shaders: HashMap<String, ShaderModule>,
     //render_passes: HashMap<String, RenderPass>,
 }
@@ -188,7 +191,8 @@ impl Application for HelloApp {
         // The environment (mountains marching cubes).
         let mc = MarchingCubes::init(
             &configuration.device,
-            &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv"))
+            &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv")),
+            false
         );
 
         // Create output buffer for "mountains", the output of mc.
@@ -214,7 +218,8 @@ impl Application for HelloApp {
         let mc_bind_groups = mc.create_bind_groups(
             &configuration.device,
             &mc_params,
-            &buffers.get("mc_output").unwrap()
+            &buffers.get("mc_output").unwrap(),
+            None,
         );
 
         // Add create bind groups to the mc_params.
@@ -223,7 +228,9 @@ impl Application for HelloApp {
         // The slime marching cubes.
         let mc_slime = MarchingCubes::init(
             &configuration.device,
-            &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test_slime.comp.spv"))
+            &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test_slime_noise3d_texture.comp.spv")),
+            //&configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test_slime.comp.spv")),
+            true
         );
 
         // Create output buffer for slime triangle mesh (the output of slime mc).
@@ -231,7 +238,7 @@ impl Application for HelloApp {
             "mc_output_slime".to_string(),
             buffer_from_data::<f32>(
             &configuration.device,
-            &vec![0 as f32 ; 64*64*64*24],
+            &vec![0 as f32 ; 128*128*128*24],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
         );
@@ -244,11 +251,31 @@ impl Application for HelloApp {
                 0.05
         );
 
+        // Create density values buffer for slime.
+        buffers.insert(
+            "3dnoise_slime".to_string(),
+            buffer_from_data::<f32>(
+            &configuration.device,
+            &vec![0 as f32 ; 64*6*64*16*4],
+            wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+            None)
+        );
+        // Future usage1
+        buffers.insert(
+            "future_usage1_noise3d".to_string(), 
+            buffer_from_data::<f32>(
+            &configuration.device,
+            &vec![0.3,0.3,0.3,0.3],
+            wgpu::BufferUsage::COPY_DST |wgpu::BufferUsage::STORAGE,
+            None)
+        );
+
         // Create bind groups for slime.
         let mc_bind_groups_slime = mc_slime.create_bind_groups(
             &configuration.device,
             &mc_params_slime,
-            &buffers.get("mc_output_slime").unwrap()
+            &buffers.get("mc_output_slime").unwrap(),
+            Some(&buffers.get("3dnoise_slime").unwrap())
         );
 
         // Add create bind groups to the mc_slime.
@@ -263,24 +290,51 @@ impl Application for HelloApp {
                 &configuration.device.create_shader_module(&shader_comp_3d_tex)
         );
 
-        // Create density values buffer for slime.
-        buffers.insert(
-            "3dnoise_slime".to_string(),
-            buffer_from_data::<f32>(
-            &configuration.device,
-            &vec![0 as f32 ; 64*6*64*16*4],
-            wgpu::BufferUsage::STORAGE,
-            None)
-        );
-
         // Create uniform buffer uvec3 for number of invocations.
         buffers.insert(
             "slime_invocations".to_string(),
             buffer_from_data::<u32>(
             &configuration.device,
             &vec![64,6,64],
-            wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::UNIFORM,
+            wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE,
             None)
+        );
+        // Create uniform buffer uvec3 for area dimensions.
+        buffers.insert(
+            "slime_dimensions".to_string(),
+            buffer_from_data::<u32>(
+            &configuration.device,
+            &vec![256,24,256],
+            wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE,
+            None)
+        );
+
+        let slime_texture3d_bindgroups =
+                create_bind_groups(
+                    &configuration.device, 
+                    &texture3D.layout_entries,
+                    &vec![
+                        vec![&wgpu::BindingResource::Buffer {
+                                buffer: &buffers.get("slime_invocations").unwrap(),
+                                offset: 0,
+                                size: None,
+                        }, 
+                        &wgpu::BindingResource::Buffer {
+                                buffer: &buffers.get("slime_dimensions").unwrap(),
+                                offset: 0,
+                                size: None,
+                        }, 
+                        &wgpu::BindingResource::Buffer {
+                                buffer: &buffers.get("future_usage1_noise3d").unwrap(),
+                                offset: 0,
+                                size: None,
+                        }, 
+                        &wgpu::BindingResource::Buffer {
+                                buffer: &buffers.get("3dnoise_slime").unwrap(),
+                                offset: 0,
+                                size: None,
+                        }]
+                    ]
         );
 
         // Perform both mountain and slime marching cubes.
@@ -291,6 +345,13 @@ impl Application for HelloApp {
                     64,
                     128,
                     64
+        ); 
+
+        texture3D.dispatch(&slime_texture3d_bindgroups,
+                    &mut encoder,
+                    64 * 6 * 64,
+                    1,
+                    1
         ); 
 
         mc_slime.dispatch(&mc_params_slime.bind_groups.as_ref().unwrap(),
@@ -348,6 +409,7 @@ impl Application for HelloApp {
                                               &mc_params_slime.counter_buffer,
                                               0 as wgpu::BufferAddress,
                                               4 as wgpu::BufferAddress));
+        //println!("k_slime == {}", k_slime[0]);
 
         #[cfg(not(target_arch = "wasm32"))]
         log::info!("Mc counter_slime == {}", k_slime[0]);
@@ -378,6 +440,8 @@ impl Application for HelloApp {
             draw_count_mc: k[0],
             draw_count_mc_slime: k_slime[0],
             mc_params_slime: mc_params_slime,
+            slime_texture3d_bindgroups: slime_texture3d_bindgroups,
+            custom_3d: texture3D,
             //shaders: load_shaders(&configuration.device),
             //render_passes: HashMap::<String, RenderPass>::new(),
         }
@@ -439,19 +503,39 @@ impl Application for HelloApp {
     }
 
     fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, input: &InputCache) {
+
+        let val1 = 0.15 * (((input.get_time() / 5000000) as f32) * 0.005).sin();
+        let val2 = ((input.get_time() / 5000000) as f32) * 0.0015;
+
+
+        queue.write_buffer(
+            &self.buffers.get("future_usage1_noise3d").unwrap(),
+            0,
+            bytemuck::cast_slice(&vec![val2, 0.0, 0.0, 0.0])
+        );
+
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Juuu") });
+
+        self.custom_3d.dispatch(&self.slime_texture3d_bindgroups,
+                    &mut encoder,
+                    64 * 6 * 64,
+                    1,
+                    1
+        ); 
         
+        // Create slime.
         self.mc_params_slime.reset_counter(&queue);
         self.mc_params_slime.update_params(
             &queue,
             &None,
-            &Some(0.15 * (((input.get_time() / 30000000) as f32) * 0.005).sin()),
+            &Some(0.0),
             &None,
-            &Some(((input.get_time() / 30000000) as f32) * 0.0015),
+            &Some(0.0),
         ); 
 
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Juuu") });
 
         self.mc_slime.dispatch(&self.mc_params_slime.bind_groups.as_ref().unwrap(),
+        //self.mc_slime.dispatch(&self.slime_texture3d_bindgroups,
                     &mut encoder,
                     64,
                     6,

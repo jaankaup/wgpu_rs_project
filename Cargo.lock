@@ -867,6 +867,7 @@ dependencies = [
 name = "hello_project"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "cgmath",
  "jaankaup_core",
  "log",

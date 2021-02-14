@@ -25,6 +25,26 @@ impl Custom3DTexture {
                             binding: 1,
                             visibility: wgpu::ShaderStage::COMPUTE,
                             ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 2,
+                            visibility: wgpu::ShaderStage::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 3,
+                            visibility: wgpu::ShaderStage::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
                                 ty: wgpu::BufferBindingType::Storage { read_only: false },
                                 has_dynamic_offset: false,
                                 min_binding_size: None,
@@ -55,7 +75,20 @@ impl Custom3DTexture {
             layout_entries: layout_entries, 
             bind_group_layouts: bind_group_layouts, 
             pipeline: pipeline,
-
         }
+    }
+
+    pub fn dispatch(&self, bind_groups: &Vec<wgpu::BindGroup>,
+                    encoder: &mut wgpu::CommandEncoder,
+                    x: u32, y: u32, z: u32) {
+
+        let mut pass = encoder.begin_compute_pass(
+            &wgpu::ComputePassDescriptor { label: None}
+        );
+        pass.set_pipeline(&self.pipeline);
+        for (e, bgs) in bind_groups.iter().enumerate() {
+            pass.set_bind_group(e as u32, &bgs, &[]);
+        }
+        pass.dispatch(x, y, z)
     }
 }

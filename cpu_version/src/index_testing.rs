@@ -30,11 +30,11 @@ impl Array3D {
         assert!(index < self.array.capacity() as u32, "{} < {}", index, self.array.capacity());
 
         let wh = self.dimension.0 * self.dimension.1;
-        let mut x = index / wh;
-        index -= x * wh; 
+        let mut z = index / wh;
+        index -= z * wh; 
         let y = index / self.dimension.0;
         index -= y*self.dimension.0;
-        let z = index;
+        let x = index;
 
         (x, y, z)
     }
