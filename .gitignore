@@ -13,3 +13,5 @@ output.txt
 lib
 *.obj
 trace
+robot
+hilbert

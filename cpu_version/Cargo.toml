@@ -7,7 +7,7 @@ edition = "2018"
 [lib]
 
 [[example]]
-name = "cpu_testing"
+name = "cpu_version"
 path = "src/main.rs"
 
 [dependencies]

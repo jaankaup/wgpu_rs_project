@@ -2,13 +2,14 @@ use core::ops::Range;
 use crate::misc::create_vb_descriptor;
 use crate::texture as jaankaup;
 
-pub trait LayoutEntry {
-    fn create_bind_group_layouts(device: &wgpu::Device) -> Vec<wgpu::BindGroupLayout>;
-}
-
-pub struct MyTestPipeline {
-
-}
+//trait RenderPipelineInfo {
+//    pub fn get_render_pipeline(&self) -> Option<&wgpu::RenderPipeline>;
+//    pub 
+//    pub layout_entries: Vec<Vec<wgpu::BindGroupLayoutEntry>>, // !! 
+//    pub bind_group_layouts: Vec<wgpu::BindGroupLayout>, // create and store. Used for pipeline and bind groups.
+//    pub pipeline: wgpu::RenderPipeline,
+//
+//}
 
 pub fn draw(encoder: &mut wgpu::CommandEncoder,
             frame: &wgpu::SwapChainTexture,
@@ -204,11 +205,6 @@ pub struct RenderDescriptor {
     has_depth_buffer: bool,
 }
 
-// pub struct NumberedEntry {
-//     set: u32,
-//     entry: wgpu::BindGroupLayoutEntry,
-// }
-
 pub struct TestLayoutEntry {
 
     /// BindGroupEntries in descending set number order.
@@ -281,8 +277,6 @@ impl TestLayoutEntry {
                     }
                 ] // Set 1
         ];
-
-        let bind_group_layouts = create_bind_group_layouts(&device, &layout_entries);
 
         // Create stride and vertex attribute descriptors.
         let (stride, attributes) =  create_vb_descriptor(

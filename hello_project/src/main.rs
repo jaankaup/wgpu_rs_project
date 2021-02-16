@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use bytemuck::*;
 use jaankaup_core::wgpu_system as ws;
 use jaankaup_core::wgpu_system::{
         WGPUFeatures,
@@ -9,7 +8,7 @@ use jaankaup_core::wgpu_system::{
 };
 use jaankaup_core::buffer::*;
 use jaankaup_core::texture::Texture as JTexture;
-use jaankaup_core::two_triangles::*;
+//use jaankaup_core::two_triangles::*;
 use jaankaup_core::mc::*;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
@@ -23,13 +22,12 @@ impl WGPUFeatures for MyFeatures {
 
 // State for this application.
 struct HelloApp {
-    textures: HashMap<String, JTexture>, 
+    //textures: HashMap<String, JTexture>, 
     buffers: HashMap<String, wgpu::Buffer>,
-    two_triangles: TwoTriangles,
-    two_triangles_bind_group: wgpu::BindGroup,
+    //two_triangles: TwoTriangles,
+    //two_triangles_bind_group: wgpu::BindGroup,
     depth_texture: JTexture,
     camera: Camera,
-    mc: MarchingCubes,
     mc_slime: MarchingCubes,
     test_layout: TestLayoutEntry,
     bind: Vec<wgpu::BindGroup>,
@@ -89,17 +87,17 @@ impl Application for HelloApp {
         //let screen_buffer = create_screen_texture_buffer(&configuration.device);
         //buffers.insert("screen".to_string(),screen_buffer);
 
-        let two_triangles = TwoTriangles::init(&configuration.device, &configuration.sc_desc);
+        //let two_triangles = TwoTriangles::init(&configuration.device, &configuration.sc_desc);
         let (grass_texture, rock_texture, slime, slime2) = HelloApp::create_textures(&configuration); 
         let depth_texture = JTexture::create_depth_texture(
             &configuration.device,
             &configuration.sc_desc,
             Some("depth_texture")
         ); 
-        let bind_group = TwoTriangles::create_bind_group(
-            &configuration.device,
-            &grass_texture
-        );
+        // let bind_group = TwoTriangles::create_bind_group(
+        //     &configuration.device,
+        //     &grass_texture
+        // );
         buffers.insert(
             "two".to_string(),
             buffer_from_data::<f32>(
@@ -285,7 +283,7 @@ impl Application for HelloApp {
         
         let shader_comp_3d_tex = wgpu::include_spirv!("../../shaders/spirv/data3d_test.comp.spv");
                                    
-        let texture3D = Custom3DTexture::init(
+        let texture3_d = Custom3DTexture::init(
                 &configuration.device,
                 &configuration.device.create_shader_module(&shader_comp_3d_tex)
         );
@@ -312,7 +310,7 @@ impl Application for HelloApp {
         let slime_texture3d_bindgroups =
                 create_bind_groups(
                     &configuration.device, 
-                    &texture3D.layout_entries,
+                    &texture3_d.layout_entries,
                     &vec![
                         vec![&wgpu::BindingResource::Buffer {
                                 buffer: &buffers.get("slime_invocations").unwrap(),
@@ -347,7 +345,7 @@ impl Application for HelloApp {
                     64
         ); 
 
-        texture3D.dispatch(&slime_texture3d_bindgroups,
+        texture3_d.dispatch(&slime_texture3d_bindgroups,
                     &mut encoder,
                     64 * 6 * 64,
                     1,
@@ -364,8 +362,8 @@ impl Application for HelloApp {
         configuration.queue.submit(Some(encoder.finish()));
 
         // TODO. Figure out how to do this with wasm.
-        let mut k: Vec<u32>;
-        let mut k_slime: Vec<u32>;
+        //let mut k: Vec<u32>;
+        //let mut k_slime: Vec<u32>;
 
         //#[cfg(target_arch = "wasm32")] {
         //k =  to_vec::<u32>(&configuration.device,
@@ -426,13 +424,12 @@ impl Application for HelloApp {
         // }
 
         HelloApp {
-            textures: textures,
+            //textures: textures,
             buffers: buffers,
-            two_triangles: two_triangles,
-            two_triangles_bind_group: bind_group,
+            //two_triangles: two_triangles,
+            //two_triangles_bind_group: bind_group,
             depth_texture: depth_texture,
             camera: camera,
-            mc: mc,
             mc_slime: mc_slime,
             test_layout: t,
             bind: t_bindgroups,
@@ -441,7 +438,7 @@ impl Application for HelloApp {
             draw_count_mc_slime: k_slime[0],
             mc_params_slime: mc_params_slime,
             slime_texture3d_bindgroups: slime_texture3d_bindgroups,
-            custom_3d: texture3D,
+            custom_3d: texture3_d,
             //shaders: load_shaders(&configuration.device),
             //render_passes: HashMap::<String, RenderPass>::new(),
         }
@@ -504,7 +501,7 @@ impl Application for HelloApp {
 
     fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, input: &InputCache) {
 
-        let val1 = 0.15 * (((input.get_time() / 5000000) as f32) * 0.005).sin();
+        //let val1 = 0.15 * (((input.get_time() / 5000000) as f32) * 0.005).sin();
         let val2 = ((input.get_time() / 5000000) as f32) * 0.0015;
 
 

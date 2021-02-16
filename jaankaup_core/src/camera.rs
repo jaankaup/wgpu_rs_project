@@ -228,7 +228,7 @@ impl Camera {
     pub fn build_view_matrix(&self) -> cgmath::Matrix4<f32> {
         let pos3 = Point3::new(self.pos.x, self.pos.y,self.pos.z);
         let view3 = Point3::new(self.view.x + pos3.x, self.view.y + pos3.y, self.view.z + pos3.z);
-        let view = cgmath::Matrix4::look_at(pos3, view3, self.up);
+        let view = cgmath::Matrix4::look_at_rh(pos3, view3, self.up);
         view
     }
 }

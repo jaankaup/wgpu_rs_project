@@ -1,0 +1,14 @@
+[package]
+name = "model_loader"
+version = "0.1.0"
+authors = ["jaankaup <janne.a.kauppinen@student.jyu.fi>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+
+[dependencies]
+wavefront_obj = "8.0.0"
+cgmath = "0.18"
+geometry = { path = "../geometry" }
