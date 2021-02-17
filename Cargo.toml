@@ -7,6 +7,8 @@ members = [
     "cpu_version",
     "model_loader",
     "geometry",
+    "debug_shaders",
+    "fonts",
 ]
 
 [profile.dev]

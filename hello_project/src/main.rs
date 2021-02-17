@@ -49,28 +49,28 @@ impl HelloApp {
             &configuration.device,
             &configuration.sc_desc,
             1,
-            &include_bytes!("../../textures/grass2.png")[..],
+            &include_bytes!("../../assets/textures/grass2.png")[..],
             None);
         let rock_texture = JTexture::create_from_bytes(
             &configuration.queue,
             &configuration.device,
             &configuration.sc_desc,
             1,
-            &include_bytes!("../../textures/rock.png")[..],
+            &include_bytes!("../../assets/textures/rock.png")[..],
             None);
         let slime_texture = JTexture::create_from_bytes(
             &configuration.queue,
             &configuration.device,
             &configuration.sc_desc,
             1,
-            &include_bytes!("../../textures/slime.png")[..],
+            &include_bytes!("../../assets/textures/slime.png")[..],
             None);
         let slime_texture2 = JTexture::create_from_bytes(
             &configuration.queue,
             &configuration.device,
             &configuration.sc_desc,
             1,
-            &include_bytes!("../../textures/slime2.png")[..],
+            &include_bytes!("../../assets/textures/slime2.png")[..],
             None);
         (grass_texture, rock_texture, slime_texture, slime_texture2)
     }
