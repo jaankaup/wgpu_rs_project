@@ -1,6 +1,6 @@
 #version 450
 
-//layout(set = 0, binding = 0) buffer readonly Numb_of_works {
+// TODO: remove. This is never used.
 layout(set = 0, binding = 0) buffer Numb_of_works {
     uvec3 the_number_of_workgroups;
 };

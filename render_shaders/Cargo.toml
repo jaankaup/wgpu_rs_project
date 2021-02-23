@@ -1,23 +1,13 @@
 [package]
-name = "debug_shaders"
+name = "render_shaders"
 version = "0.1.0"
 authors = ["jaankaup <janne.a.kauppinen@student.jyu.fi>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-
-[[example]]
-name = "debug_shaders"
-path = "src/main.rs"
+[lib]
 
 [dependencies]
 wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", features=["trace"] }
-winit = { version = "0.24.0", features = ["web-sys"] }
 jaankaup_core = { path = "../jaankaup_core" }
-render_shaders = { path = "../render_shaders" }
-geometry = { path = "../geometry" }
-cgmath = "0.18"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-pollster = "0.2"

@@ -12,7 +12,12 @@ use jaankaup_core::texture::Texture as JTexture;
 use jaankaup_core::mc::*;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
-use jaankaup_core::render_pipelines::*;
+use jaankaup_core::render_pipelines::{
+    draw,
+    create_bind_groups,
+    TestLayoutEntry,
+    check_correspondence,
+};
 use jaankaup_core::noise3d::*;
 
 // Redefine needed features for this application.

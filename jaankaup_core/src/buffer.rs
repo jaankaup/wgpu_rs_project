@@ -29,6 +29,8 @@ pub fn buffer_from_data<T: Pod>(
 }
 
 /// Copy the content of the buffer into a vector. TODO: add range for reading buffer.
+/// TODO: give res vector as parameter.
+/// TODO: add _src_offset
 pub async fn to_vec<T: Convert2Vec>(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -40,6 +42,7 @@ pub async fn to_vec<T: Convert2Vec>(
     // Create an auxilary buffer for copying the data. Do we actually need this.
     // TODO: check if buffer can be read without staging_buffer.
     //       buffer.contains(...)
+    // TODO: Check if buffer has MAP_READ => ignore staging buffer. Otherwise use staging buffer.
     let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: None,
         size: copy_size, 

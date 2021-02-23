@@ -8,6 +8,7 @@ members = [
     "model_loader",
     "geometry",
     "debug_shaders",
+    "render_shaders",
     "fonts",
 ]
 

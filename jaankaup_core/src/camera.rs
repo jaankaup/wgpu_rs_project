@@ -63,6 +63,16 @@ pub struct Camera {
 
 impl Camera {
 
+    pub fn set_movement_sensitivity(&mut self, sensitivity: f32) {
+        assert!(sensitivity > 0.0, "Movement sensitivity must be > 0.");
+        self.movement_sensitivity = sensitivity;
+    }
+
+    pub fn set_rotation_sensitivity(&mut self, sensitivity: f32) {
+        assert!(sensitivity > 0.0, "Rotation sensitivity must be > 0.");
+        self.rotation_sensitivity = sensitivity;
+    }
+
     /// Get a reference to camera uniform buffer. Creates the buffer is it doens't already exist.
     pub fn get_camera_uniform(&mut self, device: &wgpu::Device) -> &wgpu::Buffer {
 

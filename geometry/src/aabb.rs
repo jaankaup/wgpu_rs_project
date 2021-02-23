@@ -12,6 +12,10 @@ pub struct BBox {
     pub max: Vector3<f32>,
 }
 
+// TODO: convert Vector3 to [f32; 3] ?
+unsafe impl bytemuck::Zeroable for BBox {}
+unsafe impl bytemuck::Pod for BBox {}
+
 impl BBox {
 
     // pub fn new() -> BBox {

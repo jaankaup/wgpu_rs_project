@@ -12,13 +12,38 @@ impl AABB_pipeline {
         &self.pipeline
     }
 
-    pub fn init(device: &wgpu::Device,
-                comp_module: &wgpu::ShaderModule,
+    pub fn get_bind_group_layouts(&self) -> &Vec<wgpu::BindGroupLayout> {
+        &self.bind_group_layouts
+    }
+
+    pub fn get_bind_group_layout_entries(&self) -> &Vec<Vec<wgpu::BindGroupLayoutEntry>> {
+        &self.layout_entries
+    }
+
+    pub fn dispatch(&self, bind_groups: &Vec<wgpu::BindGroup>,
+                    encoder: &mut wgpu::CommandEncoder,
+                    x: u32, y: u32, z: u32) {
+
+        let mut pass = encoder.begin_compute_pass(
+            &wgpu::ComputePassDescriptor { label: None}
+        );
+        pass.set_pipeline(&self.pipeline);
+        for (e, bgs) in bind_groups.iter().enumerate() {
+            pass.set_bind_group(e as u32, &bgs, &[]);
+        }
+        pass.dispatch(x, y, z)
+    }
+
+    pub fn init(device: &wgpu::Device
+                //comp_module: &wgpu::ShaderModule,
                 ) -> Self {
+
+        let comp_module = wgpu::include_spirv!("../../shaders/spirv/numbers.comp.spv");
 
         // Define all bind grout entries for pipeline and bind groups.
         let layout_entries = vec![
                 // Set 0
+                    // uvec3 dimensions.
                 vec![wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStage::COMPUTE,
@@ -29,8 +54,20 @@ impl AABB_pipeline {
                             },
                         count: None,
                     },
+                    // uint number_of_aabbs
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                            },
+                        count: None,
+                    },
+                    // Input. AABB data. [f32 ; 6]
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
                         visibility: wgpu::ShaderStage::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: true },
@@ -39,8 +76,9 @@ impl AABB_pipeline {
                         },
                         count: None,
                     },
+                    // The output distance data. 
                     wgpu::BindGroupLayoutEntry {
-                        binding: 1,
+                        binding: 3,
                         visibility: wgpu::ShaderStage::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
@@ -65,9 +103,10 @@ impl AABB_pipeline {
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("aabb_shader_pipeline"),
             layout: Some(&pipeline_layout),
-            module: &comp_module,
+            module: &device.create_shader_module(&comp_module),
             entry_point: "main",
         });
+
 
         Self {
             layout_entries, 
