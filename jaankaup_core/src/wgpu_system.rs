@@ -15,6 +15,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     //window::Window
 };
+pub use winit::event::VirtualKeyCode as Key;
 
 use crate::input::InputCache;
 
@@ -140,6 +141,10 @@ impl Loop for BasicLoop {
 
                 //#[cfg(target_arch = "wasm32")]
                 window.request_redraw();
+                let close_application = input.key_state(&Key::Q);
+                if !close_application.is_none() {
+                    *control_flow = ControlFlow::Exit;
+                }
             }
             Event::WindowEvent { event, ..} => {
                 // Update input cache.

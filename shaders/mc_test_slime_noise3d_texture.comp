@@ -23,7 +23,6 @@ layout(set = 0, binding = 0) uniform McParams {
 layout(set = 0, binding = 1) buffer McCounter {
     uint counter;
 };
-
  
 // The output array.
 layout(set = 1, binding = 0) writeonly buffer McOutput {
@@ -310,9 +309,9 @@ const uint[1280] triTable = {
 // 256 x 256 x 256
 float get_density_value(int pos_x, int pos_y, int pos_z) {
     if (pos_x < 0 || pos_x > 255 ||
-        pos_y < 0 || pos_y > 255  ||
+        pos_y < 0 || pos_y > 255 ||
         pos_z < 0 || pos_z > 255) {
-        return 10.0;
+        return 5000.0;
     }
     int index = pos_x + pos_y * 256 + pos_z * 256 * 256;
     return noise_texture[index];

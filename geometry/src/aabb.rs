@@ -1,4 +1,4 @@
-use cgmath::{prelude::*, Vector3};
+use cgmath::{prelude::*, Vector3, Vector4};
 use bytemuck::{Pod, Zeroable};
 //use crate::misc::VertexType;
 //use cgmath::structure::InnerSpace;
@@ -6,6 +6,18 @@ use bytemuck::{Pod, Zeroable};
 /**************************************************************************************/
 
 /// A struct for aabb.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct BBox4 {
+    pub min: Vector4<f32>,
+    pub max: Vector4<f32>,
+}
+
+unsafe impl bytemuck::Zeroable for BBox4 {}
+unsafe impl bytemuck::Pod for BBox4 {}
+
+/// A struct for aabb.
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct BBox {
     pub min: Vector3<f32>,
@@ -23,6 +35,13 @@ impl BBox {
     //     result
     // }
     
+    pub fn convert_aabb_to_aabb4(&self) -> BBox4 {
+        BBox4 {
+            min: Vector4::<f32>::new(self.min.x, self.min.y, self.min.z, 2.5),
+            max: Vector4::<f32>::new(self.max.x, self.max.y, self.max.z, 4.5),
+        }
+    }
+
     /// Create bounding box from two vectors.
     pub fn create_from_line(a: &Vector3<f32>, b: &Vector3<f32>) -> Self {
 

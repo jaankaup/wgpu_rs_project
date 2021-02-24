@@ -1,4 +1,5 @@
-use cgmath::{Vector3};
+use rand::prelude::*;
+use cgmath::{Vector3,Vector4};
 use std::collections::HashMap;
 use jaankaup_core::buffer::*;
 use jaankaup_core::wgpu_system as ws;
@@ -12,7 +13,7 @@ use jaankaup_core::texture::Texture as JTexture;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
 use jaankaup_core::compute::*;
-use geometry::aabb::BBox;
+use geometry::aabb::{BBox,BBox4};
 use debug_shaders::aabb_shader::AABB_pipeline;
 use jaankaup_core::render_pipelines::{
     create_bind_groups,
@@ -32,7 +33,7 @@ struct Debug_App {
     camera: Camera,
     aabb: AABB_pipeline,
     buffers: HashMap<String, wgpu::Buffer>,
-    aabbs: Vec<BBox>,
+    aabbs: Vec<BBox4>,
     histogram: Histogram,
     bind_groups: Vec<wgpu::BindGroup>,
     mc_distance: MarchingCubes,
@@ -46,6 +47,11 @@ impl Debug_App {
 
 }
 
+struct JooAABB {
+    min: Vector4<f32>,
+    max: Vector4<f32>,
+}
+
 impl Application for Debug_App {
 
     /// Initialize fmm application.
@@ -53,7 +59,7 @@ impl Application for Debug_App {
 
         // Initialize camera.
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
-        camera.set_movement_sensitivity(0.1);
+        camera.set_movement_sensitivity(0.01);
 
         let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.vert.spv");
         let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.frag.spv");
@@ -69,11 +75,27 @@ impl Application for Debug_App {
         );
 
         let mut buffers: HashMap<String, wgpu::Buffer> = HashMap::new();
-        let mut aabbs: Vec<BBox> = Vec::new();
+        let mut aabbs: Vec<BBox4> = Vec::new();
 
-        aabbs.push(BBox::create_from_line(&Vector3::<f32>::new(0.3,0.5,0.0), &Vector3::<f32>::new(2.3,1.5,1.0)));
-        //aabbs.push(BBox::create_from_line(&Vector3::<f32>::new(1.3,0.5,-1.0), &Vector3::<f32>::new(1.3,2.5,1.0)));
-        //aabbs.push(BBox::create_from_line(&Vector3::<f32>::new(3.3,0.5,-1.0), &Vector3::<f32>::new(7.3,2.5,1.0)));
+        // Generate some random aabbs for testing purposes.
+        let mut rng = thread_rng();
+        for _i in 0..1000 {
+            let a = rng.gen::<f32>() * 256.0; 
+            let b = rng.gen::<f32>() * 256.0; 
+            let c = rng.gen::<f32>() * 256.0; 
+            let d = rng.gen::<f32>() * 256.0; 
+            let e = rng.gen::<f32>() * 256.0; 
+            let f = rng.gen::<f32>() * 256.0; 
+            let min_x = a.min(b);
+            let max_x = a.max(b);
+            let min_y = c.min(d);
+            let max_y = c.max(d);
+            let min_z = e.min(f);
+            let max_z = e.max(f);
+            aabbs.push(BBox::create_from_line(&Vector3::<f32>::new(min_x, min_y, min_z), &Vector3::<f32>::new(max_x, max_y, max_z)).convert_aabb_to_aabb4());
+            //aabbs.push(BBox::create_from_line(&Vector3::<f32>::new(0.0,0.0,0.0), &Vector3::<f32>::new(256.0,256.0, 256.0)).convert_aabb_to_aabb4());
+            //aabbs.push(BBox::create_from_line(&Vector3::<f32>::new(128.0,128.0,128.0), &Vector3::<f32>::new(200.0,200.0, 200.0)).convert_aabb_to_aabb4());
+        }
 
         // Create the depth texture for fmm application.
         let depth_texture = JTexture::create_depth_texture(
@@ -98,7 +120,7 @@ impl Application for Debug_App {
         // Create buffers for aabbs.
         buffers.insert(
             "aabbs".to_string(),
-            buffer_from_data::<BBox>(
+            buffer_from_data::<BBox4>(
             &configuration.device,
             &aabbs,
             wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
@@ -159,10 +181,10 @@ impl Application for Debug_App {
 
         // Create parameters for "slime" marching cubes.
         let mut mc_params_distance = McParams::init(
-                &configuration.device, 
+                &configuration.device,
                 &cgmath::Vector4::<f32>::new(0.0, 0.0, 0.0, 1.0),
                 0.0,
-                0.05
+                0.01
         );
 
         // Create bind groups for distance field.
@@ -184,7 +206,7 @@ impl Application for Debug_App {
                     64 * 64 * 64,
                     1,
                     1
-        ); 
+        );
 
         mc_distance.dispatch(&mc_params_distance.bind_groups.as_ref().unwrap(),
                     &mut encoder,
@@ -201,21 +223,21 @@ impl Application for Debug_App {
                                               &mc_params_distance.counter_buffer,
                                               0 as wgpu::BufferAddress,
                                               4 as wgpu::BufferAddress));
-        ////let distance_data =  pollster::block_on(to_vec::<f32>(&configuration.device,
-        ////                                      &configuration.queue,
-        ////                                      &buffers.get("distance_data").unwrap(),
-        ////                                      0 as wgpu::BufferAddress,
-        ////                                      64*64*64*64*4 as wgpu::BufferAddress));
+        let distance_data =  pollster::block_on(to_vec::<f32>(&configuration.device,
+                                              &configuration.queue,
+                                              &buffers.get("distance_data").unwrap(),
+                                              0 as wgpu::BufferAddress,
+                                              64*64*64*64*4 as wgpu::BufferAddress));
+        //for i in 0..distance_data.len() {
+        for i in 0..100 {
+            println!("{} :: {}", i, distance_data[i]);
+        }
+
         //#[cfg(not(target_arch = "wasm32"))]
         println!("Mc counter distance == {}", k[0]);
 
-        ////for i in 0..distance_data.len() {
-        ////    println!("{} :: {}", i, distance_data[i]);
-        ////}
 
         let draw_count_mc_distance = k[0];
-
-
 
         Self {
             depth_texture,
@@ -267,9 +289,8 @@ impl Application for Debug_App {
         // // self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true);
 
         queue.submit(Some(encoder.finish()));
-
-
     }
+
     fn input(&mut self, queue: &wgpu::Queue, input_cache: &InputCache) {
         self.camera.update_from_input(&queue, &input_cache);
     }
