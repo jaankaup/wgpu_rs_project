@@ -19,6 +19,19 @@ layout(set = 0, binding = 2) buffer Points_out {
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
+shared int[64] offsets;
+
+const uint[10] joo = {1,
+                      10,
+                      100,
+                      1000,
+                      10000,
+                      100000,
+                      1000000,
+                      10000000,
+                      100000000,
+                      1000000000};
+
 // Number 1
 const vec3[2] line_one_a =   { vec3(0.3, 0.1, 0.0), vec3(0.7, 0.1, 0.0) };  
 const vec3[2] line_one_b =   { vec3(0.5, 0.1, 0.0), vec3(0.5, 0.9, 0.0) };  
@@ -26,22 +39,48 @@ const vec3[3] line_one_bez = { vec3(0.5, 0.9, 0.0), vec3(0.4, 0.8, 0.0), vec3(0.
 
 // Number 2
 const vec3[2] line_two_a =   { vec3(0.3, 0.1, 0.0), vec3(0.7, 0.1, 0.0) };
-const vec3[2] line_two_b =   { vec3(0.3, 0.1, 0.0), vec3(0.65, 0.6, 0.0) };
-const vec3[4] line_two_bez = { vec3(0.65, 0.6, 0.0), vec3(0.7, 0.7, 0.0), vec3(0.55, 0.95, 0.0), vec3(0.3, 0.8, 0.0) };  
+const vec3[2] line_two_b =   { vec3(0.3, 0.1, 0.0), vec3(0.65, 0.55, 0.0) };
+const vec3[4] line_two_bez = { vec3(0.65, 0.55, 0.0), vec3(0.8, 0.7, 0.0), vec3(0.55, 1.08, 0.0), vec3(0.3, 0.8, 0.0) };  
 
 // Number 3
-const vec3[4] line_three_bez1 = { vec3(0.3, 0.7, 0.0), vec3(0.4, 0.9, 0.0), vec3(0.75, 0.7, 0.0), vec3(0.45, 0.55, 0.0) };  
-const vec3[4] line_three_bez2 = { vec3(0.45, 0.55, 0.0), vec3(0.75, 0.4, 0.0), vec3(0.45, 0.1, 0.0), vec3(0.3, 0.3, 0.0) };  
+const vec3[4] line_three_bez1 = { vec3(0.3, 0.8, 0.0), vec3(0.5, 1.1, 0.0), vec3(0.95, 0.7, 0.0), vec3(0.45, 0.55, 0.0) };  
+const vec3[4] line_three_bez2 = { vec3(0.45, 0.55, 0.0), vec3(1.0, 0.45, 0.0), vec3(0.5, -0.15, 0.0), vec3(0.3, 0.2, 0.0) };  
 
 // Number 4
 const vec3[2] line_four_a = { vec3(0.6, 0.1, 0.0), vec3(0.6, 0.9, 0.0) };  
-const vec3[2] line_four_b = { vec3(0.6, 0.9, 0.0), vec3(0.3, 0.45, 0.0) };  
-const vec3[2] line_four_c = { vec3(0.3, 0.45, 0.0), vec3(0.7, 0.5, 0.0) };  
+const vec3[2] line_four_b = { vec3(0.6, 0.9, 0.0), vec3(0.2, 0.45, 0.0) };  
+const vec3[2] line_four_c = { vec3(0.2, 0.45, 0.0), vec3(0.7, 0.45, 0.0) };  
 
 // Number 5
 const vec3[2] line_five_a =   { vec3(0.7, 0.9, 0.0), vec3(0.3, 0.9, 0.0) };  
-const vec3[2] line_five_b =   { vec3(0.3, 0.9, 0.0), vec3(0.3, 0.65, 0.0) };  
-const vec3[4] line_five_bez = { vec3(0.3, 0.65, 0.0), vec3(1.0, 0.65, 0.0), vec3(0.65, 0.1, 0.0), vec3(0.3, 0.3, 0.0) };  
+const vec3[2] line_five_b =   { vec3(0.3, 0.9, 0.0), vec3(0.3, 0.5, 0.0) };  
+const vec3[4] line_five_bez = { vec3(0.3, 0.5, 0.0), vec3(1.0, 0.75, 0.0), vec3(0.7, -0.2, 0.0), vec3(0.3, 0.2, 0.0) };  
+
+// Number 6
+const vec3[4] line_six_bez1 = { vec3(0.7, 0.8, 0.0),  vec3(0.5, 1.05, 0.0), vec3(0.3, 0.8, 0.0), vec3(0.3, 0.5, 0.0) };  
+const vec3[4] line_six_bez2 = { vec3(0.3, 0.5, 0.0), vec3(0.3, -0.05, 0.0), vec3(0.7, 0.0, 0.0), vec3(0.72, 0.4, 0.0) };  
+const vec3[4] line_six_bez3 = { vec3(0.72, 0.4, 0.0),  vec3(0.72, 0.6, 0.0), vec3(0.5, 0.7, 0.0), vec3(0.3, 0.5, 0.0) };  
+
+// Number 7
+const vec3[2] line_seven_a = { vec3(0.3, 0.9, 0.0), vec3(0.7, 0.9, 0.0) };
+const vec3[2] line_seven_b = { vec3(0.7, 0.9, 0.0), vec3(0.4, 0.1, 0.0) };
+
+// Number 8
+const vec3[4] line_eight_bez1 = { vec3(0.5, 0.9, 0.0),  vec3(0.2, 0.85, 0.0), vec3(0.2, 0.55, 0.0), vec3(0.5, 0.5, 0.0) };  
+const vec3[4] line_eight_bez2 = { vec3(0.5, 0.9, 0.0),  vec3(0.8, 0.85, 0.0), vec3(0.8, 0.55, 0.0), vec3(0.5, 0.5, 0.0) };  
+const vec3[4] line_eight_bez3 = { vec3(0.5, 0.1, 0.0),  vec3(0.8, 0.15, 0.0), vec3(0.8, 0.45, 0.0), vec3(0.5, 0.5, 0.0) };  
+const vec3[4] line_eight_bez4 = { vec3(0.5, 0.1, 0.0),  vec3(0.2, 0.15, 0.0), vec3(0.2, 0.45, 0.0), vec3(0.5, 0.5, 0.0) };  
+
+// Number 9
+const vec3[4] line_nine_bez1 = { vec3(0.3, 0.2, 0.0),  vec3(0.5, -0.05, 0.0), vec3(0.7, 0.2, 0.0), vec3(0.7, 0.6, 0.0) };  
+const vec3[4] line_nine_bez2 = { vec3(0.7, 0.6, 0.0), vec3(0.7, 0.95, 0.0), vec3(0.4, 1.0, 0.0), vec3(0.28, 0.8, 0.0) };  
+const vec3[4] line_nine_bez3 = { vec3(0.28, 0.8, 0.0),  vec3(0.1, 0.4, 0.0), vec3(0.6, 0.4, 0.0), vec3(0.7, 0.6, 0.0) };  
+
+// Number 0 
+const vec3[4] line_zero_bez1 = { vec3(0.5, 0.9, 0.0),  vec3(0.25, 0.85, 0.0), vec3(0.25, 0.55, 0.0), vec3(0.25, 0.5, 0.0) };  
+const vec3[4] line_zero_bez2 = { vec3(0.5, 0.9, 0.0),  vec3(0.75, 0.85, 0.0), vec3(0.75, 0.55, 0.0), vec3(0.75, 0.5, 0.0) };  
+const vec3[4] line_zero_bez3 = { vec3(0.5, 0.1, 0.0),  vec3(0.25, 0.15, 0.0), vec3(0.25, 0.45, 0.0), vec3(0.25, 0.5, 0.0) };  
+const vec3[4] line_zero_bez4 = { vec3(0.5, 0.1, 0.0),  vec3(0.75, 0.15, 0.0), vec3(0.75, 0.45, 0.0), vec3(0.75, 0.5, 0.0) };  
 
 uvec3 index1D_to_index3D() {
 	uint index = gl_GlobalInvocationID.x;
@@ -53,7 +92,6 @@ uvec3 index1D_to_index3D() {
 	uint x = index;
 	return ivec3(x, y, z);	
 }
-
 
 // Encode vector to "rgba" uint.
 uint encode_rgba_u32(uint r, uint g, uint b, uint a) {
@@ -76,13 +114,14 @@ void bezier_3c(uint n, vec3 c0, vec3 c1, vec3 c2) {
         const vec3 result = c0 * mt2 + c1 * 2.0 * mt*t + c2 * t2;
 
         uvec3 coordinates = index1D_to_index3D();
-        output_points[index+i] = OutPutVertex(
+        output_points[index] = OutPutVertex(
             result,
             encode_rgba_u32(
                 255 - coordinates.x * 4,
                 255 - coordinates.y * 4,
                 255 - coordinates.z * 4,
                 255));
+        index++;
     }
 }
 
@@ -100,13 +139,14 @@ void bezier_4c(uint n, vec3 c0, vec3 c1, vec3 c2, vec3 c3) {
         const vec3 result = c0 * mt3 + c1 * 3.0 * mt2*t + c2 * 3.0 * mt*t2 + c3 * t3;
 
         uvec3 coordinates = index1D_to_index3D();
-        output_points[index+i] = OutPutVertex(
+        output_points[index] = OutPutVertex(
             result,
             encode_rgba_u32(
-                255 - coordinates.x * 4,
-                255 - coordinates.y * 4,
-                255 - coordinates.z * 4,
+                255 - coordinates.x,
+                255 - coordinates.y,
+                255 - coordinates.z,
                 255));
+        index++;
     }
 }
 
@@ -125,56 +165,127 @@ void line(uint n, vec3 c0, vec3 c1) {
 
         uvec3 coordinates = index1D_to_index3D();
 
-        output_points[index+i] = OutPutVertex(
+        output_points[index] = OutPutVertex(
             point,
             encode_rgba_u32(
                 255 - coordinates.x * 4,
                 255 - coordinates.y * 4,
                 255 - coordinates.z * 4,
-                1));
+                255));
+        index++;
     }
 }
 
-void create_number_one(uint num_points) {
+void create_number_1(uint num_points, vec3 offset) {
     uint a_count   = uint(max(2.0, ceil(8.0/14.0 * num_points)));
     uint b_count   = uint(max(2.0, ceil(4.0/14.0 * num_points)));
     uint bez_count = uint(max(2.0, ceil(2.0/14.0 * num_points)));
     bezier_3c(bez_count, line_one_bez[0], line_one_bez[1], line_one_bez[2]);
-    line(a_count, line_one_a[0], line_one_a[1]);
-    line(b_count, line_one_b[0], line_one_b[1]);
+    line(a_count, line_one_a[0] + offset, line_one_a[1] + offset);
+    line(b_count, line_one_b[0] + offset, line_one_b[1] + offset);
 }
 
-void create_number_two(uint num_points) {
+void create_number_2(uint num_points, vec3 offset) {
     uint a_count   = uint(max(2.0, ceil(4.0/15.0 * num_points)));
     uint b_count   = uint(max(2.0, ceil(7.0/15.0 * num_points)));
     uint bez_count = uint(max(2.0, ceil(4.0/15.0 * num_points)));
-    bezier_4c(bez_count, line_two_bez[0], line_two_bez[1], line_two_bez[2], line_two_bez[3]);
-    line(a_count, line_two_a[0], line_two_a[1]);
-    line(b_count, line_two_b[0], line_two_b[1]);
+    bezier_4c(bez_count, line_two_bez[0] + offset, line_two_bez[1] + offset, line_two_bez[2] + offset, line_two_bez[3] + offset);
+    line(a_count, line_two_a[0] + offset, line_two_a[1] + offset);
+    line(b_count, line_two_b[0] + offset, line_two_b[1] + offset);
 }
 
-void create_number_three(uint num_points) {
+void create_number_3(uint num_points, vec3 offset) {
     uint count   = max(4, uint(num_points * 0.5));
-    bezier_4c(count, line_three_bez1[0], line_three_bez1[1], line_three_bez1[2], line_three_bez1[3]);
-    bezier_4c(count, line_three_bez2[0], line_three_bez2[1], line_three_bez2[2], line_three_bez2[3]);
+    bezier_4c(count, line_three_bez1[0] + offset, line_three_bez1[1] + offset, line_three_bez1[2] + offset, line_three_bez1[3] + offset);
+    bezier_4c(count, line_three_bez2[0] + offset, line_three_bez2[1] + offset, line_three_bez2[2] + offset, line_three_bez2[3] + offset);
 }
 
-void create_number_four(uint num_points) {
+void create_number_4(uint num_points, vec3 offset) {
     uint a_count   = uint(max(2.0, ceil(8.0/17.0 * num_points)));
     uint b_count   = uint(max(2.0, ceil(5.0/17.0 * num_points)));
     uint c_count   = uint(max(2.0, ceil(4.0/17.0 * num_points)));
-    line(a_count, line_four_a[0], line_four_a[1]);
-    line(b_count, line_four_b[0], line_four_b[1]);
-    line(c_count, line_four_c[0], line_four_c[1]);
+    line(a_count, line_four_a[0] + offset, line_four_a[1] + offset);
+    line(b_count, line_four_b[0] + offset, line_four_b[1] + offset);
+    line(c_count, line_four_c[0] + offset, line_four_c[1] + offset);
 }
 
-void create_number_five(uint num_points) {
+void create_number_5(uint num_points, vec3 offset) {
     uint a_count   = uint(max(2.0, ceil(4.0/13.0 * num_points)));
     uint b_count   = uint(max(2.0, ceil(3.0/13.0 * num_points)));
     uint c_count   = uint(max(2.0, ceil(6.0/13.0 * num_points)));
-    line(a_count, line_five_a[0], line_five_a[1]);
-    line(b_count, line_five_b[0], line_five_b[1]);
-    bezier_4c(c_count, line_five_bez[0], line_five_bez[1], line_five_bez[2], line_five_bez[3]);
+    line(a_count, line_five_a[0] + offset, line_five_a[1] + offset);
+    line(b_count, line_five_b[0] + offset, line_five_b[1] + offset);
+    bezier_4c(c_count, line_five_bez[0] + offset, line_five_bez[1] + offset, line_five_bez[2] + offset, line_five_bez[3] + offset);
+}
+
+void create_number_6(uint num_points, vec3 offset) {
+    uint a_count   = uint(max(2.0, ceil(8.0/20.0 * num_points)));
+    uint b_count   = uint(max(2.0, ceil(6.0/20.0 * num_points)));
+    uint c_count   = uint(max(2.0, ceil(6.0/20.0 * num_points)));
+    bezier_4c(a_count, line_six_bez1[0] + offset, line_six_bez1[1] + offset, line_six_bez1[2] + offset, line_six_bez1[3] + offset);
+    bezier_4c(b_count, line_six_bez2[0] + offset, line_six_bez2[1] + offset, line_six_bez2[2] + offset, line_six_bez2[3] + offset);
+    bezier_4c(b_count, line_six_bez3[0] + offset, line_six_bez3[1] + offset, line_six_bez3[2] + offset, line_six_bez3[3] + offset);
+}
+
+void create_number_7(uint num_points, vec3 offset) {
+    uint a_count   = uint(max(2.0, ceil(4.0/13.0 * num_points)));
+    uint b_count   = uint(max(2.0, ceil(9.0/13.0 * num_points)));
+    line(a_count, line_seven_a[0] + offset, line_seven_a[1] + offset);
+    line(b_count, line_seven_b[0] + offset, line_seven_b[1] + offset);
+}
+
+void create_number_8(uint num_points, vec3 offset) {
+    uint count   = uint(max(4.0, num_points * 0.25));
+    bezier_4c(count, line_eight_bez1[0] + offset, line_eight_bez1[1] + offset, line_eight_bez1[2] + offset, line_eight_bez1[3] + offset);
+    bezier_4c(count, line_eight_bez2[0] + offset, line_eight_bez2[1] + offset, line_eight_bez2[2] + offset, line_eight_bez2[3] + offset);
+    bezier_4c(count, line_eight_bez3[0] + offset, line_eight_bez3[1] + offset, line_eight_bez3[2] + offset, line_eight_bez3[3] + offset);
+    bezier_4c(count, line_eight_bez4[0] + offset, line_eight_bez4[1] + offset, line_eight_bez4[2] + offset, line_eight_bez4[3] + offset);
+}
+
+void create_number_9(uint num_points, vec3 offset) {
+    uint a_count   = uint(max(2.0, ceil(8.0/20.0 * num_points)));
+    uint b_count   = uint(max(2.0, ceil(6.0/20.0 * num_points)));
+    uint c_count   = uint(max(2.0, ceil(6.0/20.0 * num_points)));
+    bezier_4c(a_count, line_nine_bez1[0] + offset, line_nine_bez1[1] + offset, line_nine_bez1[2] + offset, line_nine_bez1[3] + offset);
+    bezier_4c(b_count, line_nine_bez2[0] + offset, line_nine_bez2[1] + offset, line_nine_bez2[2] + offset, line_nine_bez2[3] + offset);
+    bezier_4c(b_count, line_nine_bez3[0] + offset, line_nine_bez3[1] + offset, line_nine_bez3[2] + offset, line_nine_bez3[3] + offset);
+}
+
+void create_number_0(uint num_points, vec3 offset) {
+    uint count   = uint(max(4.0, num_points * 0.25));
+    bezier_4c(count, line_zero_bez1[0] + offset, line_zero_bez1[1] + offset, line_zero_bez1[2] + offset, line_zero_bez1[3] + offset);
+    bezier_4c(count, line_zero_bez2[0] + offset, line_zero_bez2[1] + offset, line_zero_bez2[2] + offset, line_zero_bez2[3] + offset);
+    bezier_4c(count, line_zero_bez3[0] + offset, line_zero_bez3[1] + offset, line_zero_bez3[2] + offset, line_zero_bez3[3] + offset);
+    bezier_4c(count, line_zero_bez4[0] + offset, line_zero_bez4[1] + offset, line_zero_bez4[2] + offset, line_zero_bez4[3] + offset);
+}
+
+uint get_remainder(uint num, uint divisor) {
+    return (num - divisor * (num / divisor));
+}
+
+void parse_number(uint n, inout uint[10] digits) {
+       // 4294967295 
+       // 1000000000
+    bool found = false;
+    uint temp_n = n;
+
+    if (n == 0) {
+        uint index = atomicAdd(offsets[gl_LocalInvocationID.x], 1);
+        digits[index] = 0; 
+        return;
+    }
+
+    for (int i=9 ; i>=0 ; i--) {
+        uint remainder = temp_n / joo[i]; //get_remainder(temp_n, joo[i]);   
+        temp_n -= remainder * joo[i];
+        if (remainder != 0) {
+            found = true;	    
+        }
+        if (found == true) {
+            uint index = atomicAdd(offsets[gl_LocalInvocationID.x], 1);
+            digits[index] = remainder; 
+        }
+    }
 }
 
 void main() {
@@ -182,10 +293,49 @@ void main() {
   uint global_index = gl_GlobalInvocationID.x;
   uint local_index = gl_LocalInvocationID.x;
 
-  if (global_index > 0) return;
+  offsets[local_index] = 0;
 
-  //create_number_one(2000);
-  create_number_five(2000);
+  //barrier();
+
+  const uint num_of_points = 100;
+
+  if (global_index > 500) return;
+
+  uint digits[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+  parse_number(global_index, digits);
+
+  uvec3 this_coord = index1D_to_index3D(); 
+
+  vec3 local_offset = vec3(this_coord.x * 4.0, this_coord.y * 4.0, this_coord.z * 4.0);
+
+  for (uint i=0; i<offsets[local_index]; i++) {
+    uint numb = digits[i];
+    if (numb == 0) { create_number_0(num_of_points, local_offset); }
+    else if (numb == 1) { create_number_1(num_of_points, local_offset); }
+    else if (numb == 2) { create_number_2(num_of_points, local_offset); }
+    else if (numb == 3) { create_number_3(num_of_points, local_offset); }
+    else if (numb == 4) { create_number_4(num_of_points, local_offset); }
+    else if (numb == 5) { create_number_5(num_of_points, local_offset); }
+    else if (numb == 6) { create_number_6(num_of_points, local_offset); }
+    else if (numb == 7) { create_number_7(num_of_points, local_offset); }
+    else if (numb == 8) { create_number_8(num_of_points, local_offset); }
+    else if (numb == 9) { create_number_9(num_of_points, local_offset); }
+
+    local_offset = local_offset + vec3(0.7, 0.0, 0.0);
+  }
+
+  //create_number_one(num_of_points);
+  //create_number_one(num_of_points, vec3(0.0, 0.0, 0.0));
+  //create_number_two(num_of_points, vec3(0.7, 0.0, 0.0));
+  //create_number_three(num_of_points, vec3(1.4, 0.0, 0.0));
+  //create_number_four(num_of_points, vec3(2.1, 0.0, 0.0));
+  //create_number_five(num_of_points, vec3(2.8, 0.0, 0.0));
+  //create_number_six(num_of_points, vec3(3.5, 0.0, 0.0));
+  //create_number_seven(num_of_points, vec3(4.2, 0.0, 0.0));
+  //create_number_eight(num_of_points, vec3(4.9, 0.0, 0.0));
+  //create_number_nine(num_of_points, vec3(5.6, 0.0, 0.0));
+  //create_number_zero(num_of_points, vec3(6.3, 0.0, 0.0));
 
   //uvec3 coordinates = index1D_to_index3D();
   //vec3 scaled_coordinates = 0.5 * vec3(float(coordinates.x), float(coordinates.y), float(coordinates.z)); 
