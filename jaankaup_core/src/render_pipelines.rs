@@ -90,7 +90,7 @@ pub fn create_bind_group_layouts(device: &wgpu::Device, layout_entries: &Vec<Vec
 /// Function will panic if the entries and binding resources mismatch.
 pub fn check_correspondence(
     bind_group_layout_entries: &Vec<Vec<wgpu::BindGroupLayoutEntry>>,
-    binding_resources: &Vec<Vec<wgpu::BindingResource>>) -> bool {
+    binding_resources: &Vec<Vec<&wgpu::BindingResource>>) -> bool {
 
     // Check that the number of groups are the same.
     assert!(bind_group_layout_entries.len() == binding_resources.len(),

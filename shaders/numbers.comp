@@ -33,7 +33,7 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 // shared AABB[items_per_thread * 64];
 // shared float[items_per_thread * 64];
 shared AABB[64] temp_aabbs;
-shared float[64] temp_distance_values;
+//shared float[64] temp_distance_values;
 
 float dot2( in vec2 v ) { return dot(v,v); }
 float dot2( in vec3 v ) { return dot(v,v); }
@@ -462,15 +462,15 @@ ivec3 index1D_to_index3D() {
 
 float spheres(vec3 pos, float r) {
 
-    float x0 = sdSphere(pos, r*2);
-    float x1 = sdSphere(pos + vec3(-256.0, 0.0, 0.0), r);
-    float x2 = sdSphere(pos + vec3(0.0, 0.0, -256.0), r);
-    float x3 = sdSphere(pos + vec3(-256.0, 0.0, -256.0), r);
+    float x0 = sdSphere(pos, r);
+    float x1 = sdSphere(pos + vec3(-2.3, 0.0, 0.0), r);
+    float x2 = sdSphere(pos + vec3(0.0, 0.0, -2.3), r);
+    float x3 = sdSphere(pos + vec3(-2.3, 0.0, -2.3), r);
 
-    float x4 = sdSphere(pos + vec3(0.0, -256, 0.0), r);
-    float x5 = sdSphere(pos + vec3(-256.0, -256.0, 0.0), r);
-    float x6 = sdSphere(pos + vec3(0.0, -256.0, -256.0), r);
-    float x7 = sdSphere(pos + vec3(-256.0, -256.0, -256.0), r);
+    float x4 = sdSphere(pos + vec3(0.0, -23, 0.0), r);
+    float x5 = sdSphere(pos + vec3(-2.3, -2.3, 0.0), r);
+    float x6 = sdSphere(pos + vec3(0.0, -2.3, -2.3), r);
+    float x7 = sdSphere(pos + vec3(-2.3, -2.3, -2.3), r);
     return min(min(min(min(min(min(min(x0, x1),x2),x3),x4),x5),x6),x7);
 }
 
@@ -496,15 +496,23 @@ float test_scene(vec3 pos, vec3 a, float e) {
     //return bbox;
 }
 
+float number1(vec3 pos, vec3 aabb_center, float thickness) {
+    vec3 translated_pos = pos + vec3(aabb_center.x, 0.0, aabb_center.y);
+    float pos_x = aabb_center.x * 0.5; 
+    float pos_z = aabb_center.z * 0.5; 
+    float bbox = sdBox(translated_pos, vec3(pos_x, aabb_center.y, pos_z));
+    return bbox;
+}
+
 void main() {
 
   uint global_index = gl_GlobalInvocationID.x;
   uint local_index = gl_LocalInvocationID.x;
 
   ivec3 coordinates = index1D_to_index3D();
-  vec3 scaled_coordinates = vec3(float(coordinates.x), float(coordinates.y), float(coordinates.z)); 
+  vec3 scaled_coordinates = 0.1*vec3(float(coordinates.x), float(coordinates.y), float(coordinates.z)); 
 
-  float e = 1.0;
+  float e = 0.5;
 
   float old_distance_value = distance[global_index]; 
 
@@ -515,104 +523,51 @@ void main() {
   uint number_of_taken_aabbs = min(64, number_of_aabbs);
 
   for (int i=number_of_iterations ; i >= 0 ; i--) {
-    total_aabbs -= number_of_taken_aabbs;     
 
-    // Load a aabb to shared memory.
-    if (local_index < number_of_taken_aabbs) {
-        temp_aabbs[local_index] = global_aabb[local_index + 64 * (number_of_iterations - i)];
-    }	
-        // Wait for load operations to finish.
-    barrier();
+      total_aabbs -= number_of_taken_aabbs;     
 
-    for (int j=0 ; j<number_of_taken_aabbs ; j++) {
+      // Load a aabb to shared memory.
+      if (local_index < number_of_taken_aabbs) {
+          temp_aabbs[local_index] = global_aabb[local_index + 64 * (number_of_iterations - i)];
+      }	
 
-  	AABB the_aabb = temp_aabbs[j];
+      // Wait for all load operations to finish.
+      barrier();
 
-  	// Translate the aabb lower start from vector to (0,0,0)
-  	vec3 a = (the_aabb.max.xyz - the_aabb.min.xyz) * 0.5;
+      // Perform the distance calculations. Update the old value if necessery.
+      for (int j=0 ; j<number_of_taken_aabbs ; j++) {
 
-  	float bbox_value = sdBoundingBox(scaled_coordinates - a, a, e);
+  	    AABB the_aabb = temp_aabbs[j];
 
-  	//vec3 a = (the_aabb.max.xyz - the_aabb.min.xyz) * 0.5;
+        // From center to upper corner vector.
+  	    vec3 half_diagonal = (the_aabb.max.xyz - the_aabb.min.xyz) * 0.5;
 
-  	if (bbox_value < old_distance_value) {
-  	  old_distance_value = bbox_value; 
-  	}
+	    // The center coordinates of the aabb.
+  	    //vec3 a = the_aabb.min.xyz + center_to_upper_corner;
+  	    //vec3 a = (the_aabb.max.xyz - the_aabb.min.xyz) * 0.5;
+
+        //float bbox_value = sdBoundingBox(
+        //    scaled_coordinates - half_diagonal - the_aabb.min.xyz,
+        //    half_diagonal,
+        //    e
+        //);
+        float bbox_value = sdBox(
+            scaled_coordinates - half_diagonal - the_aabb.min.xyz,
+            half_diagonal
+        );
+  	    //float bbox_value = number1(scaled_coordinates - half_diagonal - the_aabb.min.xyz, a, e);
+	    float sp = spheres(scaled_coordinates, 0.1);
+
+        //float temp_density = min(bbox_value, sp);
+        float temp_density = min(sdSphere(scaled_coordinates - the_aabb.min.xyz, 0.05), sp); //min(bbox_value, sp);
+
+  	    //vec3 a = (the_aabb.max.xyz - the_aabb.min.xyz) * 0.5;
+
+  	    if (temp_density < old_distance_value) {
+  	      old_distance_value = temp_density; 
+  	    }
         
     }
   }
   distance[global_index] = old_distance_value;
 }
-  //uint global_index = gl_GlobalInvocationID.x;
-  //uint local_index = gl_LocalInvocationID.x;
-  //
-  //const uint OFFSET = 64;
-  //AABB the_aabb = global_aabb[0];
-
-  // Translate the aabb lower start from vector to (0,0,0)
-  //vec3 a = (the_aabb.max.xyz - the_aabb.min.xyz) * 0.5;
-  // This thread updates only one distance value.
-  //ivec3 coordinates = index1D_to_index3D();
-  //vec3 scaled_coordinates = vec3(float(coordinates.x), float(coordinates.y), float(coordinates.z)); 
-
-  //float old_distance_value = test_scene(scaled_coordinates, vec3(-1.0, 1.0, 1.0), 1.0); // distance[global_index];
-
-  //vec3 a = vec3(128.0, 128.0, 128);
-  //float e = 1.0;
-
-  //float bbox = sdBoundingBox(scaled_coordinates + vec3(-128.0, -128.0, -128.0), a, e);
-  //float bbox = sdBoundingBox(scaled_coordinates - a, a, e);
-  //float bbox = sdBoundingBox(scaled_coordinates, a, e);
-  //float sp = spheres(scaled_coordinates, 15.5);  
-  //float old_distance_value = min(bbox, sp);
-  //float old_distance_value = test_scene(scaled_coordinates + vec3(0.0, 0.0, 0.0), vec3(128.0, 128.0, 128), 5.0); // distance[global_index];
-  //distance[global_index] = old_distance_value;
-  //distance[global_index] = a.z;
-
-  //temp_distance_values[local_index] = distance[global_index];
-
-  // shared AABB[64] temp_aabbs;
-  
-
-//    //float temp_distance_value = test_scene(index1D_to_index3D(), vec3(0.0, 0.0, 0.0), 2.0); // TODO: move out of for-loop.
-//
-////  	if (temp_distance_value < old_distance_value) {
-////
-////  	  // We found a smaller distance value.
-////  	  old_distance_value = temp_distance_value; 
-////  	}
-//
-//    // Take the number of next taken aabbs.
-//  	number_of_taken_aabbs = min(64, total_aabbs);
-//  //}
-//
-//  ////// Scatter distance values.
-//  distance[global_index] = old_distance_value;
-//
-//  // uint total_aabbs = u_data.number_of_aabbs;
-//  // uint number_of_taken_aabbs = min(64, u_data.number_of_aabbs);
-//
-//  // do {
-//  //       if (
-//  // }
-//  // while (total_aabbs > 0);
-//
-//  //for (uint c=0 ; c < u_data.number_of_aabbs / 64 ; 
-//  //for (uint i=0 ; i < remaining_aabbs ; i++) {
-//
-//  //  // Update the remaining aabbs for this for-loop.
-//
-//  //    if 
-//  //    // Load next max 64 aabb:s.
-//  //    AABB temp_aabb = global_aabb[i];
-//  //    barrier();
-//  //    float temp_distance_value = test_scene(index1D_to_index3D());
-//  //    if (temp_distance_value < old_distance_value) {
-//  //      // We found a smaller distance value.
-//  //      old_distance_value = temp_distance_value; 
-//  //    }
-//  //  }
-//  //}
-//
-//  //shared AABB[64] temp_aabbs;
-//  //shared float[64] temp_distance_values;

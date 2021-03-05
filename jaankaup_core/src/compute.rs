@@ -43,6 +43,7 @@ impl Histogram {
         assert!(capacity > 0, format!("{} > 0", capacity));
 
         let data = vec!(initial_value ; capacity as usize);
+        println!("{:?}", data);
 
         let histogram = buffer_from_data::<u32>(
             &device,
@@ -67,6 +68,10 @@ impl Histogram {
                                       0 as wgpu::BufferAddress,
                                       (std::mem::size_of::<u32>() * self.data.len()) as wgpu::BufferAddress));
         result
+    }
+    
+    pub fn get_histogram(&self) -> &wgpu::Buffer {
+        &self.histogram
     }
 
     pub fn reset_cpu_version(&self, queue: &wgpu::Queue, value: u32) {

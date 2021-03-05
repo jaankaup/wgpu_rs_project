@@ -23,7 +23,6 @@ layout(set = 0, binding = 0) uniform McParams {
 layout(set = 0, binding = 1) buffer McCounter {
     uint counter;
 };
-
  
 // The output array.
 layout(set = 1, binding = 0) writeonly buffer McOutput {
@@ -307,14 +306,14 @@ const uint[1280] triTable = {
     16777215 ,16777215 ,16777215 ,16777215 ,16777215 
 };
 
-// 256 x 24 256
+// 256 x 256 x 256
 float get_density_value(int pos_x, int pos_y, int pos_z) {
-    if (pos_x < 0 || pos_x > 255 ||
-        pos_y < 0 || pos_y > 23  ||
-        pos_z < 0 || pos_z > 255) {
-        return 10.0;
+    if (pos_x < 0 || pos_x > 23 ||
+        pos_y < 0 || pos_y > 23 ||
+        pos_z < 0 || pos_z > 23) {
+        return isovalue + 0.1;
     }
-    int index = pos_x + pos_y * 256 + pos_z * 256 * 24;
+    int index = pos_x + pos_y * 24 + pos_z * 24 * 24;
     return noise_texture[index];
 }
 
@@ -434,7 +433,6 @@ void createVertex(uint edgeValue,
     v.v = interpolateV(cube.vertices[edge.x], cube.vertices[edge.y], isovalue);
     v.n = interpolateN(cube.normals[edge.x], cube.normals[edge.y], cube.vertices[edge.x].w, cube.vertices[edge.y].w, isovalue);
     mc_out[arrayIndex] = v;
-
 }
 
 
@@ -512,4 +510,3 @@ void main() {
         }
     }
 }
-

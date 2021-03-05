@@ -1,0 +1,196 @@
+#version 450
+
+struct OutPutVertex {
+    vec3 pos;
+    uint color;
+};
+
+layout(set = 0, binding = 0) uniform Dimensions {
+    uvec3 dimensions;
+};
+
+layout(set = 0, binding = 1) buffer Counter {
+    uint[] counter;
+};
+
+layout(set = 0, binding = 2) buffer Points_out {
+    OutPutVertex[] output_points;
+};
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// Number 1
+const vec3[2] line_one_a =   { vec3(0.3, 0.1, 0.0), vec3(0.7, 0.1, 0.0) };  
+const vec3[2] line_one_b =   { vec3(0.5, 0.1, 0.0), vec3(0.5, 0.9, 0.0) };  
+const vec3[3] line_one_bez = { vec3(0.5, 0.9, 0.0), vec3(0.4, 0.8, 0.0), vec3(0.3, 0.8, 0.0) };  
+
+// Number 2
+const vec3[2] line_two_a =   { vec3(0.3, 0.1, 0.0), vec3(0.7, 0.1, 0.0) };
+const vec3[2] line_two_b =   { vec3(0.3, 0.1, 0.0), vec3(0.65, 0.6, 0.0) };
+const vec3[4] line_two_bez = { vec3(0.65, 0.6, 0.0), vec3(0.7, 0.7, 0.0), vec3(0.55, 0.95, 0.0), vec3(0.3, 0.8, 0.0) };  
+
+// Number 3
+const vec3[4] line_three_bez1 = { vec3(0.3, 0.7, 0.0), vec3(0.4, 0.9, 0.0), vec3(0.75, 0.7, 0.0), vec3(0.45, 0.55, 0.0) };  
+const vec3[4] line_three_bez2 = { vec3(0.45, 0.55, 0.0), vec3(0.75, 0.4, 0.0), vec3(0.45, 0.1, 0.0), vec3(0.3, 0.3, 0.0) };  
+
+// Number 4
+const vec3[2] line_four_a = { vec3(0.6, 0.1, 0.0), vec3(0.6, 0.9, 0.0) };  
+const vec3[2] line_four_b = { vec3(0.6, 0.9, 0.0), vec3(0.3, 0.45, 0.0) };  
+const vec3[2] line_four_c = { vec3(0.3, 0.45, 0.0), vec3(0.7, 0.5, 0.0) };  
+
+// Number 5
+const vec3[2] line_five_a =   { vec3(0.7, 0.9, 0.0), vec3(0.3, 0.9, 0.0) };  
+const vec3[2] line_five_b =   { vec3(0.3, 0.9, 0.0), vec3(0.3, 0.65, 0.0) };  
+const vec3[4] line_five_bez = { vec3(0.3, 0.65, 0.0), vec3(1.0, 0.65, 0.0), vec3(0.65, 0.1, 0.0), vec3(0.3, 0.3, 0.0) };  
+
+uvec3 index1D_to_index3D() {
+	uint index = gl_GlobalInvocationID.x;
+	uint wh = dimensions.x * dimensions.y;
+	uint z = index / wh;
+	index -= z * wh;
+	uint y = index / dimensions.x;
+	index -= y * dimensions.x;
+	uint x = index;
+	return ivec3(x, y, z);	
+}
+
+
+// Encode vector to "rgba" uint.
+uint encode_rgba_u32(uint r, uint g, uint b, uint a) {
+  uint col = 0;
+  col = (r << 24) | (g << 16) | (b  << 8) | a;
+  return col;
+}
+
+//shared histogram[10] temp_aabbs;
+
+void bezier_3c(uint n, vec3 c0, vec3 c1, vec3 c2) {
+
+    uint index = atomicAdd(counter[0], n);
+
+    for (int i=0 ; i<n ; i++) {
+        const float t = float(i)  / (float(n)-1.0);
+        const float t2 = t * t;
+        const float mt = 1.0 - t;
+        const float mt2 = mt * mt;
+        const vec3 result = c0 * mt2 + c1 * 2.0 * mt*t + c2 * t2;
+
+        uvec3 coordinates = index1D_to_index3D();
+        output_points[index+i] = OutPutVertex(
+            result,
+            encode_rgba_u32(
+                255 - coordinates.x * 4,
+                255 - coordinates.y * 4,
+                255 - coordinates.z * 4,
+                255));
+    }
+}
+
+void bezier_4c(uint n, vec3 c0, vec3 c1, vec3 c2, vec3 c3) {
+
+    uint index = atomicAdd(counter[0], n);
+
+    for (int i=0 ; i<n ; i++) {
+        const float t = float(i)  / (float(n)-1.0);
+        const float t2 = t * t;
+        const float t3 = t2 * t;
+        const float mt = 1.0 - t;
+        const float mt2 = mt * mt;
+        const float mt3 = mt2 * mt;
+        const vec3 result = c0 * mt3 + c1 * 3.0 * mt2*t + c2 * 3.0 * mt*t2 + c3 * t3;
+
+        uvec3 coordinates = index1D_to_index3D();
+        output_points[index+i] = OutPutVertex(
+            result,
+            encode_rgba_u32(
+                255 - coordinates.x * 4,
+                255 - coordinates.y * 4,
+                255 - coordinates.z * 4,
+                255));
+    }
+}
+
+void line(uint n, vec3 c0, vec3 c1) {
+
+    uint index = atomicAdd(counter[0], n);
+
+    for (int i=0 ; i<n ; i++) {
+
+        const float t = float(i)  / (float(n)-1.0);
+        const float dist = distance(c0, c1); 
+
+        vec3 norm = normalize(c1 - c0);
+
+        vec3 point = c0 + norm * (dist * t);
+
+        uvec3 coordinates = index1D_to_index3D();
+
+        output_points[index+i] = OutPutVertex(
+            point,
+            encode_rgba_u32(
+                255 - coordinates.x * 4,
+                255 - coordinates.y * 4,
+                255 - coordinates.z * 4,
+                1));
+    }
+}
+
+void create_number_one(uint num_points) {
+    uint a_count   = uint(max(2.0, ceil(8.0/14.0 * num_points)));
+    uint b_count   = uint(max(2.0, ceil(4.0/14.0 * num_points)));
+    uint bez_count = uint(max(2.0, ceil(2.0/14.0 * num_points)));
+    bezier_3c(bez_count, line_one_bez[0], line_one_bez[1], line_one_bez[2]);
+    line(a_count, line_one_a[0], line_one_a[1]);
+    line(b_count, line_one_b[0], line_one_b[1]);
+}
+
+void create_number_two(uint num_points) {
+    uint a_count   = uint(max(2.0, ceil(4.0/15.0 * num_points)));
+    uint b_count   = uint(max(2.0, ceil(7.0/15.0 * num_points)));
+    uint bez_count = uint(max(2.0, ceil(4.0/15.0 * num_points)));
+    bezier_4c(bez_count, line_two_bez[0], line_two_bez[1], line_two_bez[2], line_two_bez[3]);
+    line(a_count, line_two_a[0], line_two_a[1]);
+    line(b_count, line_two_b[0], line_two_b[1]);
+}
+
+void create_number_three(uint num_points) {
+    uint count   = max(4, uint(num_points * 0.5));
+    bezier_4c(count, line_three_bez1[0], line_three_bez1[1], line_three_bez1[2], line_three_bez1[3]);
+    bezier_4c(count, line_three_bez2[0], line_three_bez2[1], line_three_bez2[2], line_three_bez2[3]);
+}
+
+void create_number_four(uint num_points) {
+    uint a_count   = uint(max(2.0, ceil(8.0/17.0 * num_points)));
+    uint b_count   = uint(max(2.0, ceil(5.0/17.0 * num_points)));
+    uint c_count   = uint(max(2.0, ceil(4.0/17.0 * num_points)));
+    line(a_count, line_four_a[0], line_four_a[1]);
+    line(b_count, line_four_b[0], line_four_b[1]);
+    line(c_count, line_four_c[0], line_four_c[1]);
+}
+
+void create_number_five(uint num_points) {
+    uint a_count   = uint(max(2.0, ceil(4.0/13.0 * num_points)));
+    uint b_count   = uint(max(2.0, ceil(3.0/13.0 * num_points)));
+    uint c_count   = uint(max(2.0, ceil(6.0/13.0 * num_points)));
+    line(a_count, line_five_a[0], line_five_a[1]);
+    line(b_count, line_five_b[0], line_five_b[1]);
+    bezier_4c(c_count, line_five_bez[0], line_five_bez[1], line_five_bez[2], line_five_bez[3]);
+}
+
+void main() {
+
+  uint global_index = gl_GlobalInvocationID.x;
+  uint local_index = gl_LocalInvocationID.x;
+
+  if (global_index > 0) return;
+
+  //create_number_one(2000);
+  create_number_five(2000);
+
+  //uvec3 coordinates = index1D_to_index3D();
+  //vec3 scaled_coordinates = 0.5 * vec3(float(coordinates.x), float(coordinates.y), float(coordinates.z)); 
+
+  //bezier_3c(20, scaled_coordinates, vec3(0.0, 0.0, 0.0), vec3(55.0, 55.0, 55.0));
+
+  //output_points[global_index] = vec4(scaled_coordinates, 1.0);
+}
