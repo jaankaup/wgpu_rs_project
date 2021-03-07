@@ -305,7 +305,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
 
     let sc_desc = wgpu::SwapChainDescriptor {
         usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
-        format: adapter.get_swap_chain_preferred_format(&surface),
+        format: adapter.get_swap_chain_preferred_format(&surface).unwrap(),
         width: size.width,
         height: size.height,
         present_mode: wgpu::PresentMode::Mailbox,

@@ -30,7 +30,7 @@ impl Texture {
         let size = wgpu::Extent3d {
             width: width,
             height: height,
-            depth: depth,
+            depth_or_array_layers: depth,
         };
         let desc = wgpu::TextureDescriptor {
             label: label,
@@ -122,7 +122,7 @@ impl Texture {
         let texture_extent = wgpu::Extent3d {
             width: width,
             height: height,
-            depth: 1,
+            depth_or_array_layers: 1,
         };
 
         let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -170,7 +170,7 @@ impl Texture {
 
         let width = texture_extent.width;
         let height = texture_extent.height;
-        let depth = texture_extent.depth;
+        let depth = texture_extent.depth_or_array_layers;
 
         Self {
 
@@ -202,7 +202,7 @@ impl Texture {
         let texture_extent = wgpu::Extent3d {
             width: width,
             height: height,
-            depth: 1,
+            depth_or_array_layers: 1,
         };
 
         let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -260,7 +260,7 @@ impl Texture {
         let texture_extent = wgpu::Extent3d {
             width: width,
             height: height,
-            depth: depth,
+            depth_or_array_layers: depth,
         };
 
         let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -328,7 +328,7 @@ impl Texture {
             wgpu::Extent3d {
                 width: self.width,
                 height: self.height,
-                depth: self.depth,
+                depth_or_array_layers: self.depth,
             },
         );
         queue.submit(Some(encoder.finish()));
@@ -642,7 +642,7 @@ impl Texture {
         let texture_extent = wgpu::Extent3d {
             width: width,
             height: height,
-            depth: depth,
+            depth_or_array_layers: depth,
         };
 
         let texture = device.create_texture(&wgpu::TextureDescriptor {

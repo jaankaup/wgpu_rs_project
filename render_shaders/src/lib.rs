@@ -62,7 +62,7 @@ impl Render_vvvvnnnn {
         ];
 
         let (stride, attributes) =  create_vb_descriptor(
-            &vec![wgpu::VertexFormat::Float4, wgpu::VertexFormat::Float4]
+            &vec![wgpu::VertexFormat::Float32x4, wgpu::VertexFormat::Float32x4]
         );
 
         let mut bind_group_layouts: Vec<wgpu::BindGroupLayout> = Vec::new();
@@ -130,12 +130,18 @@ impl Render_vvvvnnnn {
             fragment: Some(wgpu::FragmentState {
                 module: &fs_module,
                 entry_point: "main",
-                targets: &[wgpu::ColorTargetState {
-                   format: sc_desc.format,
-                   alpha_blend: wgpu::BlendState::REPLACE,
-                   color_blend: wgpu::BlendState::REPLACE,
-                   write_mask: wgpu::ColorWrite::COLOR,
-                }],
+                targets: &[sc_desc.format.into()] // &[wgpu::ColorTargetState {
+                //   format: sc_desc.format,
+                //   alpha_blend: wgpu::BlendState::REPLACE,
+                //   color_blend: wgpu::BlendState::REPLACE,
+                //   write_mask: wgpu::ColorWrite::COLOR,
+                //}],
+                //targets: &[wgpu::ColorTargetState {
+                //   format: sc_desc.format,
+                //   alpha_blend: wgpu::BlendState::REPLACE,
+                //   color_blend: wgpu::BlendState::REPLACE,
+                //   write_mask: wgpu::ColorWrite::COLOR,
+                //}],
             }),
         });
 
@@ -203,7 +209,7 @@ impl Render_vvvc {
         ];
 
         let (stride, attributes) =  create_vb_descriptor(
-            &vec![wgpu::VertexFormat::Float3, wgpu::VertexFormat::Uint]
+            &vec![wgpu::VertexFormat::Float32x3, wgpu::VertexFormat::Uint32]
         );
 
         let mut bind_group_layouts: Vec<wgpu::BindGroupLayout> = Vec::new();
@@ -271,12 +277,12 @@ impl Render_vvvc {
             fragment: Some(wgpu::FragmentState {
                 module: &fs_module,
                 entry_point: "main",
-                targets: &[wgpu::ColorTargetState {
-                   format: sc_desc.format,
-                   alpha_blend: wgpu::BlendState::REPLACE,
-                   color_blend: wgpu::BlendState::REPLACE,
-                   write_mask: wgpu::ColorWrite::COLOR,
-                }],
+                targets: &[sc_desc.format.into()] // &[wgpu::ColorTargetState {
+                //   format: sc_desc.format,
+                //   alpha_blend: wgpu::BlendState::REPLACE,
+                //   color_blend: wgpu::BlendState::REPLACE,
+                //   write_mask: wgpu::ColorWrite::COLOR,
+                //}],
             }),
         });
 

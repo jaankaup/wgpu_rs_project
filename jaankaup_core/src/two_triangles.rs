@@ -159,7 +159,7 @@ impl TwoTriangles {
         
         // Create stride and vertex attribute descriptors.
         let (stride, attributes) =  create_vb_descriptor(
-            &vec![wgpu::VertexFormat::Float4, wgpu::VertexFormat::Float4]
+            &vec![wgpu::VertexFormat::Float32x4, wgpu::VertexFormat::Float32x4]
         );
         
         // Create the pipeline.
@@ -208,13 +208,13 @@ impl TwoTriangles {
             fragment: Some(wgpu::FragmentState {
                 module: &fs_module,
                 entry_point: "main",
-                targets: &[wgpu::ColorTargetState {
-                   format: sc_desc.format,
-                   alpha_blend: wgpu::BlendState::REPLACE,
-                   color_blend: wgpu::BlendState::REPLACE, //REPLACE,
-                   write_mask: wgpu::ColorWrite::COLOR,
-                }],
-            }),
+                targets: &[sc_desc.format.into()], // &[wgpu::ColorTargetState {
+                   //format: sc_desc.format,
+                   //alpha_blend: wgpu::BlendState::REPLACE,
+                   //color_blend: wgpu::BlendState::REPLACE, //REPLACE,
+                   //write_mask: wgpu::ColorWrite::COLOR,
+                },
+            ),
         });
 
         pipeline

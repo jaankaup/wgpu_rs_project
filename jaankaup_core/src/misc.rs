@@ -91,40 +91,40 @@ pub fn create_vb_descriptor(formats: &Vec<wgpu::VertexFormat>) -> (u64, Vec<wgpu
     let mut stride: u64 = 0;
     for (i, format) in formats.iter().enumerate() {
         let size = match format {
-                wgpu::VertexFormat::Uchar2 => 2 * std::mem::size_of::<u8>() as u64, 
-                wgpu::VertexFormat::Uchar4 => 4 * std::mem::size_of::<u8>() as u64,
-                wgpu::VertexFormat::Char2 => 2 * std::mem::size_of::<i8>() as u64,
-                wgpu::VertexFormat::Char4 => 4 * std::mem::size_of::<i8>() as u64,
-                wgpu::VertexFormat::Uchar2Norm => 2 * std::mem::size_of::<u8>() as u64,
-                wgpu::VertexFormat::Uchar4Norm => 4 * std::mem::size_of::<u8>() as u64,
-                wgpu::VertexFormat::Char2Norm => 2 * std::mem::size_of::<u8>() as u64,
-                wgpu::VertexFormat::Char4Norm => 4 * std::mem::size_of::<u8>() as u64,
-                wgpu::VertexFormat::Ushort2 => 2 * std::mem::size_of::<u16>() as u64,
-                wgpu::VertexFormat::Ushort4 => 4 * std::mem::size_of::<u16>() as u64,
-                wgpu::VertexFormat::Short2 => 2 * std::mem::size_of::<i16>() as u64,
-                wgpu::VertexFormat::Short4 => 4 * std::mem::size_of::<i16>() as u64,
-                wgpu::VertexFormat::Ushort2Norm => 2 * std::mem::size_of::<u16>() as u64,
-                wgpu::VertexFormat::Ushort4Norm => 4 * std::mem::size_of::<u16>() as u64,
-                wgpu::VertexFormat::Short2Norm => 2 * std::mem::size_of::<i16>() as u64,
-                wgpu::VertexFormat::Short4Norm => 4 * std::mem::size_of::<i16>() as u64,
-                wgpu::VertexFormat::Half2 => unimplemented!(),
-                wgpu::VertexFormat::Half4 => unimplemented!(),
-                wgpu::VertexFormat::Float => std::mem::size_of::<f32>() as u64,
-                wgpu::VertexFormat::Float2 => 2 * std::mem::size_of::<f32>() as u64,
-                wgpu::VertexFormat::Float3 => 3 * std::mem::size_of::<f32>() as u64,
-                wgpu::VertexFormat::Float4 => 4 * std::mem::size_of::<f32>() as u64,
-                wgpu::VertexFormat::Uint => std::mem::size_of::<u32>() as u64,
-                wgpu::VertexFormat::Uint2 => 2 * std::mem::size_of::<u32>() as u64,
-                wgpu::VertexFormat::Uint3 => 3 * std::mem::size_of::<u32>() as u64,
-                wgpu::VertexFormat::Uint4 => 4 * std::mem::size_of::<u32>() as u64,
-                wgpu::VertexFormat::Int => std::mem::size_of::<i32>() as u64,
-                wgpu::VertexFormat::Int2 => 2 * std::mem::size_of::<i32>() as u64,
-                wgpu::VertexFormat::Int3 => 3 * std::mem::size_of::<i32>() as u64,
-                wgpu::VertexFormat::Int4 => 4 * std::mem::size_of::<i32>() as u64,
-                wgpu::VertexFormat::Double
-                | wgpu::VertexFormat::Double2
-                | wgpu::VertexFormat::Double3
-                | wgpu::VertexFormat::Double4
+                wgpu::VertexFormat::Uint8x2 => 2 * std::mem::size_of::<u8>() as u64, 
+                wgpu::VertexFormat::Uint8x4 => 4 * std::mem::size_of::<u8>() as u64,
+                wgpu::VertexFormat::Sint8x2 => 2 * std::mem::size_of::<i8>() as u64,
+                wgpu::VertexFormat::Sint8x4 => 4 * std::mem::size_of::<i8>() as u64,
+                wgpu::VertexFormat::Unorm8x2 => 2 * std::mem::size_of::<u8>() as u64,
+                wgpu::VertexFormat::Unorm8x4 => 4 * std::mem::size_of::<u8>() as u64,
+                wgpu::VertexFormat::Snorm8x2 => 2 * std::mem::size_of::<u8>() as u64,
+                wgpu::VertexFormat::Snorm8x4 => 4 * std::mem::size_of::<u8>() as u64,
+                wgpu::VertexFormat::Uint16x2 => 2 * std::mem::size_of::<u16>() as u64,
+                wgpu::VertexFormat::Uint16x4 => 4 * std::mem::size_of::<u16>() as u64,
+                wgpu::VertexFormat::Sint16x2 => 2 * std::mem::size_of::<i16>() as u64,
+                wgpu::VertexFormat::Sint16x4 => 4 * std::mem::size_of::<i16>() as u64,
+                wgpu::VertexFormat::Unorm16x2 => 2 * std::mem::size_of::<u16>() as u64,
+                wgpu::VertexFormat::Unorm16x4 => 4 * std::mem::size_of::<u16>() as u64,
+                wgpu::VertexFormat::Snorm16x2 => 2 * std::mem::size_of::<i16>() as u64,
+                wgpu::VertexFormat::Snorm16x4 => 4 * std::mem::size_of::<i16>() as u64,
+                wgpu::VertexFormat::Float16x2 => unimplemented!(),
+                wgpu::VertexFormat::Float16x4 => unimplemented!(),
+                wgpu::VertexFormat::Float32 => std::mem::size_of::<f32>() as u64,
+                wgpu::VertexFormat::Float32x2 => 2 * std::mem::size_of::<f32>() as u64,
+                wgpu::VertexFormat::Float32x3 => 3 * std::mem::size_of::<f32>() as u64,
+                wgpu::VertexFormat::Float32x4 => 4 * std::mem::size_of::<f32>() as u64,
+                wgpu::VertexFormat::Uint32 => std::mem::size_of::<u32>() as u64,
+                wgpu::VertexFormat::Uint32x2 => 2 * std::mem::size_of::<u32>() as u64,
+                wgpu::VertexFormat::Uint32x3 => 3 * std::mem::size_of::<u32>() as u64,
+                wgpu::VertexFormat::Uint32x4 => 4 * std::mem::size_of::<u32>() as u64,
+                wgpu::VertexFormat::Sint32 => std::mem::size_of::<i32>() as u64,
+                wgpu::VertexFormat::Sint32x2 => 2 * std::mem::size_of::<i32>() as u64,
+                wgpu::VertexFormat::Sint32x3 => 3 * std::mem::size_of::<i32>() as u64,
+                wgpu::VertexFormat::Sint32x4 => 4 * std::mem::size_of::<i32>() as u64,
+                wgpu::VertexFormat::Float64
+                | wgpu::VertexFormat::Float64x2
+                | wgpu::VertexFormat::Float64x3
+                | wgpu::VertexFormat::Float64x4
                 => panic!("VERTEX_ATTRIBUTE_64BIT must be enabled to use Double formats")
         };
         attribute_descriptors.push(

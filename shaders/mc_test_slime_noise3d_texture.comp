@@ -378,15 +378,15 @@ vec4 interpolateV(vec4 va, vec4 vb, float isovalue)
      }
    #else
        if (abs(isovalue - va.w) < 0.0001) {
-          return vec4(va.xyz, 1.0);
+          return vec4(va.xyz, 0.9);
        }
        else if (abs(isovalue - vb.w) < 0.0001) {
-          return vec4(vb.xyz, 1.0);
+          return vec4(vb.xyz, 0.9);
        }
        else if (abs(va.w-vb.w) < 0.0001) {
-          return vec4(va.xyz, 1.0);
+          return vec4(va.xyz, 0.9);
        }
-       return vec4(va.xyz, 1.0);
+       return vec4(va.xyz, 0.9);
    #endif
 }
 

@@ -280,7 +280,7 @@ impl TestLayoutEntry {
 
         // Create stride and vertex attribute descriptors.
         let (stride, attributes) =  create_vb_descriptor(
-            &vec![wgpu::VertexFormat::Float4, wgpu::VertexFormat::Float4]
+            &vec![wgpu::VertexFormat::Float32x4, wgpu::VertexFormat::Float32x4]
         );
 
         let mut bind_group_layouts: Vec<wgpu::BindGroupLayout> = Vec::new();
@@ -350,10 +350,23 @@ impl TestLayoutEntry {
                 module: &fs_module,
                 entry_point: "main",
                 targets: &[wgpu::ColorTargetState {
-                   format: sc_desc.format,
-                   alpha_blend: wgpu::BlendState::REPLACE,
-                   color_blend: wgpu::BlendState::REPLACE,
-                   write_mask: wgpu::ColorWrite::COLOR,
+                    format: sc_desc.format,
+                    blend: Some(wgpu::BlendState {
+                            color: wgpu::BlendComponent {
+                                src_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                                dst_factor: wgpu::BlendFactor::OneMinusDstAlpha,
+                                operation: wgpu::BlendOperation::Max, 
+                            },
+                            alpha: wgpu::BlendComponent {
+                                src_factor: wgpu::BlendFactor::SrcAlpha,
+                                dst_factor: wgpu::BlendFactor::One,
+                                operation: wgpu::BlendOperation::Add, 
+                            },
+                        }
+                    ),
+                    // alpha_blend: wgpu::BlendState::REPLACE,
+                    // color_blend: wgpu::BlendState::REPLACE,
+                    write_mask: wgpu::ColorWrite::COLOR,
                 }],
             }),
         });

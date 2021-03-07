@@ -142,21 +142,21 @@ impl Application for HelloApp {
                     &configuration.device.create_shader_module(&fragment_shader_src)
         );
         // Check the correspondence of resources and the pipeline interface.
-        check_correspondence(
-            &t.layout_entries,
-            &vec![
-                vec![wgpu::BindingResource::Buffer {
-                    buffer: &camera.get_camera_uniform(&configuration.device),
-                    offset: 0,
-                    size: None,
-                }], 
-                vec![wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
-                     wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler),
-                     wgpu::BindingResource::TextureView(&textures.get("rock").unwrap().view),
-                     wgpu::BindingResource::Sampler(&textures.get("rock").unwrap().sampler)
-                ]
-            ]
-        );
+        //check_correspondence(
+        //    &t.layout_entries,
+        //    &vec![
+        //        vec![wgpu::BindingResource::Buffer {
+        //            buffer: &camera.get_camera_uniform(&configuration.device),
+        //            offset: 0,
+        //            size: None,
+        //        }], 
+        //        vec![wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
+        //             wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler),
+        //             wgpu::BindingResource::TextureView(&textures.get("rock").unwrap().view),
+        //             wgpu::BindingResource::Sampler(&textures.get("rock").unwrap().sampler)
+        //        ]
+        //    ]
+        //);
         // Create bind groups for basic render pipeline and grass/rock textures. 
         let t_bindgroups = create_bind_groups(
                                 &configuration.device, 
@@ -204,7 +204,7 @@ impl Application for HelloApp {
             buffer_from_data::<f32>(
             &configuration.device,
             // gl_Position     |    point_pos
-            &vec![0 as f32 ; 128*128*128*24],
+            &vec![0 as f32 ; 128*64*64*24],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
         );
@@ -241,7 +241,7 @@ impl Application for HelloApp {
             "mc_output_slime".to_string(),
             buffer_from_data::<f32>(
             &configuration.device,
-            &vec![0 as f32 ; 128*128*128*24],
+            &vec![0 as f32 ; 128*64*64*24],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
         );

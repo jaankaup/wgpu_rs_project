@@ -252,7 +252,7 @@ impl Application for Debug_App {
             buffer_from_data::<f32>(
             &configuration.device,
             // gl_Position     |    point_pos
-            &vec![0 as f32 ; 128*128*128*24],
+            &vec![0 as f32 ; 128*64*64*24],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
         );
@@ -262,7 +262,7 @@ impl Application for Debug_App {
             buffer_from_data::<f32>(
             &configuration.device,
             // gl_Position     |    point_pos
-            &vec![0 as f32 ; 128*128*128*32],
+            &vec![0 as f32 ; 128*64*64*32],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
         );
