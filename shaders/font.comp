@@ -19,7 +19,25 @@ layout(set = 0, binding = 2) buffer Points_out {
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
+// 0   => 0
+// 1   => 1
+// 2   => 2
+// 3   => 3
+// 4   => 4
+// 5   => 5
+// 6   => 6
+// 7   => 7
+// 8   => 8
+// 9   => 9
+// -   => 10
+// (   => 11 
+// )   => 12 
+// .   => 13 
+// inf => 14 
+// nan => 15 
+
 shared int[64] offsets;
+shared int[64] offsets_decimal;
 
 const uvec3 local_dimension = uvec3(4,4,4);
 
@@ -33,6 +51,9 @@ const uint[10] joo = {1,
                       10000000,
                       100000000,
                       1000000000};
+
+// Minus
+const vec3[2] line_minus =   { vec3(0.3, 0.5, 0.0), vec3(0.7, 0.5, 0.0) };  
 
 // Number 1
 const vec3[2] line_one_a =   { vec3(0.3, 0.1, 0.0), vec3(0.7, 0.1, 0.0) };  
@@ -83,6 +104,17 @@ const vec3[4] line_zero_bez1 = { vec3(0.5, 0.9, 0.0),  vec3(0.25, 0.85, 0.0), ve
 const vec3[4] line_zero_bez2 = { vec3(0.5, 0.9, 0.0),  vec3(0.75, 0.85, 0.0), vec3(0.75, 0.55, 0.0), vec3(0.75, 0.5, 0.0) };  
 const vec3[4] line_zero_bez3 = { vec3(0.5, 0.1, 0.0),  vec3(0.25, 0.15, 0.0), vec3(0.25, 0.45, 0.0), vec3(0.25, 0.5, 0.0) };  
 const vec3[4] line_zero_bez4 = { vec3(0.5, 0.1, 0.0),  vec3(0.75, 0.15, 0.0), vec3(0.75, 0.45, 0.0), vec3(0.75, 0.5, 0.0) };  
+
+// Number inf 
+const vec3[4] line_inf_bez1 = { vec3(0.5, 0.5, 0.0),  vec3(0.4, 0.7, 0.0), vec3(0.2, 0.7, 0.0), vec3(0.1, 0.5, 0.0) };  
+const vec3[4] line_inf_bez2 = { vec3(0.1, 0.5, 0.0),  vec3(0.2, 0.3, 0.0), vec3(0.4, 0.3, 0.0), vec3(0.5, 0.5, 0.0) };  
+const vec3[4] line_inf_bez3 = { vec3(0.5, 0.5, 0.0),  vec3(0.6, 0.7, 0.0), vec3(0.8, 0.7, 0.0), vec3(0.9, 0.5, 0.0) };  
+const vec3[4] line_inf_bez4 = { vec3(0.9, 0.5, 0.0),  vec3(0.8, 0.3, 0.0), vec3(0.6, 0.3, 0.0), vec3(0.5, 0.5, 0.0) };  
+
+// Nan
+const vec3[2] line_nan_a = { vec3(0.2, 0.1, 0.0), vec3(0.2, 0.9, 0.0) };  
+const vec3[2] line_nan_b = { vec3(0.2, 0.9, 0.0), vec3(0.8, 0.1, 0.0) };  
+const vec3[2] line_nan_c = { vec3(0.8, 0.1, 0.0), vec3(0.8, 0.9, 0.0) };  
 
 uvec3 index1D_to_index3D() {
 	uint index = gl_GlobalInvocationID.x;
@@ -176,10 +208,6 @@ void line(uint n, vec3 c0, vec3 c1) {
     }
 }
 
-void create_create_rp(uint num_points, vec3 offset) {
-    
-}
-
 void create_number_1(uint num_points, vec3 offset) {
     uint a_count   = uint(max(2.0, ceil(8.0/14.0 * num_points)));
     uint b_count   = uint(max(2.0, ceil(4.0/14.0 * num_points)));
@@ -263,18 +291,63 @@ void create_number_0(uint num_points, vec3 offset) {
     bezier_4c(count, line_zero_bez4[0] + offset, line_zero_bez4[1] + offset, line_zero_bez4[2] + offset, line_zero_bez4[3] + offset);
 }
 
+void create_minus(uint num_points, vec3 offset) {
+    line(max(4, num_points / 2), line_minus[0] + offset, line_minus[1] + offset);
+}
+
+void create_left_paren(uint num_points, vec3 offset) {
+    uint count   = uint(max(4.0, num_points * 0.5));
+    vec3 offset2 = vec3(0.1, 0.0, 0.0) + offset;
+    bezier_4c(count, line_zero_bez1[0] + offset2, line_zero_bez1[1] + offset2, line_zero_bez1[2] + offset2, line_zero_bez1[3] + offset2);
+    bezier_4c(count, line_zero_bez3[0] + offset2, line_zero_bez3[1] + offset2, line_zero_bez3[2] + offset2, line_zero_bez3[3] + offset2);
+}
+
+void create_right_paren(uint num_points, vec3 offset) {
+    uint count   = uint(max(4.0, num_points * 0.5));
+    vec3 offset2 = vec3(-0.1, 0.0, 0.0) + offset;
+    bezier_4c(count, line_zero_bez2[0] + offset2, line_zero_bez2[1] + offset2, line_zero_bez2[2] + offset2, line_zero_bez2[3] + offset2);
+    bezier_4c(count, line_zero_bez4[0] + offset2, line_zero_bez4[1] + offset2, line_zero_bez4[2] + offset2, line_zero_bez4[3] + offset2);
+}
+
+void create_dot(uint num_points, vec3 offset) {
+    uint count   = uint(max(4.0, num_points * 0.25));
+    float factor = 0.2;
+    vec3 offset_center = offset + vec3(0.3, 0.0, 0.0);
+    bezier_4c(count, factor*line_zero_bez1[0] + offset_center, factor*line_zero_bez1[1] + offset_center, factor*line_zero_bez1[2] + offset_center, factor*line_zero_bez1[3] + offset_center);
+    bezier_4c(count, factor*line_zero_bez2[0] + offset_center, factor*line_zero_bez2[1] + offset_center, factor*line_zero_bez2[2] + offset_center, factor*line_zero_bez2[3] + offset_center);
+    bezier_4c(count, factor*line_zero_bez3[0] + offset_center, factor*line_zero_bez3[1] + offset_center, factor*line_zero_bez3[2] + offset_center, factor*line_zero_bez3[3] + offset_center);
+    bezier_4c(count, factor*line_zero_bez4[0] + offset_center, factor*line_zero_bez4[1] + offset_center, factor*line_zero_bez4[2] + offset_center, factor*line_zero_bez4[3] + offset_center);
+}
+
+void create_inf(uint num_points, vec3 offset) {
+    uint count   = uint(max(4.0, num_points * 0.25));
+    bezier_4c(count, line_inf_bez1[0] + offset, line_inf_bez1[1] + offset, line_inf_bez1[2] + offset, line_inf_bez1[3] + offset);
+    bezier_4c(count, line_inf_bez2[0] + offset, line_inf_bez2[1] + offset, line_inf_bez2[2] + offset, line_inf_bez2[3] + offset);
+    bezier_4c(count, line_inf_bez3[0] + offset, line_inf_bez3[1] + offset, line_inf_bez3[2] + offset, line_inf_bez3[3] + offset);
+    bezier_4c(count, line_inf_bez4[0] + offset, line_inf_bez4[1] + offset, line_inf_bez4[2] + offset, line_inf_bez4[3] + offset);
+}
+
+void create_nan(uint num_points, vec3 offset) {
+    uint a_count   = uint(max(8.0, ceil(8.0/26.0 * num_points)));
+    uint b_count   = uint(max(10.0, ceil(10.0/26.0 * num_points)));
+    line(a_count, line_nan_a[0] + offset, line_nan_a[1] + offset);
+    line(b_count, line_nan_b[0] + offset, line_nan_b[1] + offset);
+    line(a_count, line_nan_c[0] + offset, line_nan_c[1] + offset);
+}
+
 uint get_remainder(uint num, uint divisor) {
     return (num - divisor * (num / divisor));
 }
 
-void parse_number(uint n, inout uint[10] digits) {
+void parse_number(uint n, inout uint[20] digits, inout uint counter) {
        // 4294967295 
        // 1000000000
     bool found = false;
     uint temp_n = n;
 
     if (n == 0) {
-        uint index = atomicAdd(offsets[gl_LocalInvocationID.x], 1);
+        uint index = counter; // atomicAdd(offsets[gl_LocalInvocationID.x], 1);
+        counter++;
         digits[index] = 0; 
         return;
     }
@@ -286,10 +359,49 @@ void parse_number(uint n, inout uint[10] digits) {
             found = true;	    
         }
         if (found == true) {
-            uint index = atomicAdd(offsets[gl_LocalInvocationID.x], 1);
+            uint index = counter; //atomicAdd(offsets[gl_LocalInvocationID.x], 1);
+            counter++;
             digits[index] = remainder; 
         }
     }
+}
+
+bool parse_float(float f, int max_decimals, inout uint[20] digits, inout uint counter) {
+
+    // The sign of given float.
+    bool is_negative = f < 0.0;
+
+    // Add minus.
+    if (is_negative) {
+        digits[counter] = 10; 
+        counter++;
+    }
+
+    float f_positive = abs(f);
+
+    // The integer part.
+    float integer_temp; 
+
+    // The fractional component.
+    float f_part = modf(f_positive, integer_temp);
+
+    // Multiply fractional part so it becomes uint.
+    int fract_part = int(f_part*pow(10.0,max_decimals));
+
+    // Cast integer part to uint.
+    uint integer_part = uint(integer_temp);
+
+    // Parse the integer part. TODO: combine counter and digits/digits_frac.
+    parse_number(integer_part, digits, counter);
+
+    // Add dot.
+    digits[counter] = 13;
+    counter++;
+
+    // Prase the frag part.
+    parse_number(fract_part, digits, counter);
+
+    return is_negative;
 }
 
 uvec3 index1D_to_index3D_local() {
@@ -309,15 +421,29 @@ void main() {
   uint local_index = gl_LocalInvocationID.x;
 
   offsets[local_index] = 0;
+  offsets_decimal[local_index] = 0;
 
   //barrier();
 
   const uint num_of_points = 100;
 
-  if (global_index > 1) return;
+  if (global_index > 0) return;
   
   uvec3 this_coord = index1D_to_index3D(); 
   vec3 local_offset = vec3(this_coord.x * 4.0, this_coord.y * 4.0, this_coord.z * 4.0);
+
+  uint digits[20] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  uint digits_frag[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+  uint counter = 0;
+  // uint counter_f = 0;
+
+  bool is_negative = parse_float(123.0, 6, digits, counter);
+
+  //if (is_negative) {
+  //  create_minus(num_of_points,  local_offset);
+  //  local_offset = local_offset + vec3(0.7, 0.0, 0.0);
+  //}
 
   ////if (global_index > 500) return;
 
@@ -330,32 +456,66 @@ void main() {
 
   ////vec3 local_offset = vec3(this_coord.x * 4.0, this_coord.y * 4.0, this_coord.z * 4.0);
 
-  ////for (uint i=0; i<offsets[local_index]; i++) {
-  ////  uint numb = digits[i];
-  ////  if (numb == 0) { create_number_0(num_of_points, local_offset); }
-  ////  else if (numb == 1) { create_number_1(num_of_points, local_offset); }
-  ////  else if (numb == 2) { create_number_2(num_of_points, local_offset); }
-  ////  else if (numb == 3) { create_number_3(num_of_points, local_offset); }
-  ////  else if (numb == 4) { create_number_4(num_of_points, local_offset); }
-  ////  else if (numb == 5) { create_number_5(num_of_points, local_offset); }
-  ////  else if (numb == 6) { create_number_6(num_of_points, local_offset); }
-  ////  else if (numb == 7) { create_number_7(num_of_points, local_offset); }
-  ////  else if (numb == 8) { create_number_8(num_of_points, local_offset); }
-  ////  else if (numb == 9) { create_number_9(num_of_points, local_offset); }
+  for (uint i=0; i<counter; i++) {
+    uint numb = digits[i];
+    if (numb == 0) { create_number_0(num_of_points, local_offset); }
+    else if (numb == 1) { create_number_1(num_of_points, local_offset); }
+    else if (numb == 2) { create_number_2(num_of_points, local_offset); }
+    else if (numb == 3) { create_number_3(num_of_points, local_offset); }
+    else if (numb == 4) { create_number_4(num_of_points, local_offset); }
+    else if (numb == 5) { create_number_5(num_of_points, local_offset); }
+    else if (numb == 6) { create_number_6(num_of_points, local_offset); }
+    else if (numb == 7) { create_number_7(num_of_points, local_offset); }
+    else if (numb == 8) { create_number_8(num_of_points, local_offset); }
+    else if (numb == 9) { create_number_9(num_of_points, local_offset); }
+    else if (numb == 10) { create_minus(num_of_points, local_offset); }
+    else if (numb == 13) { create_dot(num_of_points, local_offset); }
 
-  ////  local_offset = local_offset + vec3(0.7, 0.0, 0.0);
-  ////}
+    local_offset = local_offset + vec3(0.7, 0.0, 0.0);
+  }
 
-  create_number_1(num_of_points,   local_offset + vec3(0.0, 0.0, 0.0));
-  create_number_2(num_of_points,   local_offset + vec3(0.7, 0.0, 0.0));
-  create_number_3(num_of_points, local_offset + vec3(1.4, 0.0, 0.0));
-  create_number_4(num_of_points,  local_offset + vec3(2.1, 0.0, 0.0));
-  create_number_5(num_of_points,  local_offset + vec3(2.8, 0.0, 0.0));
-  create_number_6(num_of_points,   local_offset + vec3(3.5, 0.0, 0.0));
-  create_number_7(num_of_points, local_offset + vec3(4.2, 0.0, 0.0));
-  create_number_8(num_of_points, local_offset + vec3(4.9, 0.0, 0.0));
-  create_number_9(num_of_points,  local_offset + vec3(5.6, 0.0, 0.0));
-  create_number_0(num_of_points,  local_offset + vec3(6.3, 0.0, 0.0));
+  //create_dot(num_of_points, local_offset);
+  //local_offset = local_offset + vec3(0.7, 0.0, 0.0);
+
+  //if (counter_f == 0) {
+  //  create_number_0(num_of_points,  local_offset);
+  //  local_offset = local_offset + vec3(0.7, 0.0, 0.0);
+  //}
+  //else {
+  //  for (uint i=0; i<counter_f; i++) {
+  //    uint numb = digits[i];
+  //    if (numb == 0) { create_number_0(num_of_points, local_offset); }
+  //    else if (numb == 1) { create_number_1(num_of_points, local_offset); }
+  //    else if (numb == 2) { create_number_2(num_of_points, local_offset); }
+  //    else if (numb == 3) { create_number_3(num_of_points, local_offset); }
+  //    else if (numb == 4) { create_number_4(num_of_points, local_offset); }
+  //    else if (numb == 5) { create_number_5(num_of_points, local_offset); }
+  //    else if (numb == 6) { create_number_6(num_of_points, local_offset); }
+  //    else if (numb == 7) { create_number_7(num_of_points, local_offset); }
+  //    else if (numb == 8) { create_number_8(num_of_points, local_offset); }
+  //    else if (numb == 9) { create_number_9(num_of_points, local_offset); }
+
+  //    local_offset = local_offset + vec3(0.7, 0.0, 0.0);
+  //}
+
+  //}
+
+  // create_number_1(num_of_points,   local_offset + vec3(0.0, 0.0, 0.0));
+  // create_number_2(num_of_points,   local_offset + vec3(0.7, 0.0, 0.0));
+  // create_number_3(num_of_points, local_offset + vec3(1.4, 0.0, 0.0));
+  // create_number_4(num_of_points,  local_offset + vec3(2.1, 0.0, 0.0));
+  // create_number_5(num_of_points,  local_offset + vec3(2.8, 0.0, 0.0));
+  // create_number_6(num_of_points,   local_offset + vec3(3.5, 0.0, 0.0));
+  // create_number_7(num_of_points, local_offset + vec3(4.2, 0.0, 0.0));
+  // create_number_8(num_of_points, local_offset + vec3(4.9, 0.0, 0.0));
+  // create_number_9(num_of_points,  local_offset + vec3(5.6, 0.0, 0.0));
+  // create_number_0(num_of_points,  local_offset + vec3(6.3, 0.0, 0.0));
+  // create_minus(num_of_points,  local_offset + vec3(7.0, 0.0, 0.0));
+  // create_left_paren(num_of_points,  local_offset + vec3(7.7, 0.0, 0.0));
+  // create_right_paren(num_of_points,  local_offset + vec3(8.5, 0.0, 0.0));
+  // create_dot(num_of_points,  local_offset + vec3(9.2, 0.0, 0.0));
+  // create_inf(num_of_points,  local_offset + vec3(10.0, 0.0, 0.0));
+  // create_nan(num_of_points,  local_offset + vec3(11.0, 0.0, 0.0));
 
   //uvec3 coordinates = index1D_to_index3D();
   //vec3 scaled_coordinates = 0.5 * vec3(float(coordinates.x), float(coordinates.y), float(coordinates.z)); 
