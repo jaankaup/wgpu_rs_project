@@ -31,7 +31,7 @@ pub fn buffer_from_data<T: Pod>(
 /// Copy the content of the buffer into a vector. TODO: add range for reading buffer.
 /// TODO: give res vector as parameter.
 /// TODO: add _src_offset
-pub async fn to_vec<T: Convert2Vec>(
+pub fn to_vec<T: Convert2Vec>(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     buffer: &wgpu::Buffer,
@@ -54,14 +54,24 @@ pub async fn to_vec<T: Convert2Vec>(
     
     encoder.copy_buffer_to_buffer(buffer, 0, &staging_buffer, 0, copy_size);
     queue.submit(Some(encoder.finish()));
+
+    let res: Vec<T>;
     
     let buffer_slice = staging_buffer.slice(..);
     let buffer_future = buffer_slice.map_async(wgpu::MapMode::Read);
     device.poll(wgpu::Maintain::Wait);
-    
-    let res: Vec<T>;
-    
-    buffer_future.await.expect("Failed to resolve buffer_future."); 
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        pollster::block_on(buffer_future); 
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let spawner = async_executor::LocalExecutor::new();
+        spawner.run(buffer_future);
+    }
+
     let data = buffer_slice.get_mapped_range();
     res = Convert2Vec::convert(&data);
     

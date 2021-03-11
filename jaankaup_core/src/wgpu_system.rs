@@ -165,7 +165,6 @@ impl Loop for BasicLoop {
                     }
                     _ => {}
                 }
-                
                 application.input(&queue, &input);
             }
             Event::RedrawRequested(_) => {
@@ -422,9 +421,13 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
 /// Initializes wgpu-rs basic components, application and starts the loop. Native version.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
+    log::info!("Setting up wgpu-rs.");
     let configuration = pollster::block_on(setup::<F>("jihuu")).expect("Failed to create WGPUConfiguration.");
+    log::info!("Configurating application.");
     let app = A::init(&configuration);
+    log::info!("Initializing loop.");
     let lo = L::init();
+    log::info!("Launching the application.");
     lo.run(app, configuration); 
 }
 
@@ -451,7 +454,7 @@ pub struct Spawner<'a> {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl<'a> Spawner<'a> {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             executor: async_executor::LocalExecutor::new(),
         }
@@ -461,6 +464,11 @@ impl<'a> Spawner<'a> {
     pub fn spawn_local(&self, future: impl Future<Output = ()> + 'a) {
         self.executor.spawn(future).detach();
     }
+
+    //#[allow(dead_code)]
+    //pub fn spawn_local2(&self, future: impl Future<Output = ()> + 'a) {
+    //    self.executor.run(future)
+    //}
 
     fn run_until_stalled(&self) {
         while self.executor.try_tick() {}

@@ -63,6 +63,9 @@ name = "arrayvec"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "ash"
@@ -171,9 +174,9 @@ dependencies = [
 
 [[package]]
 name = "byteorder"
-version = "1.4.2"
+version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae44d1a3d5a19df61dd0c8beb138458ac2a53a7ac09eba97d55592540004306b"
+checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "cache-padded"
@@ -270,6 +273,16 @@ dependencies = [
  "foreign-types",
  "libc",
  "objc",
+]
+
+[[package]]
+name = "codespan-reporting"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3538270d33cc669650c4b093848450d380def10c331d38c768e34cac80576e6e"
+dependencies = [
+ "termcolor",
+ "unicode-width",
 ]
 
 [[package]]
@@ -729,7 +742,7 @@ dependencies = [
 [[package]]
 name = "gfx-auxil"
 version = "0.8.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
+source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
 dependencies = [
  "fxhash",
  "gfx-hal",
@@ -739,7 +752,7 @@ dependencies = [
 [[package]]
 name = "gfx-backend-dx11"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
+source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
 dependencies = [
  "arrayvec 0.5.2",
  "bitflags",
@@ -760,7 +773,7 @@ dependencies = [
 [[package]]
 name = "gfx-backend-dx12"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
+source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
 dependencies = [
  "arrayvec 0.5.2",
  "bit-set",
@@ -780,7 +793,7 @@ dependencies = [
 [[package]]
 name = "gfx-backend-empty"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
+source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
 dependencies = [
  "gfx-hal",
  "log",
@@ -790,7 +803,7 @@ dependencies = [
 [[package]]
 name = "gfx-backend-gl"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
+source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
 dependencies = [
  "arrayvec 0.5.2",
  "bitflags",
@@ -813,7 +826,7 @@ dependencies = [
 [[package]]
 name = "gfx-backend-metal"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
+source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
 dependencies = [
  "arrayvec 0.5.2",
  "bitflags",
@@ -838,7 +851,7 @@ dependencies = [
 [[package]]
 name = "gfx-backend-vulkan"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
+source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
 dependencies = [
  "arrayvec 0.5.2",
  "ash",
@@ -858,7 +871,7 @@ dependencies = [
 [[package]]
 name = "gfx-hal"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
+source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
 dependencies = [
  "bitflags",
  "naga",
@@ -1265,15 +1278,15 @@ dependencies = [
 [[package]]
 name = "naga"
 version = "0.3.1"
-source = "git+https://github.com/gfx-rs/naga?tag=gfx-12#fa7d4d8b51d4eeffe9f648d285466637f733a4a1"
+source = "git+https://github.com/gfx-rs/naga?tag=gfx-13#f5ee79191223e4ebe323a728f4de40830b8d10f6"
 dependencies = [
  "bit-set",
  "bitflags",
+ "codespan-reporting",
  "fxhash",
  "log",
  "num-traits",
  "petgraph",
- "serde",
  "spirv_headers",
  "thiserror",
 ]
@@ -1621,7 +1634,7 @@ dependencies = [
 [[package]]
 name = "range-alloc"
 version = "0.1.2"
-source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
+source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
 
 [[package]]
 name = "raw-window-handle"
@@ -1886,13 +1899,22 @@ checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
 name = "syn"
-version = "1.0.62"
+version = "1.0.63"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "123a78a3596b24fee53a6464ce52d8ecbf62241e6294c7e7fe12086cd161f512"
+checksum = "8fd9bc7ccc2688b3344c2f48b9b546648b25ce0b20fc717ee7fa7981a8ca9717"
 dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
+]
+
+[[package]]
+name = "termcolor"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2dfed899f0eb03f32ee8c6a0aabdb8a7949659e3466561fc0adf54e26d88c5f4"
+dependencies = [
+ "winapi-util",
 ]
 
 [[package]]
@@ -1975,9 +1997,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-attributes"
-version = "0.1.13"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8a9bd1db7706f2373a190b0d067146caa39350c486f3d455b0e33b431f94c07"
+checksum = "41768be5b9f3489491825f56f01f25290aa1d3e7cc97e182d4d34360493ba6fa"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2041,6 +2063,12 @@ name = "ttf-parser"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e5d7cd7ab3e47dda6e56542f4bbf3824c15234958c6e1bd6aaa347e93499fdc"
+
+[[package]]
+name = "unicode-width"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9337591893a19b88d8d87f2cec1e73fad5cdfd10e5a6f349f498ad6ea2ffb1e3"
 
 [[package]]
 name = "unicode-xid"
@@ -2265,7 +2293,7 @@ dependencies = [
 [[package]]
 name = "wgpu"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/wgpu-rs#cadc2df8a106ad122c10c2e07733ade8f1e5653c"
+source = "git+https://github.com/gfx-rs/wgpu-rs#b3efd07b20de55e7a1ef0abe30dd67e950b15b0b"
 dependencies = [
  "arrayvec 0.5.2",
  "js-sys",
@@ -2285,7 +2313,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=8a5668e0da36bc863091d70853a0766be8b330be#8a5668e0da36bc863091d70853a0766be8b330be"
+source = "git+https://github.com/gfx-rs/wgpu?rev=0fa52d3826ec8fe8f6177a558922085fe7d0e0cc#0fa52d3826ec8fe8f6177a558922085fe7d0e0cc"
 dependencies = [
  "arrayvec 0.5.2",
  "bitflags",
@@ -2328,7 +2356,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.7.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=8a5668e0da36bc863091d70853a0766be8b330be#8a5668e0da36bc863091d70853a0766be8b330be"
+source = "git+https://github.com/gfx-rs/wgpu?rev=0fa52d3826ec8fe8f6177a558922085fe7d0e0cc#0fa52d3826ec8fe8f6177a558922085fe7d0e0cc"
 dependencies = [
  "bitflags",
  "serde",

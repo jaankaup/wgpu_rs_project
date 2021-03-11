@@ -1,4 +1,5 @@
 use crate::buffer::{to_vec, buffer_from_data};
+use crate::wgpu_system::*;
 /// Information about the invocation counts and data dimensions sizes.
 /// TODO: add items_per_thread?
 pub struct CompDimensions {
@@ -60,13 +61,31 @@ impl Histogram {
     /// Get 
     pub fn get_values(&self, device: &wgpu::Device, queue: &wgpu::Queue) -> Vec<u32> {
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let result = pollster::block_on(
-                        to_vec::<u32>(&device,
-                                      &queue,
-                                      &self.histogram,
-                                      0 as wgpu::BufferAddress,
-                                      (std::mem::size_of::<u32>() * self.data.len()) as wgpu::BufferAddress));
+        let result = to_vec::<u32>(&device,
+                                   &queue,
+                                   &self.histogram,
+                                   0 as wgpu::BufferAddress,
+                                   (std::mem::size_of::<u32>() * self.data.len()) as wgpu::BufferAddress);
+        //#[cfg(not(target_arch = "wasm32"))] {
+        //let result = pollster::block_on(
+        //                to_vec::<u32>(&device,
+        //                              &queue,
+        //                              &self.histogram,
+        //                              0 as wgpu::BufferAddress,
+        //                              (std::mem::size_of::<u32>() * self.data.len()) as wgpu::BufferAddress));
+        //    result
+        //}
+        //#[cfg(target_arch = "wasm32")] {
+        //    let spawner = async_executor::LocalExecutor::new();
+        //    let result: Vec<u32> = spawner.run(
+        //                    to_vec::<u32>(&device,
+        //                                  &queue,
+        //                                  &self.histogram,
+        //                                  0 as wgpu::BufferAddress,
+        //                                  (std::mem::size_of::<u32>() * self.data.len()) as wgpu::BufferAddress)
+        //    );
+        //    result
+        //}
         result
     }
     

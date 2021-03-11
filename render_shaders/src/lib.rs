@@ -190,6 +190,7 @@ impl Render_vvvc {
                 sc_desc: &wgpu::SwapChainDescriptor,               
                 vs_module: &wgpu::ShaderModule,
                 fs_module: &wgpu::ShaderModule,
+                topology: wgpu::PrimitiveTopology,
                 ) -> Self {
 
         // Camera uniform.
@@ -246,10 +247,10 @@ impl Render_vvvc {
                     }],
             },
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::PointList,
+                topology: topology, //wgpu::PrimitiveTopology::PointList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Front),
+                cull_mode: Some(wgpu::Face::Back),
                 polygon_mode: wgpu::PolygonMode::Fill //Point,
             },
             depth_stencil: Some(wgpu::DepthStencilState {

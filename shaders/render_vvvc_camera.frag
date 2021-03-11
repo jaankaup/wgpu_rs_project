@@ -14,6 +14,6 @@ vec4 decode_color(uint c) {
 }
 
 void main() {
-    final_color = decode_color(color_out);
+    final_color = vec4(decode_color(color_out).xyz, 1.0);
 }
 

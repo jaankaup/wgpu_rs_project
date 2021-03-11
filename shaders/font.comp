@@ -1,8 +1,15 @@
 #version 450
 
-struct OutPutVertex {
+#define MAX_NUM_CHARS 60
+
+struct OutputVertex {
     vec3 pos;
     uint color_point_size;
+};
+
+struct AABB {
+    vec4 min;
+    vec4 max; 
 };
 
 layout(set = 0, binding = 0) uniform Dimensions {
@@ -13,9 +20,19 @@ layout(set = 0, binding = 1) buffer Counter {
     uint[] counter;
 };
 
-layout(set = 0, binding = 2) buffer Points_out {
-    OutPutVertex[] output_points;
+layout(set=0, binding=2) uniform camerauniform {
+    mat4 u_view_proj;
+    vec4 camera_pos;
 };
+
+layout(set = 0, binding = 3) buffer Points_out {
+    OutputVertex[] output_points;
+};
+
+layout(set = 0, binding = 4) buffer AABB_out {
+    OutputVertex[] aabb_lines;
+};
+
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -35,10 +52,8 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 // .   => 13 
 // inf => 14 
 // nan => 15 
-// space
-
-shared int[64] offsets;
-shared int[64] offsets_decimal;
+// space => 16
+// eol => 17
 
 const uvec3 local_dimension = uvec3(4,4,4);
 
@@ -271,6 +286,187 @@ const vec4 bez_table[164] = {
     0.2 * (vec4(1.8, 0.0, 0.0, 0.0) + vec4(0.75, 0.5, 0.0, 0.0))    // 163
 };
 
+// Encode vector to "rgba" uint.
+uint encode_rgba_u32(uint r, uint g, uint b, uint a) {
+  uint col = 0;
+  col = (r << 24) | (g << 16) | (b  << 8) | a;
+  return col;
+}
+
+void create_aabb_triangles(AABB aabb, uint r, uint b, uint g) {
+
+    uint aabb_index = atomicAdd(counter[1], 24);
+
+    const vec3 delta = aabb.max.xyz - aabb.min.xyz;
+    const vec3 p0 = aabb.min.xyz;
+    const vec3 p1 = aabb.min.xyz + vec3(delta.x , 0.0     , 0.0);
+    const vec3 p2 = aabb.min.xyz + vec3(delta.x , delta.y , 0.0);
+    const vec3 p3 = aabb.min.xyz + vec3(0.0     , delta.y , 0.0);
+    const vec3 p4 = aabb.min.xyz + vec3(0.0     , 0.0     , delta.z);
+    const vec3 p5 = aabb.min.xyz + vec3(delta.x , 0.0     , delta.z);
+    const vec3 p6 = aabb.min.xyz + vec3(delta.x , delta.y , delta.z);
+    const vec3 p7 = aabb.min.xyz + vec3(0.0     , delta.y , delta.z);
+
+    OutputVertex p0_out = OutputVertex( p0, encode_rgba_u32(r, g, b, 0));
+    OutputVertex p1_out = OutputVertex( p1, encode_rgba_u32(r, g, b, 0));
+    OutputVertex p2_out = OutputVertex( p2, encode_rgba_u32(r, g, b, 0));
+    OutputVertex p3_out = OutputVertex( p3, encode_rgba_u32(r, g, b, 0));
+    OutputVertex p4_out = OutputVertex( p4, encode_rgba_u32(r, g, b, 0));
+    OutputVertex p5_out = OutputVertex( p5, encode_rgba_u32(r, g, b, 0));
+    OutputVertex p6_out = OutputVertex( p6, encode_rgba_u32(r, g, b, 0));
+    OutputVertex p7_out = OutputVertex( p7, encode_rgba_u32(r, g, b, 0));
+
+}
+
+void create_aabb_lines(AABB aabb, uint r, uint g, uint b) {
+
+    uint aabb_index = atomicAdd(counter[1], 36);
+
+    const vec3 delta = aabb.max.xyz - aabb.min.xyz;
+    const vec3 p0 = aabb.min.xyz;
+    const vec3 p1 = aabb.min.xyz + vec3(delta.x , 0.0     , 0.0);
+    const vec3 p2 = aabb.min.xyz + vec3(delta.x , delta.y , 0.0);
+    const vec3 p3 = aabb.min.xyz + vec3(0.0     , delta.y , 0.0);
+    const vec3 p4 = aabb.min.xyz + vec3(0.0     , 0.0     , delta.z);
+    const vec3 p5 = aabb.min.xyz + vec3(delta.x , 0.0     , delta.z);
+    const vec3 p6 = aabb.min.xyz + vec3(delta.x , delta.y , delta.z);
+    const vec3 p7 = aabb.min.xyz + vec3(0.0     , delta.y , delta.z);
+
+    // FRONT.
+
+    const float lf_factor = 0.3;
+    const uint lfr = uint(r*lf_factor);
+    const uint lfg = uint(g*lf_factor);
+    const uint lfb = uint(b*lf_factor);
+
+    aabb_lines[aabb_index]   = OutputVertex(p6, encode_rgba_u32(lfr, lfg, lfb, 1)); 
+    aabb_lines[aabb_index+1] = OutputVertex(p7, encode_rgba_u32(lfr, lfg, lfb, 1)); 
+    aabb_lines[aabb_index+2] = OutputVertex(p4, encode_rgba_u32(lfr, lfg, lfb, 1)); 
+
+    aabb_lines[aabb_index+3] = OutputVertex(p4, encode_rgba_u32(lfr, lfg, lfb, 1)); 
+    aabb_lines[aabb_index+4] = OutputVertex(p5, encode_rgba_u32(lfr, lfg, lfb, 1)); 
+    aabb_lines[aabb_index+5] = OutputVertex(p6, encode_rgba_u32(lfr, lfg, lfb, 1)); 
+
+    // aabb_lines[aabb_index]   = OutputVertex(p4, encode_rgba_u32(lfr, lfg, lfb, 1)); 
+    // aabb_lines[aabb_index+1] = OutputVertex(p7, encode_rgba_u32(lfr, lfg, lfb, 1)); 
+    // aabb_lines[aabb_index+2] = OutputVertex(p6, encode_rgba_u32(lfr, lfg, lfb, 1)); 
+
+    // aabb_lines[aabb_index+3] = OutputVertex(p6, encode_rgba_u32(lfr, lfg, lfb, 1)); 
+    // aabb_lines[aabb_index+4] = OutputVertex(p5, encode_rgba_u32(lfr, lfg, lfb, 1)); 
+    // aabb_lines[aabb_index+5] = OutputVertex(p4, encode_rgba_u32(lfr, lfg, lfb, 1)); 
+
+    // RIGHT.
+
+    const float lr_factor = 0.6;
+    const uint lrr = uint(r*lr_factor);
+    const uint lrg = uint(g*lr_factor);
+    const uint lrb = uint(b*lr_factor);
+
+    aabb_lines[aabb_index+6] = OutputVertex(p5, encode_rgba_u32(lrr, lrg, lrb, 1)); 
+    aabb_lines[aabb_index+7] = OutputVertex(p1, encode_rgba_u32(lrr, lrg, lrb, 1)); 
+    aabb_lines[aabb_index+8] = OutputVertex(p2, encode_rgba_u32(lrr, lrg, lrb, 1)); 
+
+    aabb_lines[aabb_index+9]  = OutputVertex(p2, encode_rgba_u32(lrr, lrg, lrb, 1)); 
+    aabb_lines[aabb_index+10] = OutputVertex(p6, encode_rgba_u32(lrr, lrg, lrb, 1)); 
+    aabb_lines[aabb_index+11] = OutputVertex(p5, encode_rgba_u32(lrr, lrg, lrb, 1)); 
+
+    // aabb_lines[aabb_index+6] = OutputVertex(p2, encode_rgba_u32(lrr, lrg, lrb, 1)); 
+    // aabb_lines[aabb_index+7] = OutputVertex(p1, encode_rgba_u32(lrr, lrg, lrb, 1)); 
+    // aabb_lines[aabb_index+8] = OutputVertex(p5, encode_rgba_u32(lrr, lrg, lrb, 1)); 
+
+    // aabb_lines[aabb_index+9]  = OutputVertex(p5, encode_rgba_u32(lrr, lrg, lrb, 1)); 
+    // aabb_lines[aabb_index+10] = OutputVertex(p6, encode_rgba_u32(lrr, lrg, lrb, 1)); 
+    // aabb_lines[aabb_index+11] = OutputVertex(p2, encode_rgba_u32(lrr, lrg, lrb, 1)); 
+
+
+    // BACK.
+
+    // aabb_lines[aabb_index+12] = OutputVertex(p0, encode_rgba_u32(r, g, b, 1)); 
+    // aabb_lines[aabb_index+13] = OutputVertex(p1, encode_rgba_u32(r, g, b, 1)); 
+    // aabb_lines[aabb_index+14] = OutputVertex(p2, encode_rgba_u32(r, g, b, 1)); 
+
+    // aabb_lines[aabb_index+15] = OutputVertex(p0, encode_rgba_u32(r, g, b, 1)); 
+    // aabb_lines[aabb_index+16] = OutputVertex(p2, encode_rgba_u32(r, g, b, 1)); 
+    // aabb_lines[aabb_index+17] = OutputVertex(p3, encode_rgba_u32(r, g, b, 1)); 
+
+    aabb_lines[aabb_index+12] = OutputVertex(p2, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[aabb_index+13] = OutputVertex(p1, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[aabb_index+14] = OutputVertex(p0, encode_rgba_u32(r, g, b, 1)); 
+
+    aabb_lines[aabb_index+15] = OutputVertex(p3, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[aabb_index+16] = OutputVertex(p2, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[aabb_index+17] = OutputVertex(p0, encode_rgba_u32(r, g, b, 1)); 
+
+    // LEFT.
+
+    const float ll_factor = 0.6;
+    const uint llr = uint(r*ll_factor);
+    const uint llg = uint(g*ll_factor);
+    const uint llb = uint(b*ll_factor);
+
+    aabb_lines[aabb_index+18] = OutputVertex(p7, encode_rgba_u32(llr, llg, llb, 1)); 
+    aabb_lines[aabb_index+19] = OutputVertex(p3, encode_rgba_u32(llr, llg, llb, 1)); 
+    aabb_lines[aabb_index+20] = OutputVertex(p0, encode_rgba_u32(llr, llg, llb, 1)); 
+
+    aabb_lines[aabb_index+21] = OutputVertex(p0, encode_rgba_u32(llr, llg, llb, 1)); 
+    aabb_lines[aabb_index+22] = OutputVertex(p4, encode_rgba_u32(llr, llg, llb, 1)); 
+    aabb_lines[aabb_index+23] = OutputVertex(p7, encode_rgba_u32(llr, llg, llb, 1)); 
+
+    // aabb_lines[aabb_index+18] = OutputVertex(p0, encode_rgba_u32(llr, llg, llb, 1)); 
+    // aabb_lines[aabb_index+19] = OutputVertex(p3, encode_rgba_u32(llr, llg, llb, 1)); 
+    // aabb_lines[aabb_index+20] = OutputVertex(p7, encode_rgba_u32(llr, llg, llb, 1)); 
+
+    // aabb_lines[aabb_index+21] = OutputVertex(p7, encode_rgba_u32(llr, llg, llb, 1)); 
+    // aabb_lines[aabb_index+22] = OutputVertex(p4, encode_rgba_u32(llr, llg, llb, 1)); 
+    // aabb_lines[aabb_index+23] = OutputVertex(p0, encode_rgba_u32(llr, llg, llb, 1)); 
+
+    // TOP.
+
+    const float lt_factor = 0.8;
+    const uint ltr = uint(r*lt_factor);
+    const uint ltg = uint(g*lt_factor);
+    const uint ltb = uint(b*lt_factor);
+
+    aabb_lines[aabb_index+24] = OutputVertex(p7, encode_rgba_u32(ltr, ltg, ltb, 1)); 
+    aabb_lines[aabb_index+25] = OutputVertex(p6, encode_rgba_u32(ltr, ltg, ltb, 1)); 
+    aabb_lines[aabb_index+26] = OutputVertex(p2, encode_rgba_u32(ltr, ltg, ltb, 1)); 
+
+    aabb_lines[aabb_index+27] = OutputVertex(p2, encode_rgba_u32(ltr, ltg, ltb, 1)); 
+    aabb_lines[aabb_index+28] = OutputVertex(p3, encode_rgba_u32(ltr, ltg, ltb, 1)); 
+    aabb_lines[aabb_index+29] = OutputVertex(p7, encode_rgba_u32(ltr, ltg, ltb, 1)); 
+
+    // aabb_lines[aabb_index+24] = OutputVertex(p2, encode_rgba_u32(ltr, ltg, ltb, 1)); 
+    // aabb_lines[aabb_index+25] = OutputVertex(p6, encode_rgba_u32(ltr, ltg, ltb, 1)); 
+    // aabb_lines[aabb_index+26] = OutputVertex(p7, encode_rgba_u32(ltr, ltg, ltb, 1)); 
+
+    // aabb_lines[aabb_index+27] = OutputVertex(p7, encode_rgba_u32(ltr, ltg, ltb, 1)); 
+    // aabb_lines[aabb_index+28] = OutputVertex(p3, encode_rgba_u32(ltr, ltg, ltb, 1)); 
+    // aabb_lines[aabb_index+29] = OutputVertex(p2, encode_rgba_u32(ltr, ltg, ltb, 1)); 
+
+    // BOTTOM.
+
+    const float lb_factor = 0.15;
+    const uint lbr = uint(r*lb_factor);
+    const uint lbg = uint(g*lb_factor);
+    const uint lbb = uint(b*lb_factor);
+
+    aabb_lines[aabb_index+30] = OutputVertex(p1, encode_rgba_u32(lbr, lbg, lbb, 1)); 
+    aabb_lines[aabb_index+31] = OutputVertex(p5, encode_rgba_u32(lbr, lbg, lbb, 1)); 
+    aabb_lines[aabb_index+32] = OutputVertex(p4, encode_rgba_u32(lbr, lbg, lbb, 1)); 
+
+    aabb_lines[aabb_index+33] = OutputVertex(p4, encode_rgba_u32(lbr, lbg, lbb, 1)); 
+    aabb_lines[aabb_index+34] = OutputVertex(p0, encode_rgba_u32(lbr, lbg, lbb, 1)); 
+    aabb_lines[aabb_index+35] = OutputVertex(p1, encode_rgba_u32(lbr, lbg, lbb, 1)); 
+
+    // aabb_lines[aabb_index+30] = OutputVertex(p4, encode_rgba_u32(lbr, lbg, lbb, 1)); 
+    // aabb_lines[aabb_index+31] = OutputVertex(p5, encode_rgba_u32(lbr, lbg, lbb, 1)); 
+    // aabb_lines[aabb_index+32] = OutputVertex(p1, encode_rgba_u32(lbr, lbg, lbb, 1)); 
+
+    // aabb_lines[aabb_index+33] = OutputVertex(p1, encode_rgba_u32(lbr, lbg, lbb, 1)); 
+    // aabb_lines[aabb_index+34] = OutputVertex(p0, encode_rgba_u32(lbr, lbg, lbb, 1)); 
+    // aabb_lines[aabb_index+35] = OutputVertex(p4, encode_rgba_u32(lbr, lbg, lbb, 1)); 
+}
+
 uvec3 index1D_to_index3D() {
 	uint index = gl_GlobalInvocationID.x;
 	uint wh = dimensions.x * dimensions.y;
@@ -282,12 +478,17 @@ uvec3 index1D_to_index3D() {
 	return ivec3(x, y, z);	
 }
 
-// Encode vector to "rgba" uint.
-uint encode_rgba_u32(uint r, uint g, uint b, uint a) {
-  uint col = 0;
-  col = (r << 24) | (g << 16) | (b  << 8) | a;
-  return col;
+uvec3 index1D_to_index3D_local() {
+	uint index = gl_GlobalInvocationID.x;
+	uint wh = local_dimension.x * local_dimension.y;
+	uint z = index / wh;
+	index -= z * wh;
+	uint y = index / local_dimension.x;
+	index -= y * local_dimension.x;
+	uint x = index;
+	return uvec3(x, y, z);	
 }
+
 
 void bezier_3c(uint n, vec3 c0, vec3 c1, vec3 c2) {
 
@@ -301,7 +502,7 @@ void bezier_3c(uint n, vec3 c0, vec3 c1, vec3 c2) {
         const vec3 result = c0 * mt2 + c1 * 2.0 * mt*t + c2 * t2;
 
         uvec3 coordinates = index1D_to_index3D();
-        output_points[index] = OutPutVertex(
+        output_points[index] = OutputVertex(
             result,
             encode_rgba_u32(
                 255 - coordinates.x * 4,
@@ -312,7 +513,9 @@ void bezier_3c(uint n, vec3 c0, vec3 c1, vec3 c2) {
     }
 }
 
-void bezier_4c(uint n, vec4 c0, vec4 c1, vec4 c2, vec4 c3) {
+void bezier_4c(uint n, vec4 c0, vec4 c1, vec4 c2, vec4 c3, uint r, uint g, uint b) {
+
+    if (n < 4) return;
 
     uint index = atomicAdd(counter[0], n);
 
@@ -324,15 +527,17 @@ void bezier_4c(uint n, vec4 c0, vec4 c1, vec4 c2, vec4 c3) {
         const float mt2 = mt * mt;
         const float mt3 = mt2 * mt;
         const vec3 result = c0.xyz * mt3 + c1.xyz * 3.0 * mt2*t + c2.xyz * 3.0 * mt*t2 + c3.xyz * t3;
-
-        uvec3 coordinates = index1D_to_index3D();
-        output_points[index] = OutPutVertex(
+        const float dist = min(max(1.0, distance(camera_pos.xyz, result)), 255);
+        //uvec3 this_coord =  index1D_to_index3D_local(); 
+        //uvec3 coordinates = index1D_to_index3D_local(); 
+        //uvec3 coordinates = index1D_to_index3D_local();
+        output_points[index] = OutputVertex(
             result,
             encode_rgba_u32(
-                255 - coordinates.x,
-                255 - coordinates.y,
-                255 - coordinates.z,
-                255));
+                r,
+                g,
+                b,
+                uint(dist)));
         index++;
     }
 }
@@ -352,7 +557,7 @@ void line(uint n, vec3 c0, vec3 c1) {
 
         uvec3 coordinates = index1D_to_index3D();
 
-        output_points[index] = OutPutVertex(
+        output_points[index] = OutputVertex(
             point,
             encode_rgba_u32(
                 255 - coordinates.x * 4,
@@ -367,7 +572,7 @@ uint get_remainder(uint num, uint divisor) {
     return (num - divisor * (num / divisor));
 }
 
-void parse_number(uint n, inout uint[40] digits, inout uint counter, bool ignore_first) {
+void parse_number(uint n, inout uint[MAX_NUM_CHARS] digits, inout uint counter, bool ignore_first) {
        // 4294967295 
        // 1000000000
     bool found = false;
@@ -396,7 +601,7 @@ void parse_number(uint n, inout uint[40] digits, inout uint counter, bool ignore
     }
 }
 
-void create_char(uint char_index, uint num_points, vec4 offset, float font_size) {
+void create_char(uint char_index, uint num_points, vec4 offset, float font_size, uint r, uint g, uint b) {
 
     uint index = bez_indices[char_index];
 
@@ -410,19 +615,24 @@ void create_char(uint char_index, uint num_points, vec4 offset, float font_size)
     for (uint i=0 ; i<4 ; i++) {
         uint bez_index = indices[i];
         if (bez_index == 255) break;
-        vec4 b = bez_table[bez_index];
-        uint count = uint(max(4.0, num_points * b.w)); 
+        vec4 bi = bez_table[bez_index];
+        uint count = uint(max(1.0, num_points * bi.w));
         bezier_4c(
             count,
             font_size * bez_table[bez_index + 0] + offset,
             font_size * bez_table[bez_index + 1] + offset,
             font_size * bez_table[bez_index + 2] + offset,
-            font_size * bez_table[bez_index + 3] + offset
+            font_size * bez_table[bez_index + 3] + offset,
+            r,
+            g,
+            b
         );
     }
 }
 
-void parse_float(double f, uint max_decimals, inout uint[40] digits, inout uint counter) {
+uint parse_float(double f, uint max_decimals, inout uint[MAX_NUM_CHARS] digits, inout uint counter) {
+
+    uint counter_now = counter;
 
     // The sign of given float.
     bool is_negative = f < 0.0;
@@ -459,10 +669,14 @@ void parse_float(double f, uint max_decimals, inout uint[40] digits, inout uint 
 
     // Prase the frag part.
     parse_number(fract_part, digits, counter, true);
+
+    return counter - counter_now;
 }
 
-void parse_vec3(vec3 v, uint max_decimals, inout uint[40] digits, inout uint counter) {
+uint parse_vec3(vec3 v, uint max_decimals, inout uint[MAX_NUM_CHARS] digits, inout uint counter) {
     
+    uint counter_now = counter;
+
     // Add left paren.
     digits[counter] = 11;
     counter++;
@@ -488,63 +702,113 @@ void parse_vec3(vec3 v, uint max_decimals, inout uint[40] digits, inout uint cou
     // Add right paren.
     digits[counter] = 12;
     counter++;
-}
 
-uvec3 index1D_to_index3D_local() {
-	uint index = gl_GlobalInvocationID.x;
-	uint wh = local_dimension.x * local_dimension.y;
-	uint z = index / wh;
-	index -= z * wh;
-	uint y = index / local_dimension.x;
-	index -= y * local_dimension.x;
-	uint x = index;
-	return ivec3(x, y, z);	
+    return counter - counter_now;
 }
 
 void create_char_sequency_points(
         vec3 base_vector,
         float font_size,
         uint average_points_per_char,
-        inout uint[40] digits,
-        uint counter) {
+        in uint[MAX_NUM_CHARS] digits,
+        uint counter,
+        uint r,
+        uint g,
+        uint b,
+        float font_offset_y) {
 
   vec4 local_offset = vec4(base_vector, 0.0);
+  int number_of_lines = 0;
     
   for (uint i=0; i<counter; i++) {
     uint numb = digits[i];
-    create_char(numb, average_points_per_char, local_offset, font_size);
-    local_offset = local_offset + vec4(font_size * 0.7, 0.0, 0.0, 0.0);
+
+    // end of line.
+    if (numb == 17) {
+        number_of_lines++;
+        local_offset = vec4(base_vector, 0.0) + vec4(0.0, (-font_offset_y) * float(number_of_lines) * font_size, 0.0, 0.0);
+    }
+    else {
+        create_char(numb, average_points_per_char, local_offset, font_size, r, g, b);
+        local_offset = local_offset + vec4(font_size * 0.7, 0.0, 0.0, 0.0);
+    }
   }
+}
+
+uint add_end_of_line(inout uint[MAX_NUM_CHARS] digits, inout uint counter) {
+    digits[counter] = 17;
+    counter++;
+    return 1;
 }
 
 void main() {
 
   uint global_index = gl_GlobalInvocationID.x;
   uint local_index = gl_LocalInvocationID.x;
+  uint work_index = gl_WorkGroupID.x;
 
-  const uint num_of_points = 100;
-
-  if (global_index > 0) return;
+  // if (global_index > 500) return;
   
   uvec3 this_coord = index1D_to_index3D(); 
-  vec4 local_offset = vec4(this_coord.x * 4.0, this_coord.y * 4.0, this_coord.z * 4.0, 0.0);
+  vec4 local_offset = vec4(this_coord.x , this_coord.y , this_coord.z , 0.0);
 
-  uint digits[40] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  const float dist = distance(local_offset.xyz, camera_pos.xyz);
+
+  const uint num_of_points = max(4, uint(min(1000.0, 1000.0 / pow(dist, 2.0)))); 
+
+  uint digits[MAX_NUM_CHARS];
+
+  for (uint i=0 ; i<MAX_NUM_CHARS ; i++) {
+    digits[i] = 0;
+  }
 
   uint counter = 0;
-  float font_size = 3.0;
-  //parse_float(-123.06662, 7, digits, counter);
+  float font_size = 0.012;
+  float font_offset_y = 1.2;
 
-  parse_vec3(vec3(56.23, -100.003, 0.0001), 7, digits, counter);
+  uint number_of_lines = 0;
+
+  uint numb_of_points  = parse_vec3(vec3(local_offset), 7, digits, counter);
+  number_of_lines += add_end_of_line(digits, counter);
+  uint numb_of_points2 = parse_float(float(num_of_points), 7, digits, counter);
+  number_of_lines += add_end_of_line(digits, counter);
+  uint numb_of_points3 = parse_float(distance(local_offset.xyz, camera_pos.xyz), 7, digits, counter);
+
+  uint text_width = max(max(numb_of_points, numb_of_points2), numb_of_points3);
+
+  AABB aabb = AABB(
+    local_offset + vec4(-0.5 * font_size, number_of_lines * (-font_offset_y - 0.1) * font_size, -0.05, 0.0),
+    local_offset + font_size * vec4(text_width * 0.8, font_offset_y, 0.0, 0.0) + vec4(0.0,0.0,-0.001,0.0)
+  );
+
+  //create_aabb_lines(aabb, 255, 0, 0);
+
+  uint work_color_x = work_index * 4; 
+  uint work_color_y = 255 - (work_index * 4); 
+  create_aabb_lines(aabb, work_color_x, 0, work_color_y);
 
   create_char_sequency_points(
     local_offset.xyz,
     font_size,
     num_of_points,
     digits,
-    counter
+    counter,
+    255,
+    125,
+    125,
+    font_offset_y
   );
+
+  // create_char_sequency_points(
+  //   local_offset.xyz + vec3(0.0, -1.0*font_size, 0.0),
+  //   font_size,
+  //   num_of_points,
+  //   digits2,
+  //   counter2,
+  //   255,
+  //   125,
+  //   125
+  // );
 
   // for (uint i=0; i<counter; i++) {
   //   uint numb = digits[i];

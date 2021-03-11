@@ -47,7 +47,12 @@ struct Debug_App {
     font_bind_groups: Vec<wgpu::BindGroup>,
     render_vvvc_pipeline: Render_vvvc,
     render_vvvc_bind_groups: Vec<wgpu::BindGroup>,
+    render_vvvc_line_pipeline: Render_vvvc, 
+    render_vvvc_line_bind_groups: Vec<wgpu::BindGroup>,
+    render_vvvc_triangle_pipeline: Render_vvvc, 
+    render_vvvc_triangle_bind_groups: Vec<wgpu::BindGroup>,
     vvvc_draw_count: u32,
+    vvvc_line_draw_count: u32,
 }
 
 struct JooAABB {
@@ -127,7 +132,7 @@ impl Application for Debug_App {
 
         // Initialize camera.
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
-        camera.set_movement_sensitivity(0.05);
+        camera.set_movement_sensitivity(0.005);
 
         let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.vert.spv");
         let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.frag.spv");
@@ -149,9 +154,34 @@ impl Application for Debug_App {
                     &configuration.device,
                     &configuration.sc_desc,
                     &configuration.device.create_shader_module(&vertex_shader_src),
-                    &configuration.device.create_shader_module(&fragment_shader_src)
+                    &configuration.device.create_shader_module(&fragment_shader_src),
+                    wgpu::PrimitiveTopology::PointList
         );
         let render_vvvc_bind_groups = render_vvvc_pipeline.create_bind_groups(
+            &configuration.device,
+            &camera.get_camera_uniform(&configuration.device)
+        );
+
+        let render_vvvc_line_pipeline = Render_vvvc::init(
+                    &configuration.device,
+                    &configuration.sc_desc,
+                    &configuration.device.create_shader_module(&vertex_shader_src),
+                    &configuration.device.create_shader_module(&fragment_shader_src),
+                    wgpu::PrimitiveTopology::LineList
+        );
+        let render_vvvc_line_bind_groups = render_vvvc_pipeline.create_bind_groups(
+            &configuration.device,
+            &camera.get_camera_uniform(&configuration.device)
+        );
+
+        let render_vvvc_triangle_pipeline = Render_vvvc::init(
+                    &configuration.device,
+                    &configuration.sc_desc,
+                    &configuration.device.create_shader_module(&vertex_shader_src),
+                    &configuration.device.create_shader_module(&fragment_shader_src),
+                    wgpu::PrimitiveTopology::TriangleList
+        );
+        let render_vvvc_triangle_bind_groups = render_vvvc_pipeline.create_bind_groups(
             &configuration.device,
             &camera.get_camera_uniform(&configuration.device)
         );
@@ -242,7 +272,7 @@ impl Application for Debug_App {
             "dimensions_font".to_string(),
             buffer_from_data::<u32>(
             &configuration.device,
-            &vec![64, 64, 64],
+            &vec![16, 16, 16],
             wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::COPY_DST,
             None)
         );
@@ -251,7 +281,6 @@ impl Application for Debug_App {
             "mc_output_distance".to_string(),
             buffer_from_data::<f32>(
             &configuration.device,
-            // gl_Position     |    point_pos
             &vec![0 as f32 ; 128*64*64*24],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
@@ -261,7 +290,15 @@ impl Application for Debug_App {
             "font_output".to_string(),
             buffer_from_data::<f32>(
             &configuration.device,
-            // gl_Position     |    point_pos
+            &vec![0 as f32 ; 128*64*64*32],
+            wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+            None)
+        );
+
+        buffers.insert(
+            "font_aabb_output".to_string(),
+            buffer_from_data::<f32>(
+            &configuration.device,
             &vec![0 as f32 ; 128*64*64*32],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
@@ -283,7 +320,7 @@ impl Application for Debug_App {
         );
 
         // Histogram.
-        let histogram = Histogram::init(&configuration.device, 1, 0); 
+        let histogram = Histogram::init(&configuration.device, 2, 0); 
 
         let font_pipeline = Font_pipeline::init(&configuration.device);
 
@@ -293,7 +330,9 @@ impl Application for Debug_App {
                 vec![
                     &buffers.get("dimensions_font").unwrap().as_entire_binding(),
                     &histogram.get_histogram().as_entire_binding(),
+                    &camera.get_camera_uniform(&configuration.device).as_entire_binding(),
                     &buffers.get("font_output").unwrap().as_entire_binding(),
+                    &buffers.get("font_aabb_output").unwrap().as_entire_binding(),
                 ], 
             ]
         );
@@ -306,7 +345,9 @@ impl Application for Debug_App {
                                     vec![
                                         &buffers.get("dimensions_font").unwrap().as_entire_binding(),
                                         &histogram.get_histogram().as_entire_binding(),
+                                        &camera.get_camera_uniform(&configuration.device).as_entire_binding(),
                                         &buffers.get("font_output").unwrap().as_entire_binding(),
+                                        &buffers.get("font_aabb_output").unwrap().as_entire_binding(),
                                     ], 
                                 ]
         );
@@ -356,28 +397,28 @@ impl Application for Debug_App {
 
         font_pipeline.dispatch(&font_bind_groups,
                     &mut encoder,
-                    16 * 16 * 16,
+                    4 * 4 * 4,
                     1,
                     1
         ); 
 
         configuration.queue.submit(Some(encoder.finish()));
 
-        let k =  pollster::block_on(to_vec::<u32>(&configuration.device,
-                                              &configuration.queue,
-                                              &mc_params_distance.counter_buffer,
-                                              0 as wgpu::BufferAddress,
-                                              4 as wgpu::BufferAddress));
-        let distance_data =  pollster::block_on(to_vec::<f32>(&configuration.device,
-                                              &configuration.queue,
-                                              &buffers.get("distance_data").unwrap(),
-                                              0 as wgpu::BufferAddress,
-                                              64*6*6*6*4 as wgpu::BufferAddress));
+        let k =  to_vec::<u32>(&configuration.device,
+                               &configuration.queue,
+                               &mc_params_distance.counter_buffer,
+                               0 as wgpu::BufferAddress,
+                               4 as wgpu::BufferAddress);
+        let distance_data = to_vec::<f32>(&configuration.device,
+                                          &configuration.queue,
+                                          &buffers.get("distance_data").unwrap(),
+                                          0 as wgpu::BufferAddress,
+                                          64*6*6*6*4 as wgpu::BufferAddress);
         //for i in 0..distance_data.len() {
         //for i in 0..distance_data.len() {
-        for i in 0..100 {
-            println!("{} :: {}", i, distance_data[i]);
-        }
+        // for i in 0..100 {
+        //     println!("{} :: {}", i, distance_data[i]);
+        // }
 
         //#[cfg(not(target_arch = "wasm32"))]
         println!("Mc counter distance == {}", k[0]);
@@ -385,15 +426,16 @@ impl Application for Debug_App {
 
         let draw_count_mc_distance = k[0];
 
-        let font_k = pollster::block_on(to_vec::<u32>(&configuration.device,
-                                              &configuration.queue,
-                                              &histogram.get_histogram(),
-                                              0 as wgpu::BufferAddress,
-                                              4 as wgpu::BufferAddress));
+        let font_k = to_vec::<u32>(&configuration.device,
+                                   &configuration.queue,
+                                   &histogram.get_histogram(),
+                                   0 as wgpu::BufferAddress,
+                                   8 as wgpu::BufferAddress);
 
-        println!("Histogram == {}", font_k[0]);
+        println!("Histogram == {} , {}", font_k[0], font_k[1]);
 
         let vvvc_draw_count = font_k[0];
+        let vvvc_line_draw_count = font_k[1];
 
         Self {
             depth_texture,
@@ -412,7 +454,12 @@ impl Application for Debug_App {
             font_bind_groups,
             render_vvvc_pipeline,
             render_vvvc_bind_groups,
+            render_vvvc_line_pipeline,
+            render_vvvc_line_bind_groups,
+            render_vvvc_triangle_pipeline,
+            render_vvvc_triangle_bind_groups,
             vvvc_draw_count,
+            vvvc_line_draw_count,
         }
     }
 
@@ -457,6 +504,16 @@ impl Application for Debug_App {
              true
         );
 
+        draw(&mut encoder,
+             &frame,
+             &self.depth_texture,
+             &self.render_vvvc_triangle_bind_groups,
+             &self.render_vvvc_triangle_pipeline.get_pipeline(),
+             &self.buffers.get("font_aabb_output").unwrap(),
+             0..self.vvvc_line_draw_count,
+             false
+        );
+
         // // self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true);
 
         queue.submit(Some(encoder.finish()));
@@ -473,6 +530,29 @@ impl Application for Debug_App {
 
     fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, input: &InputCache) {
 
+        self.histogram.reset_cpu_version(&queue, 0);
+
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Juuu") });
+        
+        self.font_pipeline.dispatch(&self.font_bind_groups,
+                    &mut encoder,
+                    4 * 4 * 4,
+                    1,
+                    1
+        ); 
+
+        queue.submit(Some(encoder.finish()));
+
+        let font_k = to_vec::<u32>(&device,
+                                   &queue,
+                                   &self.histogram.get_histogram(),
+                                   0 as wgpu::BufferAddress,
+                                   8 as wgpu::BufferAddress);
+
+        println!("Histogram == {}", font_k[0]);
+
+        self.vvvc_draw_count = font_k[0];
+        self.vvvc_line_draw_count = font_k[1];
     }
 }
 

@@ -362,7 +362,7 @@ impl Application for HelloApp {
                     64,
                     6,
                     64
-        ); 
+        );
 
         configuration.queue.submit(Some(encoder.finish()));
 
@@ -371,11 +371,15 @@ impl Application for HelloApp {
         //let mut k_slime: Vec<u32>;
 
         //#[cfg(target_arch = "wasm32")] {
-        //k =  to_vec::<u32>(&configuration.device,
-        //            &configuration.queue,
-        //            &mc_params.counter_buffer,
-        //            0 as wgpu::BufferAddress,
-        //            4 as wgpu::BufferAddress).await;
+        //let spawner = Spawner::new();
+        //let k = spawner.spawn_local2(async {
+        //    to_vec::<u32>(&configuration.device,
+        //                  &configuration.queue,
+        //                  &mc_params.counter_buffer,
+        //                  0 as wgpu::BufferAddress,
+        //                  4 as wgpu::BufferAddress)
+        //};
+        //}
         //log::info!("Mc counter == {}", k[0]);
         //}
         // wasm_bindgen_futures::spawn_local(async move {
@@ -387,34 +391,39 @@ impl Application for HelloApp {
         //     log::info!("Mc counter == {}", k[0]);
         // });
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let k =  pollster::block_on(to_vec::<u32>(&configuration.device,
-                                              &configuration.queue,
-                                              &mc_params.counter_buffer,
-                                              0 as wgpu::BufferAddress,
-                                              4 as wgpu::BufferAddress));
-        #[cfg(not(target_arch = "wasm32"))]
+        //let k = pollster::block_on(to_vec::<u32>(&configuration.device,
+        //                                      &configuration.queue,
+        //                                      &mc_params.counter_buffer,
+        //                                      0 as wgpu::BufferAddress,
+        //                                      4 as wgpu::BufferAddress));
+        //#[cfg(not(target_arch = "wasm32"))]
+        let k = to_vec::<u32>(&configuration.device,
+                              &configuration.queue,
+                              &mc_params.counter_buffer,
+                              0 as wgpu::BufferAddress,
+                              4 as wgpu::BufferAddress);
+        //#[cfg(not(target_arch = "wasm32"))]
         log::info!("Mc counter == {}", k[0]);
 
-        #[cfg(target_arch = "wasm32")]
-        wasm_bindgen_futures::spawn_local(async move {
-            k_slime =  to_vec::<u32>(&configuration.device,
-                                &configuration.queue,
-                                &mc_params_slime.counter_buffer,
-                                0 as wgpu::BufferAddress,
-                                4 as wgpu::BufferAddress).await;
-            log::info!("Mc counter_slime == {}", k_slime[0]);
-        });
+        //#[cfg(target_arch = "wasm32")]
+        //wasm_bindgen_futures::spawn_local(async move {
+        //    k_slime =  to_vec::<u32>(&configuration.device,
+        //                        &configuration.queue,
+        //                        &mc_params_slime.counter_buffer,
+        //                        0 as wgpu::BufferAddress,
+        //                        4 as wgpu::BufferAddress).await;
+        //    log::info!("Mc counter_slime == {}", k_slime[0]);
+        //});
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let k_slime =  pollster::block_on(to_vec::<u32>(&configuration.device,
-                                              &configuration.queue,
-                                              &mc_params_slime.counter_buffer,
-                                              0 as wgpu::BufferAddress,
-                                              4 as wgpu::BufferAddress));
+        //#[cfg(not(target_arch = "wasm32"))]
+        let k_slime = to_vec::<u32>(&configuration.device,
+                                    &configuration.queue,
+                                    &mc_params_slime.counter_buffer,
+                                    0 as wgpu::BufferAddress,
+                                    4 as wgpu::BufferAddress);
         //println!("k_slime == {}", k_slime[0]);
 
-        #[cfg(not(target_arch = "wasm32"))]
+        //#[cfg(not(target_arch = "wasm32"))]
         log::info!("Mc counter_slime == {}", k_slime[0]);
 
         // let k2 =  pollster::block_on(to_vec::<f32>(&configuration.device,
@@ -546,12 +555,12 @@ impl Application for HelloApp {
 
         queue.submit(Some(encoder.finish()));
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let k_slime =  pollster::block_on(to_vec::<u32>(&device,
+        //#[cfg(not(target_arch = "wasm32"))]
+        let k_slime =  to_vec::<u32>(&device,
                                               &queue,
                                               &self.mc_params_slime.counter_buffer,
                                               0 as wgpu::BufferAddress,
-                                              4 as wgpu::BufferAddress));
+                                              4 as wgpu::BufferAddress);
 
         self.draw_count_mc_slime = k_slime[0];
     }
