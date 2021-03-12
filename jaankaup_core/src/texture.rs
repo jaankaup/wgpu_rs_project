@@ -73,6 +73,7 @@ impl Texture {
     /// created from non png data.
     pub fn create_from_bytes(queue: &wgpu::Queue, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, sample_count : u32, bytes: &[u8], label: Option<&str>) -> Self {
 
+        //let sampler = device.create_sampler(&wgpu::SamplerDescriptor::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::MirrorRepeat,
             address_mode_v: wgpu::AddressMode::MirrorRepeat,
@@ -93,6 +94,10 @@ impl Texture {
         let width = info.width;
         let height = info.height;
         let bits_per_pixel = info.color_type.samples() as u32;
+
+        // log::info!("widht :: {}", width);
+        // log::info!("height :: {}", height);
+        // log::info!("bits_per_pixel :: {}", bits_per_pixel);
 
         if !(bits_per_pixel == 3 || bits_per_pixel == 4) {
             panic!("Bits per pixel must be 3 or 4. Bits per pixel == {}", bits_per_pixel); 
@@ -119,6 +124,8 @@ impl Texture {
             }
         }
 
+        // log::info!("{}", temp.len());
+
         let texture_extent = wgpu::Extent3d {
             width: width,
             height: height,
@@ -126,15 +133,16 @@ impl Texture {
         };
 
         let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: label,
             size: texture_extent,
             mip_level_count: 1,
             sample_count: sample_count,
             dimension: wgpu::TextureDimension::D2,
             format: sc_desc.format, // wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::COPY_DST,
-            label: label,
         });
 
+        log::info!("Writing texture.");
         queue.write_texture(
             wgpu::TextureCopyView {
                 texture: &texture,
@@ -152,7 +160,9 @@ impl Texture {
                 rows_per_image: height,
             },
             texture_extent,
+            //wgpu::Extent3d::default(), //texture_extent,
         );
+        log::info!("Writing texture, OK.");
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor {
             label: None,

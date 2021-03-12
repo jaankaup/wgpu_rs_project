@@ -33,8 +33,20 @@ layout(set = 0, binding = 4) buffer AABB_out {
     OutputVertex[] aabb_lines;
 };
 
-
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+const float FONT_SIZE = 0.05;
+const float FONT_OFFSET_Y = 1.2;
+
+struct CharInformation {
+    uint[MAX_NUM_CHARS] chars;
+    uint counter;
+    uint number_of_lines;
+    uint max_width_chars;  
+    vec3 position;
+};
+
+shared CharInformation[64] char_arrays;
 
 // 0   => 0
 // 1   => 1
@@ -56,6 +68,7 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 // eol => 17
 
 const uvec3 local_dimension = uvec3(4,4,4);
+const uvec3 group_dimension = uvec3(4,4,4);
 
 const uint[10] joo = {1,
                       10,
@@ -489,6 +502,42 @@ uvec3 index1D_to_index3D_local() {
 	return uvec3(x, y, z);	
 }
 
+uvec3 index1D_to_index3D_group() {
+	uint index = gl_GlobalInvocationID.x;
+	uint wh = group_dimension.x * group_dimension.y;
+	uint z = index / wh;
+	index -= z * wh;
+	uint y = index / group_dimension.x;
+	index -= y * group_dimension.x;
+	uint x = index;
+	return uvec3(x, y, z);	
+}
+
+uvec3 index1D_to_index3D_custom() {
+	uint index = gl_GlobalInvocationID.x;
+    uint work_index = gl_WorkGroupID.x;
+
+    // Get the work dimension.
+	uint wh = group_dimension.x * group_dimension.y;
+	uint z = work_index / wh;
+	work_index -= z * wh;
+	uint y = work_index / group_dimension.x;
+	work_index -= y * group_dimension.x;
+	uint x = work_index;
+
+    uvec3 base_coord = uvec3(x, y, z) * local_dimension;
+
+    uint new_index = gl_GlobalInvocationID.x - base_coord.x * base_coord.y * base_coord.z;
+
+	wh = local_dimension.x * local_dimension.y;
+	z = new_index / wh;
+	new_index -= z * wh;
+	y = new_index / local_dimension.x;
+	new_index -= y * local_dimension.x;
+	x = new_index;
+	return uvec3(x, y, z) + base_coord;
+	//return base_coord;
+}
 
 void bezier_3c(uint n, vec3 c0, vec3 c1, vec3 c2) {
 
@@ -749,11 +798,15 @@ void main() {
 
   // if (global_index > 500) return;
   
-  uvec3 this_coord = index1D_to_index3D(); 
-  vec4 local_offset = vec4(this_coord.x , this_coord.y , this_coord.z , 0.0);
+  uvec3 this_coord_local = index1D_to_index3D_local(); 
+  uvec3 this_coord_group = index1D_to_index3D_group(); 
+
+  // uvec3 this_coord_global = index1D_to_index3D(); 
+  // uvec3 this_coord_group = this_coord_global / 4; 
+  uvec3 this_coord = index1D_to_index3D_custom(); 
+  vec4 local_offset = vec4(this_coord.x, this_coord.y, this_coord.z , 0.0);
 
   const float dist = distance(local_offset.xyz, camera_pos.xyz);
-
   const uint num_of_points = max(4, uint(min(1000.0, 1000.0 / pow(dist, 2.0)))); 
 
   uint digits[MAX_NUM_CHARS];
@@ -763,14 +816,14 @@ void main() {
   }
 
   uint counter = 0;
-  float font_size = 0.012;
+  float font_size = 0.03;
   float font_offset_y = 1.2;
 
   uint number_of_lines = 0;
 
   uint numb_of_points  = parse_vec3(vec3(local_offset), 7, digits, counter);
   number_of_lines += add_end_of_line(digits, counter);
-  uint numb_of_points2 = parse_float(float(num_of_points), 7, digits, counter);
+  uint numb_of_points2 = parse_float(float(global_index), 7, digits, counter);
   number_of_lines += add_end_of_line(digits, counter);
   uint numb_of_points3 = parse_float(distance(local_offset.xyz, camera_pos.xyz), 7, digits, counter);
 
@@ -798,23 +851,6 @@ void main() {
     125,
     font_offset_y
   );
-
-  // create_char_sequency_points(
-  //   local_offset.xyz + vec3(0.0, -1.0*font_size, 0.0),
-  //   font_size,
-  //   num_of_points,
-  //   digits2,
-  //   counter2,
-  //   255,
-  //   125,
-  //   125
-  // );
-
-  // for (uint i=0; i<counter; i++) {
-  //   uint numb = digits[i];
-  //   create_char(numb, num_of_points, local_offset);
-  //   local_offset = local_offset + vec4(0.7, 0.0, 0.0, 0.0);
-  // }
 
   // create_char(1, num_of_points, local_offset + vec4(0.0, 0.0, 0.0, 0.0));
   // create_char(2, num_of_points, local_offset + vec4(0.7, 0.0, 0.0, 0.0));

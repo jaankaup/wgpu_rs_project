@@ -49,6 +49,7 @@ struct HelloApp {
 impl HelloApp {
 
     fn create_textures(configuration: &WGPUConfiguration) -> (JTexture, JTexture, JTexture, JTexture) {
+        log::info!("Creating textures.");
         let grass_texture = JTexture::create_from_bytes(
             &configuration.queue,
             &configuration.device,
@@ -77,6 +78,7 @@ impl HelloApp {
             1,
             &include_bytes!("../../assets/textures/slime2.png")[..],
             None);
+        log::info!("Textures created OK.");
         (grass_texture, rock_texture, slime_texture, slime_texture2)
     }
 }
@@ -134,6 +136,10 @@ impl Application for HelloApp {
         let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.vert.spv");
         let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.frag.spv");
 
+        let mut log_number: u32 = 0;
+        println!("log  == {}", log_number);
+        log_number = 1;
+
         // Render pipeline...
         let t = TestLayoutEntry::init(
                     &configuration.device,
@@ -141,6 +147,8 @@ impl Application for HelloApp {
                     &configuration.device.create_shader_module(&vertex_shader_src),
                     &configuration.device.create_shader_module(&fragment_shader_src)
         );
+        println!("log  == {}", log_number);
+        log_number = 2;
         // Check the correspondence of resources and the pipeline interface.
         //check_correspondence(
         //    &t.layout_entries,
@@ -158,6 +166,8 @@ impl Application for HelloApp {
         //    ]
         //);
         // Create bind groups for basic render pipeline and grass/rock textures. 
+        println!("log  == {}", log_number);
+        log_number = 3;
         let t_bindgroups = create_bind_groups(
                                 &configuration.device, 
                                 &t.layout_entries,
@@ -174,6 +184,8 @@ impl Application for HelloApp {
                                 ]
         );
 
+        println!("log  == {}", log_number);
+        log_number = 4;
         // Create bind groups for basic render pipeline and slime/slime2 textures. 
         let t_slime_bindgroups = create_bind_groups(
                                      &configuration.device, 
@@ -191,12 +203,18 @@ impl Application for HelloApp {
                                      ]
         );
 
+        println!("log  == {}", log_number);
+        log_number = 5;
+        println!("Trying to initialize mc.");
+        let joopajoo = configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv"));
+        println!("Trying to initialize mc2.");
         // The environment (mountains marching cubes).
         let mc = MarchingCubes::init(
             &configuration.device,
             &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv")),
             false
         );
+        println!("log  == {}", log_number);
 
         // Create output buffer for "mountains", the output of mc.
         buffers.insert(
@@ -209,6 +227,8 @@ impl Application for HelloApp {
             None)
         );
 
+        println!("log  == {}", log_number);
+        log_number = 6;
         // Create parameters for "mountain" marching cubes.
         let mut mc_params = McParams::init(
                 &configuration.device, 
@@ -286,6 +306,8 @@ impl Application for HelloApp {
 
         // Create nouse 3d "texture".
         
+        println!("log  == {}", log_number);
+        log_number = 3;
         let shader_comp_3d_tex = wgpu::include_spirv!("../../shaders/spirv/data3d_test.comp.spv");
                                    
         let texture3_d = Custom3DTexture::init(
@@ -363,6 +385,8 @@ impl Application for HelloApp {
                     6,
                     64
         );
+        println!("log  == {}", log_number);
+        log_number = 4;
 
         configuration.queue.submit(Some(encoder.finish()));
 
@@ -437,6 +461,8 @@ impl Application for HelloApp {
         //     print!("{} ", k2[i as usize]);
         // }
 
+        log::info!("Application data initialized.");
+
         HelloApp {
             //textures: textures,
             buffers: buffers,
@@ -479,6 +505,7 @@ impl Application for HelloApp {
                 label: Some("Render Encoder"),
         });
 
+        println!("drawing....");
         draw(&mut encoder,
              &frame,
              &self.depth_texture,
@@ -489,6 +516,7 @@ impl Application for HelloApp {
              true
         );
 
+        println!("drawing2....");
         draw(&mut encoder,
              &frame,
              &self.depth_texture,
@@ -498,6 +526,7 @@ impl Application for HelloApp {
              0..self.draw_count_mc_slime, 
              false
         );
+        println!("finished drawing....");
 
         // self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true);
 
@@ -563,6 +592,7 @@ impl Application for HelloApp {
                                               4 as wgpu::BufferAddress);
 
         self.draw_count_mc_slime = k_slime[0];
+        println!("draw_count_mc_slime new == {}", k_slime[0]);
     }
 }
 

@@ -10,7 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 
-wgpu = { git = "https://github.com/gfx-rs/wgpu-rs" }
+wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", rev="cadc2df8a106ad122c10c2e07733ade8f1e5653c" }
 winit = { version = "0.24.0", features = ["web-sys"] }
 jaankaup_core = { path = "../jaankaup_core" }
 log = "0.4"
