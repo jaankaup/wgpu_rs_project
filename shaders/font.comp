@@ -35,14 +35,13 @@ layout(set = 0, binding = 4) buffer AABB_out {
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
-const float FONT_SIZE = 0.05;
+const float FONT_SIZE = 0.03;
 const float FONT_OFFSET_Y = 1.2;
+const uint MAX_NUM_OF_POINTS = 1000;
 
 struct CharInformation {
     uint[MAX_NUM_CHARS] chars;
     uint counter;
-    uint number_of_lines;
-    uint max_width_chars;  
     vec3 position;
 };
 
@@ -621,17 +620,22 @@ uint get_remainder(uint num, uint divisor) {
     return (num - divisor * (num / divisor));
 }
 
-void parse_number(uint n, inout uint[MAX_NUM_CHARS] digits, inout uint counter, bool ignore_first) {
+void parse_number(uint n, bool ignore_first) {
        // 4294967295 
        // 1000000000
+    uint local_index = gl_LocalInvocationID.x;
+
     bool found = false;
     bool ignore = ignore_first;
     uint temp_n = n;
 
     if (n == 0) {
-        uint index = counter;
-        counter++;
-        digits[index] = 0; 
+        uint index = char_arrays[local_index].counter;
+        char_arrays[local_index].counter++;
+        char_arrays[local_index].chars[index] = 0;
+        // uint index = counter;
+        // counter++;
+        // digits[index] = 0; 
         return;
     }
 
@@ -643,14 +647,18 @@ void parse_number(uint n, inout uint[MAX_NUM_CHARS] digits, inout uint counter, 
         }
         if (found == true) {
             if (ignore == true) { ignore = false; continue; }
-            uint index = counter;
-            counter++;
-            digits[index] = remainder; 
+            uint index = char_arrays[local_index].counter;
+            char_arrays[local_index].counter++;
+            char_arrays[local_index].chars[index] = remainder; 
+
+            // uint index = counter;
+            // counter++;
+            // digits[index] = remainder; 
         }
     }
 }
 
-void create_char(uint char_index, uint num_points, vec4 offset, float font_size, uint r, uint g, uint b) {
+void create_char(uint char_index, uint num_points, vec4 offset, uint r, uint g, uint b) {
 
     uint index = bez_indices[char_index];
 
@@ -668,10 +676,10 @@ void create_char(uint char_index, uint num_points, vec4 offset, float font_size,
         uint count = uint(max(1.0, num_points * bi.w));
         bezier_4c(
             count,
-            font_size * bez_table[bez_index + 0] + offset,
-            font_size * bez_table[bez_index + 1] + offset,
-            font_size * bez_table[bez_index + 2] + offset,
-            font_size * bez_table[bez_index + 3] + offset,
+            FONT_SIZE * bez_table[bez_index + 0] + offset,
+            FONT_SIZE * bez_table[bez_index + 1] + offset,
+            FONT_SIZE * bez_table[bez_index + 2] + offset,
+            FONT_SIZE * bez_table[bez_index + 3] + offset,
             r,
             g,
             b
@@ -679,20 +687,20 @@ void create_char(uint char_index, uint num_points, vec4 offset, float font_size,
     }
 }
 
-uint parse_float(double f, uint max_decimals, inout uint[MAX_NUM_CHARS] digits, inout uint counter) {
+uint parse_float(double f, uint max_decimals) {
 
-    uint counter_now = counter;
+    uint local_index = gl_LocalInvocationID.x;
+    //uint counter_now = counter;
 
     // The sign of given float.
     bool is_negative = f < 0.0;
 
     // Add minus.
     if (is_negative) {
-        digits[counter] = 10; 
-        counter++;
+        char_arrays[local_index].chars[char_arrays[local_index].counter] = 10;
+        char_arrays[local_index].counter++;
     }
 
-    //float f_positive = abs(f);
     double f_positive = abs(f);
 
     // The integer part.
@@ -710,84 +718,109 @@ uint parse_float(double f, uint max_decimals, inout uint[MAX_NUM_CHARS] digits, 
     uint integer_part = uint(abs(integer_temp));
 
     // Parse the integer part.
-    parse_number(integer_part, digits, counter, false);
+    parse_number(integer_part, false);
 
     // Add dot.
-    digits[counter] = 13;
-    counter++;
+    char_arrays[local_index].chars[char_arrays[local_index].counter] = 13;
+    char_arrays[local_index].counter++;
 
-    // Prase the frag part.
-    parse_number(fract_part, digits, counter, true);
+    // Parse the frag part.
+    parse_number(fract_part, true);
 
-    return counter - counter_now;
+    return 123;
+    //return counter - counter_now;
 }
 
-uint parse_vec3(vec3 v, uint max_decimals, inout uint[MAX_NUM_CHARS] digits, inout uint counter) {
+uint parse_vec3(vec3 v, uint max_decimals) {
     
-    uint counter_now = counter;
+    uint local_index = gl_LocalInvocationID.x;
 
     // Add left paren.
-    digits[counter] = 11;
-    counter++;
+    char_arrays[local_index].chars[char_arrays[local_index].counter] = 11;
+    char_arrays[local_index].counter++;
 
-    parse_float(double(v.x), 7, digits, counter);
-
-    // Add space x 2.
-    digits[counter] = 16;
-    counter++;
-    digits[counter] = 16;
-    counter++;
-
-    parse_float(double(v.y), 7, digits, counter);
+    parse_float(double(v.x), 7);
 
     // Add space x 2.
-    digits[counter] = 16;
-    counter++;
-    digits[counter] = 16;
-    counter++;
+    char_arrays[local_index].chars[char_arrays[local_index].counter] = 16;
+    char_arrays[local_index].counter++;
+    char_arrays[local_index].chars[char_arrays[local_index].counter] = 16;
+    char_arrays[local_index].counter++;
 
-    parse_float(double(v.z), 7, digits, counter);
+    parse_float(double(v.y), 7);
+
+    // Add space x 2.
+    char_arrays[local_index].chars[char_arrays[local_index].counter] = 16;
+    char_arrays[local_index].counter++;
+    char_arrays[local_index].chars[char_arrays[local_index].counter] = 16;
+    char_arrays[local_index].counter++;
+
+    parse_float(double(v.z), 7);
     
     // Add right paren.
-    digits[counter] = 12;
-    counter++;
+    char_arrays[local_index].chars[char_arrays[local_index].counter] = 12;
+    char_arrays[local_index].counter++;
 
-    return counter - counter_now;
+    return 333;
+    //return counter - counter_now;
 }
 
-void create_char_sequency_points(
+AABB create_char_sequency_points(
         vec3 base_vector,
-        float font_size,
-        uint average_points_per_char,
-        in uint[MAX_NUM_CHARS] digits,
-        uint counter,
         uint r,
         uint g,
-        uint b,
-        float font_offset_y) {
+        uint b) {
 
-  vec4 local_offset = vec4(base_vector, 0.0);
-  int number_of_lines = 0;
-    
-  for (uint i=0; i<counter; i++) {
-    uint numb = digits[i];
+    uint local_index = gl_LocalInvocationID.x;
+    const float dist = distance(char_arrays[local_index].position, camera_pos.xyz);
+    uint average_points_per_char = max(4, uint(min(MAX_NUM_OF_POINTS, MAX_NUM_OF_POINTS / pow(dist, 2.0)))); 
+    vec4 local_offset = vec4(base_vector, 0.0);
+    uint number_of_lines = 0;
+    uint max_text_width = 0;
+    uint text_width = 0;
+      
+    for (uint i=0; i<char_arrays[local_index].counter; i++) {
+        uint numb = char_arrays[local_index].chars[i];
 
-    // end of line.
-    if (numb == 17) {
-        number_of_lines++;
-        local_offset = vec4(base_vector, 0.0) + vec4(0.0, (-font_offset_y) * float(number_of_lines) * font_size, 0.0, 0.0);
+        // end of line.
+        if (numb == 17) {
+            number_of_lines++;
+            local_offset = vec4(base_vector, 0.0) + vec4(0.0, (-FONT_OFFSET_Y) * float(number_of_lines) * FONT_SIZE, 0.0, 0.0);
+            if (text_width > max_text_width) {
+                max_text_width = text_width;
+                text_width = 0;
+            }
+        }
+        else {
+            create_char(numb, average_points_per_char, local_offset, r, g, b);
+            local_offset = local_offset + vec4(FONT_SIZE * 0.7, 0.0, 0.0, 0.0);
+            text_width++;
+        }
     }
-    else {
-        create_char(numb, average_points_per_char, local_offset, font_size, r, g, b);
-        local_offset = local_offset + vec4(font_size * 0.7, 0.0, 0.0, 0.0);
-    }
-  }
+
+    AABB aabb = AABB(
+      vec4(base_vector, 0.0) + vec4(-0.5 * FONT_SIZE, number_of_lines * (-FONT_OFFSET_Y - 0.1) * FONT_SIZE, -0.05, 0.0),
+      vec4(base_vector, 0.0) + FONT_SIZE * vec4(max_text_width * 0.8, FONT_OFFSET_Y, 0.0, 0.0) + vec4(0.0,0.0,-0.001,0.0)
+    );
+    return aabb;
+    // AABB aabb = AABB(
+    //   local_offset + vec4(-0.5 * font_size, number_of_lines * (-font_offset_y - 0.1) * font_size, -0.05, 0.0),
+    //   local_offset + font_size * vec4(text_width * 0.8, font_offset_y, 0.0, 0.0) + vec4(0.0,0.0,-0.001,0.0)
+    // );
 }
 
-uint add_end_of_line(inout uint[MAX_NUM_CHARS] digits, inout uint counter) {
-    digits[counter] = 17;
-    counter++;
-    return 1;
+void add_end_of_line() {
+    uint local_index = gl_LocalInvocationID.x;
+    char_arrays[local_index].chars[char_arrays[local_index].counter] = 17;
+    char_arrays[local_index].counter++;
+}
+
+void initialize_char_array(vec3 position) {
+
+    uint local_index = gl_LocalInvocationID.x;
+
+    char_arrays[local_index].counter = 0;
+    char_arrays[local_index].position = position;
 }
 
 void main() {
@@ -806,6 +839,8 @@ void main() {
   uvec3 this_coord = index1D_to_index3D_custom(); 
   vec4 local_offset = vec4(this_coord.x, this_coord.y, this_coord.z , 0.0);
 
+  initialize_char_array(this_coord);
+
   const float dist = distance(local_offset.xyz, camera_pos.xyz);
   const uint num_of_points = max(4, uint(min(1000.0, 1000.0 / pow(dist, 2.0)))); 
 
@@ -821,36 +856,24 @@ void main() {
 
   uint number_of_lines = 0;
 
-  uint numb_of_points  = parse_vec3(vec3(local_offset), 7, digits, counter);
-  number_of_lines += add_end_of_line(digits, counter);
-  uint numb_of_points2 = parse_float(float(global_index), 7, digits, counter);
-  number_of_lines += add_end_of_line(digits, counter);
-  uint numb_of_points3 = parse_float(distance(local_offset.xyz, camera_pos.xyz), 7, digits, counter);
+  //uint numb_of_points  = parse_float(665.4, 7);
 
-  uint text_width = max(max(numb_of_points, numb_of_points2), numb_of_points3);
+  uint numb_of_points  = parse_vec3(vec3(local_offset), 7);
+  add_end_of_line();
+  uint numb_of_points2 = parse_float(float(global_index), 7);
+  add_end_of_line();
+  uint numb_of_points3 = parse_float(distance(local_offset.xyz, camera_pos.xyz), 7);
 
-  AABB aabb = AABB(
-    local_offset + vec4(-0.5 * font_size, number_of_lines * (-font_offset_y - 0.1) * font_size, -0.05, 0.0),
-    local_offset + font_size * vec4(text_width * 0.8, font_offset_y, 0.0, 0.0) + vec4(0.0,0.0,-0.001,0.0)
-  );
+  uint text_width = numb_of_points; // max(max(numb_of_points, numb_of_points2), numb_of_points3);
+
 
   //create_aabb_lines(aabb, 255, 0, 0);
 
   uint work_color_x = work_index * 4; 
   uint work_color_y = 255 - (work_index * 4); 
-  create_aabb_lines(aabb, work_color_x, 0, work_color_y);
 
-  create_char_sequency_points(
-    local_offset.xyz,
-    font_size,
-    num_of_points,
-    digits,
-    counter,
-    255,
-    125,
-    125,
-    font_offset_y
-  );
+  AABB aabb = create_char_sequency_points(local_offset.xyz, 255, 125, 125);
+  create_aabb_lines(aabb, work_color_x, 0, work_color_y);
 
   // create_char(1, num_of_points, local_offset + vec4(0.0, 0.0, 0.0, 0.0));
   // create_char(2, num_of_points, local_offset + vec4(0.7, 0.0, 0.0, 0.0));
