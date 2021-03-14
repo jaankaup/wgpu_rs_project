@@ -267,16 +267,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "codespan-reporting"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3538270d33cc669650c4b093848450d380def10c331d38c768e34cac80576e6e"
-dependencies = [
- "termcolor",
- "unicode-width",
-]
-
-[[package]]
 name = "colored"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -472,7 +462,7 @@ dependencies = [
  "pollster",
  "rand",
  "render_shaders",
- "wgpu 0.7.0 (git+https://github.com/gfx-rs/wgpu-rs?rev=cadc2df8a106ad122c10c2e07733ade8f1e5653c)",
+ "wgpu",
  "winit",
 ]
 
@@ -548,7 +538,7 @@ version = "0.1.0"
 dependencies = [
  "jaankaup_core",
  "model_loader",
- "wgpu 0.7.0 (git+https://github.com/gfx-rs/wgpu-rs)",
+ "wgpu",
  "winit",
 ]
 
@@ -736,17 +726,7 @@ version = "0.8.0"
 source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
 dependencies = [
  "fxhash",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "spirv_cross",
-]
-
-[[package]]
-name = "gfx-auxil"
-version = "0.8.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
-dependencies = [
- "fxhash",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
+ "gfx-hal",
  "spirv_cross",
 ]
 
@@ -757,33 +737,12 @@ source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50
 dependencies = [
  "arrayvec 0.5.2",
  "bitflags",
- "gfx-auxil 0.8.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
+ "gfx-auxil",
+ "gfx-hal",
  "libloading 0.7.0",
  "log",
  "parking_lot",
- "range-alloc 0.1.2 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "raw-window-handle",
- "smallvec",
- "spirv_cross",
- "thunderdome",
- "winapi 0.3.9",
- "wio",
-]
-
-[[package]]
-name = "gfx-backend-dx11"
-version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
-dependencies = [
- "arrayvec 0.5.2",
- "bitflags",
- "gfx-auxil 0.8.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "libloading 0.7.0",
- "log",
- "parking_lot",
- "range-alloc 0.1.2 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
+ "range-alloc",
  "raw-window-handle",
  "smallvec",
  "spirv_cross",
@@ -801,31 +760,11 @@ dependencies = [
  "bit-set",
  "bitflags",
  "d3d12",
- "gfx-auxil 0.8.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
+ "gfx-auxil",
+ "gfx-hal",
  "log",
  "parking_lot",
- "range-alloc 0.1.2 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "raw-window-handle",
- "smallvec",
- "spirv_cross",
- "winapi 0.3.9",
-]
-
-[[package]]
-name = "gfx-backend-dx12"
-version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
-dependencies = [
- "arrayvec 0.5.2",
- "bit-set",
- "bitflags",
- "d3d12",
- "gfx-auxil 0.8.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "log",
- "parking_lot",
- "range-alloc 0.1.2 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
+ "range-alloc",
  "raw-window-handle",
  "smallvec",
  "spirv_cross",
@@ -837,17 +776,7 @@ name = "gfx-backend-empty"
 version = "0.7.0"
 source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
 dependencies = [
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "log",
- "raw-window-handle",
-]
-
-[[package]]
-name = "gfx-backend-empty"
-version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
-dependencies = [
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
+ "gfx-hal",
  "log",
  "raw-window-handle",
 ]
@@ -860,37 +789,14 @@ dependencies = [
  "arrayvec 0.5.2",
  "bitflags",
  "fxhash",
- "gfx-auxil 0.8.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
+ "gfx-auxil",
+ "gfx-hal",
  "glow",
  "js-sys",
  "khronos-egl",
  "libloading 0.7.0",
  "log",
- "naga 0.3.1 (git+https://github.com/gfx-rs/naga?tag=gfx-12)",
- "parking_lot",
- "raw-window-handle",
- "spirv_cross",
- "wasm-bindgen",
- "web-sys",
-]
-
-[[package]]
-name = "gfx-backend-gl"
-version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
-dependencies = [
- "arrayvec 0.5.2",
- "bitflags",
- "fxhash",
- "gfx-auxil 0.8.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "glow",
- "js-sys",
- "khronos-egl",
- "libloading 0.7.0",
- "log",
- "naga 0.3.1 (git+https://github.com/gfx-rs/naga?tag=gfx-13)",
+ "naga",
  "parking_lot",
  "raw-window-handle",
  "spirv_cross",
@@ -910,39 +816,14 @@ dependencies = [
  "copyless",
  "foreign-types",
  "fxhash",
- "gfx-auxil 0.8.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
+ "gfx-auxil",
+ "gfx-hal",
  "log",
  "metal",
- "naga 0.3.1 (git+https://github.com/gfx-rs/naga?tag=gfx-12)",
+ "naga",
  "objc",
  "parking_lot",
- "range-alloc 0.1.2 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "raw-window-handle",
- "spirv_cross",
- "storage-map",
-]
-
-[[package]]
-name = "gfx-backend-metal"
-version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
-dependencies = [
- "arrayvec 0.5.2",
- "bitflags",
- "block",
- "cocoa-foundation",
- "copyless",
- "foreign-types",
- "fxhash",
- "gfx-auxil 0.8.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "log",
- "metal",
- "naga 0.3.1 (git+https://github.com/gfx-rs/naga?tag=gfx-13)",
- "objc",
- "parking_lot",
- "range-alloc 0.1.2 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
+ "range-alloc",
  "raw-window-handle",
  "spirv_cross",
  "storage-map",
@@ -957,30 +838,10 @@ dependencies = [
  "ash",
  "byteorder",
  "core-graphics-types",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
+ "gfx-hal",
  "inplace_it",
  "log",
- "naga 0.3.1 (git+https://github.com/gfx-rs/naga?tag=gfx-12)",
- "objc",
- "parking_lot",
- "raw-window-handle",
- "smallvec",
- "winapi 0.3.9",
-]
-
-[[package]]
-name = "gfx-backend-vulkan"
-version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
-dependencies = [
- "arrayvec 0.5.2",
- "ash",
- "byteorder",
- "core-graphics-types",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "inplace_it",
- "log",
- "naga 0.3.1 (git+https://github.com/gfx-rs/naga?tag=gfx-13)",
+ "naga",
  "objc",
  "parking_lot",
  "raw-window-handle",
@@ -994,18 +855,7 @@ version = "0.7.0"
 source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
 dependencies = [
  "bitflags",
- "naga 0.3.1 (git+https://github.com/gfx-rs/naga?tag=gfx-12)",
- "raw-window-handle",
- "thiserror",
-]
-
-[[package]]
-name = "gfx-hal"
-version = "0.7.0"
-source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
-dependencies = [
- "bitflags",
- "naga 0.3.1 (git+https://github.com/gfx-rs/naga?tag=gfx-13)",
+ "naga",
  "raw-window-handle",
  "thiserror",
 ]
@@ -1082,7 +932,7 @@ dependencies = [
  "log",
  "pollster",
  "wasm-bindgen-futures",
- "wgpu 0.7.0 (git+https://github.com/gfx-rs/wgpu-rs?rev=cadc2df8a106ad122c10c2e07733ade8f1e5653c)",
+ "wgpu",
  "wgpu-subscriber",
  "winit",
 ]
@@ -1164,7 +1014,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-timer",
  "web-sys",
- "wgpu 0.7.0 (git+https://github.com/gfx-rs/wgpu-rs?rev=cadc2df8a106ad122c10c2e07733ade8f1e5653c)",
+ "wgpu",
  "wgpu-subscriber",
  "winit",
 ]
@@ -1413,22 +1263,6 @@ source = "git+https://github.com/gfx-rs/naga?tag=gfx-12#fa7d4d8b51d4eeffe9f648d2
 dependencies = [
  "bit-set",
  "bitflags",
- "fxhash",
- "log",
- "num-traits",
- "petgraph",
- "spirv_headers",
- "thiserror",
-]
-
-[[package]]
-name = "naga"
-version = "0.3.1"
-source = "git+https://github.com/gfx-rs/naga?tag=gfx-13#f5ee79191223e4ebe323a728f4de40830b8d10f6"
-dependencies = [
- "bit-set",
- "bitflags",
- "codespan-reporting",
  "fxhash",
  "log",
  "num-traits",
@@ -1783,11 +1617,6 @@ version = "0.1.2"
 source = "git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8#0a201d1c406b5119ec11068293a40e50ec0be4c8"
 
 [[package]]
-name = "range-alloc"
-version = "0.1.2"
-source = "git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a#cd96e77952dd2e330fe2c31f768203eef47a0d6a"
-
-[[package]]
 name = "raw-window-handle"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1841,7 +1670,7 @@ name = "render_shaders"
 version = "0.1.0"
 dependencies = [
  "jaankaup_core",
- "wgpu 0.7.0 (git+https://github.com/gfx-rs/wgpu-rs?rev=cadc2df8a106ad122c10c2e07733ade8f1e5653c)",
+ "wgpu",
 ]
 
 [[package]]
@@ -2035,15 +1864,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "termcolor"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2dfed899f0eb03f32ee8c6a0aabdb8a7949659e3466561fc0adf54e26d88c5f4"
-dependencies = [
- "winapi-util",
-]
-
-[[package]]
 name = "thiserror"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2189,12 +2009,6 @@ name = "ttf-parser"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e5d7cd7ab3e47dda6e56542f4bbf3824c15234958c6e1bd6aaa347e93499fdc"
-
-[[package]]
-name = "unicode-width"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9337591893a19b88d8d87f2cec1e73fad5cdfd10e5a6f349f498ad6ea2ffb1e3"
 
 [[package]]
 name = "unicode-xid"
@@ -2423,7 +2237,7 @@ source = "git+https://github.com/gfx-rs/wgpu-rs?rev=cadc2df8a106ad122c10c2e07733
 dependencies = [
  "arrayvec 0.5.2",
  "js-sys",
- "naga 0.3.1 (git+https://github.com/gfx-rs/naga?tag=gfx-12)",
+ "naga",
  "parking_lot",
  "raw-window-handle",
  "smallvec",
@@ -2431,55 +2245,8 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "wgpu-core 0.7.0 (git+https://github.com/gfx-rs/wgpu?rev=8a5668e0da36bc863091d70853a0766be8b330be)",
- "wgpu-types 0.7.0 (git+https://github.com/gfx-rs/wgpu?rev=8a5668e0da36bc863091d70853a0766be8b330be)",
-]
-
-[[package]]
-name = "wgpu"
-version = "0.7.0"
-source = "git+https://github.com/gfx-rs/wgpu-rs#b3efd07b20de55e7a1ef0abe30dd67e950b15b0b"
-dependencies = [
- "arrayvec 0.5.2",
- "js-sys",
- "naga 0.3.1 (git+https://github.com/gfx-rs/naga?tag=gfx-13)",
- "parking_lot",
- "raw-window-handle",
- "smallvec",
- "tracing",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "wgpu-core 0.7.0 (git+https://github.com/gfx-rs/wgpu?rev=0fa52d3826ec8fe8f6177a558922085fe7d0e0cc)",
- "wgpu-types 0.7.0 (git+https://github.com/gfx-rs/wgpu?rev=0fa52d3826ec8fe8f6177a558922085fe7d0e0cc)",
-]
-
-[[package]]
-name = "wgpu-core"
-version = "0.7.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=0fa52d3826ec8fe8f6177a558922085fe7d0e0cc#0fa52d3826ec8fe8f6177a558922085fe7d0e0cc"
-dependencies = [
- "arrayvec 0.5.2",
- "bitflags",
- "cfg_aliases",
- "copyless",
- "fxhash",
- "gfx-backend-dx11 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "gfx-backend-dx12 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "gfx-backend-empty 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "gfx-backend-gl 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "gfx-backend-metal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "gfx-backend-vulkan 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=cd96e77952dd2e330fe2c31f768203eef47a0d6a)",
- "gpu-alloc",
- "gpu-descriptor",
- "naga 0.3.1 (git+https://github.com/gfx-rs/naga?tag=gfx-13)",
- "parking_lot",
- "raw-window-handle",
- "smallvec",
- "thiserror",
- "tracing",
- "wgpu-types 0.7.0 (git+https://github.com/gfx-rs/wgpu?rev=0fa52d3826ec8fe8f6177a558922085fe7d0e0cc)",
+ "wgpu-core",
+ "wgpu-types",
 ]
 
 [[package]]
@@ -2492,22 +2259,22 @@ dependencies = [
  "cfg_aliases",
  "copyless",
  "fxhash",
- "gfx-backend-dx11 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "gfx-backend-dx12 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "gfx-backend-empty 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "gfx-backend-gl 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "gfx-backend-metal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "gfx-backend-vulkan 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
- "gfx-hal 0.7.0 (git+https://github.com/gfx-rs/gfx?rev=0a201d1c406b5119ec11068293a40e50ec0be4c8)",
+ "gfx-backend-dx11",
+ "gfx-backend-dx12",
+ "gfx-backend-empty",
+ "gfx-backend-gl",
+ "gfx-backend-metal",
+ "gfx-backend-vulkan",
+ "gfx-hal",
  "gpu-alloc",
  "gpu-descriptor",
- "naga 0.3.1 (git+https://github.com/gfx-rs/naga?tag=gfx-12)",
+ "naga",
  "parking_lot",
  "raw-window-handle",
  "smallvec",
  "thiserror",
  "tracing",
- "wgpu-types 0.7.0 (git+https://github.com/gfx-rs/wgpu?rev=8a5668e0da36bc863091d70853a0766be8b330be)",
+ "wgpu-types",
 ]
 
 [[package]]
@@ -2521,14 +2288,6 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "wgpu-types"
-version = "0.7.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=0fa52d3826ec8fe8f6177a558922085fe7d0e0cc#0fa52d3826ec8fe8f6177a558922085fe7d0e0cc"
-dependencies = [
- "bitflags",
 ]
 
 [[package]]

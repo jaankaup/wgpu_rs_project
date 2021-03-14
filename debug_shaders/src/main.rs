@@ -395,11 +395,17 @@ impl Application for Debug_App {
                     6
         ); 
 
+        //font_pipeline.dispatch(&font_bind_groups,
+        //            &mut encoder,
+        //            4 * 4 * 4,
+        //            1,
+        //            1
+        //); 
         font_pipeline.dispatch(&font_bind_groups,
                     &mut encoder,
-                    4 * 4 * 4,
-                    1,
-                    1
+                    4,
+                    4,
+                    4
         ); 
 
         configuration.queue.submit(Some(encoder.finish()));
@@ -536,9 +542,9 @@ impl Application for Debug_App {
         
         self.font_pipeline.dispatch(&self.font_bind_groups,
                     &mut encoder,
-                    4 * 4 * 4,
-                    1,
-                    1
+                    4,
+                    4,
+                    4
         ); 
 
         queue.submit(Some(encoder.finish()));

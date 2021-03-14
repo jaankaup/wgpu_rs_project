@@ -1,3 +1,4 @@
+use jaankaup_core::buffer::buffer_from_data;
 use std::collections::HashMap;
 use jaankaup_core::wgpu_system as ws;
 use jaankaup_core::wgpu_system::{
@@ -20,6 +21,7 @@ impl WGPUFeatures for FMM_Features {
 struct FMM_App {
     depth_texture: JTexture,
     camera: Camera,
+    buffers: HashMap<String, wgpu::Buffer>,
 }
 
 impl FMM_App {
@@ -30,6 +32,8 @@ impl Application for FMM_App {
 
     /// Initialize fmm application.
     fn init(configuration: &WGPUConfiguration) -> Self {
+
+        let mut buffers: HashMap<String, wgpu::Buffer> = HashMap::new();
 
         // Create the depth texture for fmm application.
         let depth_texture = JTexture::create_depth_texture(
@@ -44,6 +48,7 @@ impl Application for FMM_App {
         Self {
             depth_texture,
             camera,
+            buffers,
         }
     }
     fn render(&mut self,
@@ -53,6 +58,7 @@ impl Application for FMM_App {
               surface: &wgpu::Surface,
               sc_desc: &wgpu::SwapChainDescriptor) {
     }
+
     fn input(&mut self, queue: &wgpu::Queue, input_cache: &InputCache) {
         self.camera.update_from_input(&queue, &input_cache);
     }
@@ -65,6 +71,24 @@ impl Application for FMM_App {
     fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, input: &InputCache) {
 
     }
+}
+
+fn create_fmm_buffer(device: &wgpu::Device,
+                     name: String, 
+                     dimension: [u32; 3],
+                     element_size: u32,
+                     buffers: &mut HashMap<String, wgpu::Buffer>) {
+
+        assert!(dimension[0] % 4 && dimension[1] % 4 && dimension[2] % 4, "Each dimension should be a multiple of 4.");  
+
+        buffers.insert(
+            name,
+            buffer_from_data::<f32>(
+            &device,
+            &vec![0 as f32 ; dimension[0] as usize * dimension[1] as usize * dimension[2] as usize],
+            wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+            None)
+        );
 }
 
 fn main() {
