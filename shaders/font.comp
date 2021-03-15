@@ -313,14 +313,12 @@ uint encode_rgba_u32(uint r, uint g, uint b, uint a) {
 }
 
 // Updates counter until MAX_NUM_CHARS is reached.
-// Returns the new incremented value. 
+// Returns the counter value before incrementation. 
 uint update_counter() {
     uint local_index = local_id_to_x();
-    uint result = char_arrays[local_index].counter;
-    if (result < MAX_NUM_CHARS-1) {
-        char_arrays[local_index].counter++;
-    }
-    return result;
+    uint counter_now = char_arrays[local_index].counter;
+    char_arrays[local_index].counter = min(counter_now + 1, MAX_NUM_CHARS-1);
+    return counter_now;
 }
 
 void create_aabb_triangles(AABB aabb, uint r, uint b, uint g) {
@@ -348,6 +346,8 @@ void create_aabb_triangles(AABB aabb, uint r, uint b, uint g) {
 
 }
 
+
+// TODO rename to triangles.
 void create_aabb_lines(AABB aabb, uint r, uint g, uint b) {
 
     uint aabb_index = atomicAdd(counter[1], 36);
@@ -448,6 +448,44 @@ void create_aabb_lines(AABB aabb, uint r, uint g, uint b) {
     aabb_lines[aabb_index+35] = OutputVertex(p1, encode_rgba_u32(lbr, lbg, lbb, 1)); 
 }
 
+void create_aabb_triangles_r(AABB aabb, uint r, uint g, uint b, float t) {
+    AABB back_bottom = AABB(aabb.min, vec4(aabb.max.x, aabb.min.y + t, aabb.min.z + t, 1.0));
+    AABB right_bottom = AABB(aabb.min, vec4(aabb.min.x + t, aabb.min.y + t, aabb.max.z, 1.0));
+    AABB left_bottom = AABB(vec4(aabb.max.x - t, aabb.min.y, aabb.min.z, 1.0),
+                            vec4(aabb.max.x, aabb.min.y + t, aabb.max.z, 1.0));
+    AABB front_bottom = AABB(vec4(aabb.min.x, aabb.min.y, aabb.max.z - t, 1.0),
+                             vec4(aabb.max.x, aabb.min.y + t, aabb.max.z, 1.0));
+
+    AABB back_top = AABB(vec4(aabb.min.x, aabb.max.y - t, aabb.min.z, 1.0),  
+                         vec4(aabb.max.x, aabb.max.y,     aabb.min.z + t, 1.0));
+    AABB left_top = AABB(vec4(aabb.min.x,     aabb.max.y - t, aabb.min.z, 1.0),  
+                          vec4(aabb.min.x + t, aabb.max.y,     aabb.max.z, 1.0));
+    AABB right_top = AABB(vec4(aabb.max.x - t, aabb.max.y - t, aabb.min.z, 1.0),  
+                          vec4(aabb.max.x,     aabb.max.y,     aabb.max.z, 1.0));
+    AABB front_top = AABB(vec4(aabb.min.x,     aabb.max.y - t, aabb.max.z - t, 1.0),  
+                          vec4(aabb.max.x,     aabb.max.y,     aabb.max.z, 1.0));
+    AABB back_left_ud = AABB(vec4(aabb.min.x,     aabb.min.y, aabb.min.z, 1.0),  
+                             vec4(aabb.min.x + t, aabb.max.y, aabb.min.z + t, 1.0));
+    AABB back_right_ud = AABB(vec4(aabb.max.x - t, aabb.min.y, aabb.min.z, 1.0),  
+                              vec4(aabb.max.x    , aabb.max.y, aabb.min.z + t, 1.0));
+    AABB front_right_ud = AABB(vec4(aabb.min.x,    aabb.min.y, aabb.max.z - t, 1.0),  
+                              vec4(aabb.min.x + t, aabb.max.y, aabb.max.z, 1.0));
+    AABB front_left_ud = AABB(vec4(aabb.max.x - t, aabb.min.y, aabb.max.z - t, 1.0),  
+                              vec4(aabb.max.x    , aabb.max.y, aabb.max.z, 1.0));
+    create_aabb_lines(back_bottom, r, g, b); 
+    create_aabb_lines(right_bottom, r, g, b); 
+    create_aabb_lines(left_bottom, r, g, b); 
+    create_aabb_lines(front_bottom, r, g, b); 
+    create_aabb_lines(back_top, r, g, b); 
+    create_aabb_lines(left_top, r, g, b); 
+    create_aabb_lines(right_top, r, g, b); 
+    create_aabb_lines(front_top, r, g, b); 
+    create_aabb_lines(back_left_ud, r, g, b); 
+    create_aabb_lines(back_right_ud, r, g, b); 
+    create_aabb_lines(front_right_ud, r, g, b); 
+    create_aabb_lines(front_left_ud, r, g, b); 
+}
+
 void bezier_4c(uint n, vec4 c0, vec4 c1, vec4 c2, vec4 c3, uint r, uint g, uint b) {
 
     if (n < 4) return;
@@ -463,9 +501,6 @@ void bezier_4c(uint n, vec4 c0, vec4 c1, vec4 c2, vec4 c3, uint r, uint g, uint 
         const float mt3 = mt2 * mt;
         const vec3 result = c0.xyz * mt3 + c1.xyz * 3.0 * mt2*t + c2.xyz * 3.0 * mt*t2 + c3.xyz * t3;
         const float dist = min(max(1.0, distance(camera_pos.xyz, result)), 255);
-        //uvec3 this_coord =  index1D_to_index3D_local(); 
-        //uvec3 coordinates = index1D_to_index3D_local(); 
-        //uvec3 coordinates = index1D_to_index3D_local();
         output_points[index] = OutputVertex(
             result,
             encode_rgba_u32(
@@ -504,10 +539,6 @@ void log_number(uint n, bool ignore_first) {
         if (found == true) {
             if (ignore == true) { ignore = false; continue; }
             char_arrays[local_index].chars[update_counter()] = remainder; 
-
-            // uint index = counter;
-            // counter++;
-            // digits[index] = remainder; 
         }
     }
 }
@@ -778,10 +809,9 @@ void main() {
   uint local_index = local_id_to_x();
   uint work_index = gl_WorkGroupID.x;
 
-  if (!(gl_WorkGroupID == uvec3(0, 0, 0) ||
-        gl_WorkGroupID == uvec3(1, 0, 0) ||
-        gl_WorkGroupID == uvec3(0, 1, 0))) return;
-  //if (!(work_index == 0)) return;
+  //if (!(gl_WorkGroupID == uvec3(0, 0, 0) ||
+  //      gl_WorkGroupID == uvec3(1, 0, 0) ||
+  //      gl_WorkGroupID == uvec3(0, 1, 0))) return;
   
   uvec3 this_coord_local = index1D_to_index3D_local(); 
   uvec3 this_coord_group = index1D_to_index3D_group(); 
@@ -789,7 +819,8 @@ void main() {
   //uvec3 this_coord_global = index1D_to_index3D(); 
 
   uvec3 this_coord = gl_LocalInvocationID + gl_WorkGroupID * 4; //index1D_to_index3D_custom(); 
-  initialize_char_array(vec3(this_coord.x, this_coord.y, this_coord.z));
+
+  initialize_char_array(vec3(this_coord.x + 0.25, this_coord.y + 0.5, this_coord.z + 0.5));
 
   // Log global index.
   log_float(global_index, 7);
@@ -819,11 +850,31 @@ void main() {
   uint work_color_y = 255 - (gl_WorkGroupID.x * gl_WorkGroupID.z * 16); 
 
   AABB aabb = create_char_sequency_points(255, 125, 125);
+  AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
   create_aabb_lines(aabb,
-                    gl_WorkGroupID.x % 2 == 0 ? 0 : 255,
-                    gl_WorkGroupID.y % 2 == 0 ? 50 : 150,
-                    gl_WorkGroupID.z % 2 == 0 ? 0 : 255
+                    gl_WorkGroupID.x % 2 == 0 ? 50 : 200,
+                    gl_WorkGroupID.y % 2 == 0 ? 10 : 100,
+                    gl_WorkGroupID.z % 2 == 0 ? 50 : 200
                     );
+  // create_aabb_triangles_r(traslated,
+  //                   255,
+  //                   0,
+  //                   0,
+  //                   0.01
+  // );
+
+  if (local_index == 0) {
+    AABB group = AABB(
+        vec4(this_coord, 1.0),
+        vec4(this_coord, 1.0) + vec4(4.0, 4.0, 4.0 , 1.0)
+    );
+    create_aabb_triangles_r(group,
+                    gl_WorkGroupID.x % 2 == 0 ? 50 : 200,
+                    gl_WorkGroupID.y % 2 == 0 ? 10 : 100,
+                    gl_WorkGroupID.z % 2 == 0 ? 50 : 200,
+                      0.1
+                      );
+  }
 
   // create_char(1, num_of_points, local_offset + vec4(0.0, 0.0, 0.0, 0.0));
   // create_char(2, num_of_points, local_offset + vec4(0.7, 0.0, 0.0, 0.0));
