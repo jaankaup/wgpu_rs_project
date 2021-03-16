@@ -43,7 +43,7 @@ const float FONT_SIZE = 0.02;
 const float FONT_OFFSET_Y = 1.2;
 const uint MAX_NUM_OF_POINTS = 700;
 
-uint local_id_to_x() { return gl_LocalInvocationID.x + LOCAL_X_DIM * gl_LocalInvocationID.y + LOCAL_X_DIM * LOCAL_Z_DIM * gl_LocalInvocationID.z;   }
+uint local_id_to_x() { return gl_LocalInvocationID.x + LOCAL_X_DIM * gl_LocalInvocationID.y + LOCAL_X_DIM * LOCAL_Z_DIM * gl_LocalInvocationID.z; }
 
 const uint[10] joo = {1,
                       10,
@@ -55,7 +55,6 @@ const uint[10] joo = {1,
                       10000000,
                       100000000,
                       1000000000};
-
 
 struct CharInformation {
     uint counter;
@@ -486,6 +485,7 @@ void create_aabb_triangles_r(AABB aabb, uint r, uint g, uint b, float t) {
     create_aabb_lines(front_left_ud, r, g, b); 
 }
 
+
 void bezier_4c(uint n, vec4 c0, vec4 c1, vec4 c2, vec4 c3, uint r, uint g, uint b) {
 
     if (n < 4) return;
@@ -510,6 +510,67 @@ void bezier_4c(uint n, vec4 c0, vec4 c1, vec4 c2, vec4 c3, uint r, uint g, uint 
                 uint(dist)));
         index++;
     }
+}
+
+void create_array(float array_width, vec3 base_pos, vec3 dest_pos, uint r, uint g, uint b) {
+
+    // const float dist_to_camera = distance(base_pos, camera_pos.xyz);
+    // uint average_points_per_char = max(4, uint(min(MAX_NUM_OF_POINTS*4, MAX_NUM_OF_POINTS*4 / pow(dist_to_camera, 2.0)))); 
+
+    // float dist = distance(base_pos, dest_pos);
+    // vec3 direction = normalize(dest_pos - base_pos);
+    // bezier_4c(average_points_per_char,
+    //           vec4(base_pos, 1.0),
+    //           vec4(base_pos + 0.3333 * direction, 1.0),
+    //           vec4(base_pos + 0.6666 * direction, 1.0),
+    //           vec4(dest_pos, 1.0),
+    //           r,
+    //           g,
+    //           b
+    // );
+
+    vec3 array_direction = normalize(dest_pos - base_pos);
+    vec3 camera_direction = normalize(camera_pos.xyz - base_pos);
+
+    // Array length.
+    float array_length = distance(dest_pos, base_pos);
+    float array_base_length = array_length - array_width;
+
+    vec3 side_direction = cross(camera_direction, array_direction);   
+
+    uint index = atomicAdd(counter[1], 21);
+
+    const vec3 p0 = base_pos;
+    const vec3 p1 = base_pos + side_direction * array_width;
+    const vec3 p2 = base_pos - side_direction * array_width;
+    const vec3 p3 = p1 + array_direction * array_base_length;
+    const vec3 p4 = p2 + array_direction * array_base_length;
+    const vec3 p5 = base_pos + array_direction * array_base_length;
+    const vec3 p6 = dest_pos;
+    const vec3 p7 = p3 + side_direction * array_width * 2.0;
+    const vec3 p8 = p4 - side_direction * array_width * 2.0;
+
+    aabb_lines[index]   = OutputVertex(p1, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+1] = OutputVertex(p0, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+2] = OutputVertex(p3, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+3] = OutputVertex(p0, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+4] = OutputVertex(p5, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+5] = OutputVertex(p3, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+6] = OutputVertex(p0, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+7] = OutputVertex(p2, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+8] = OutputVertex(p4, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+9] = OutputVertex(p4, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+10] = OutputVertex(p5, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+11] = OutputVertex(p0, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+12] = OutputVertex(p3, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+13] = OutputVertex(p4, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+14] = OutputVertex(p6, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+15] = OutputVertex(p3, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+16] = OutputVertex(p6, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+17] = OutputVertex(p7, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+18] = OutputVertex(p4, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+19] = OutputVertex(p8, encode_rgba_u32(r, g, b, 1)); 
+    aabb_lines[index+20] = OutputVertex(p6, encode_rgba_u32(r, g, b, 1)); 
 }
 
 uint get_remainder(uint num, uint divisor) {
@@ -868,12 +929,63 @@ void main() {
         vec4(this_coord, 1.0),
         vec4(this_coord, 1.0) + vec4(4.0, 4.0, 4.0 , 1.0)
     );
+
+    vec3 middle_point = (aabb.min.xyz + aabb.max.xyz) * 0.5;
+
+    // To the right.
+    create_array(0.02,
+                 middle_point,
+                 middle_point + vec3(1.0 - (aabb.max.x - middle_point.x), 0.0, 0.0),
+                 125,
+                 20,
+                 0
+    );
+    // To the left.
+    create_array(0.02,
+                 middle_point,
+                 middle_point + vec3(-1.0 + (aabb.max.x - middle_point.x), 0.0, 0.0),
+                 125,
+                 20,
+                 0 
+    );
+    // To back.
+    create_array(0.02,
+                 middle_point,
+                 middle_point + vec3(0.0, 0.0, -1.0 + (aabb.max.z - middle_point.z)),
+                 125,
+                 20,
+                 0 
+    );
+    // To front.
+    create_array(0.02,
+                 middle_point,
+                 middle_point + vec3(0.0, 0.0, 1.0 - (aabb.max.z - middle_point.z)),
+                 125,
+                 20,
+                 0 
+    );
+    // Up.
+    create_array(0.02,
+                 middle_point,
+                 middle_point + vec3(0.0, 1.0 - (aabb.max.y - middle_point.y), 0.0),
+                 125,
+                 20,
+                 0 
+    );
+    // Down.
+    create_array(0.02,
+                 middle_point,
+                 middle_point + vec3(0.0, -1.0 + (aabb.max.y - middle_point.y), 0.0),
+                 125,
+                 20,
+                 0 
+    );
     create_aabb_triangles_r(group,
-                    gl_WorkGroupID.x % 2 == 0 ? 50 : 200,
-                    gl_WorkGroupID.y % 2 == 0 ? 10 : 100,
-                    gl_WorkGroupID.z % 2 == 0 ? 50 : 200,
-                      0.1
-                      );
+                            gl_WorkGroupID.x % 2 == 0 ? 50 : 200,
+                            gl_WorkGroupID.y % 2 == 0 ? 10 : 100,
+                            gl_WorkGroupID.z % 2 == 0 ? 50 : 200,
+                            0.1
+    );
   }
 
   // create_char(1, num_of_points, local_offset + vec4(0.0, 0.0, 0.0, 0.0));
