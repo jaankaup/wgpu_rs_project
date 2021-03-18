@@ -673,6 +673,32 @@ void log_float(double f, uint max_decimals) {
     log_number(fract_part, true);
 }
 
+void log_uvec3(uvec3 v) {
+
+    uint local_index = local_id_to_x();
+
+    // Add left paren.
+    char_arrays[local_index].chars[update_counter()] = 11;
+
+    log_number(v.x, false);
+
+    // Add space x 2.
+    char_arrays[local_index].chars[update_counter()] = 16;
+    char_arrays[local_index].chars[update_counter()] = 16;
+
+    log_number(v.y, false);
+
+    // Add space x 2.
+    char_arrays[local_index].chars[update_counter()] = 16;
+    char_arrays[local_index].chars[update_counter()] = 16;
+
+    log_number(v.z, false);
+    
+    // Add right paren.
+    char_arrays[local_index].chars[update_counter()] = 12;
+
+}
+
 void log_vec3(vec3 v, uint max_decimals) {
     
     uint local_index = local_id_to_x();
@@ -870,6 +896,14 @@ void main() {
   uint local_index = local_id_to_x();
   uint work_index = gl_WorkGroupID.x;
 
+  if (!(gl_WorkGroupID == uvec3(0, 0, 0) ||
+        gl_WorkGroupID == uvec3(0, 1, 1) ||
+        gl_WorkGroupID == uvec3(1,1,1) || 
+        gl_WorkGroupID == uvec3(1,1,0) || 
+        gl_WorkGroupID == uvec3(1,1,2) || 
+        gl_WorkGroupID == uvec3(2,1,1) 
+        )) return;
+
   //if (!(gl_WorkGroupID == uvec3(0, 0, 0) ||
   //      gl_WorkGroupID == uvec3(1, 0, 0) ||
   //      gl_WorkGroupID == uvec3(0, 1, 0))) return;
@@ -899,7 +933,7 @@ void main() {
   log_vec3(this_coord, 7);
   add_end_of_line();
 
-  log_vec3(gl_WorkGroupID, 7);
+  log_uvec3(gl_WorkGroupID);
   add_end_of_line();
 
   vec4 local_offset = vec4(this_coord.x, this_coord.y, this_coord.z , 0.0);

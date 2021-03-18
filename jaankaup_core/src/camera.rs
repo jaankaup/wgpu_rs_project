@@ -7,7 +7,8 @@ pub use winit::event::VirtualKeyCode as Key;
 pub use winit::event::MouseButton as MouseButton;
 
 /// Opengl to wgpu matrix
-#[cfg_attr(rustfmt, surtfmt_skip)]
+//#[cfg_attr(rustfmt, surtfmt_skip)]
+#[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
         1.0, 0.0, 0.0, 0.0,
         0.0, 1.0, 0.0, 0.0,

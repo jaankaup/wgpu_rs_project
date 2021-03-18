@@ -124,7 +124,8 @@ impl Loop for BasicLoop {
                 &mut input,
                 &spawner);
 
-        *control_flow = ControlFlow::Poll;
+        //*control_flow = ControlFlow::Poll;
+        *control_flow = ControlFlow::Wait; // Why? Is this necessery?
 
         match event {
 

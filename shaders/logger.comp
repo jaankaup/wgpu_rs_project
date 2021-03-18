@@ -2,9 +2,9 @@
 
 #define MAX_NUM_CHARS 92
 
-#define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 1
-#define LOCAL_Z_DIM 1
+#define LOCAL_X_DIM 4
+#define LOCAL_Y_DIM 4
+#define LOCAL_Z_DIM 4
 
 struct OutputVertex {
     vec3 pos;
@@ -63,6 +63,25 @@ struct CharInformation {
 };
 
 shared CharInformation[64] char_arrays;
+
+// 0   => 0
+// 1   => 1
+// 2   => 2
+// 3   => 3
+// 4   => 4
+// 5   => 5
+// 6   => 6
+// 7   => 7
+// 8   => 8
+// 9   => 9
+// -   => 10
+// (   => 11 
+// )   => 12 
+// .   => 13 
+// inf => 14 
+// nan => 15 
+// space => 16
+// eol => 17
 
 const uvec3 local_dimension = uvec3(4,4,4);
 const uvec3 group_dimension = uvec3(4,4,4);
@@ -466,6 +485,7 @@ void create_aabb_triangles_r(AABB aabb, uint r, uint g, uint b, float t) {
     create_aabb_lines(front_left_ud, r, g, b); 
 }
 
+
 void bezier_4c(uint n, vec4 c0, vec4 c1, vec4 c2, vec4 c3, uint r, uint g, uint b) {
 
     if (n < 4) return;
@@ -493,6 +513,21 @@ void bezier_4c(uint n, vec4 c0, vec4 c1, vec4 c2, vec4 c3, uint r, uint g, uint 
 }
 
 void create_array(float array_width, vec3 base_pos, vec3 dest_pos, uint r, uint g, uint b) {
+
+    // const float dist_to_camera = distance(base_pos, camera_pos.xyz);
+    // uint average_points_per_char = max(4, uint(min(MAX_NUM_OF_POINTS*4, MAX_NUM_OF_POINTS*4 / pow(dist_to_camera, 2.0)))); 
+
+    // float dist = distance(base_pos, dest_pos);
+    // vec3 direction = normalize(dest_pos - base_pos);
+    // bezier_4c(average_points_per_char,
+    //           vec4(base_pos, 1.0),
+    //           vec4(base_pos + 0.3333 * direction, 1.0),
+    //           vec4(base_pos + 0.6666 * direction, 1.0),
+    //           vec4(dest_pos, 1.0),
+    //           r,
+    //           g,
+    //           b
+    // );
 
     vec3 array_direction = normalize(dest_pos - base_pos);
     vec3 camera_direction = normalize(camera_pos.xyz - base_pos);
@@ -538,12 +573,13 @@ void create_array(float array_width, vec3 base_pos, vec3 dest_pos, uint r, uint 
     aabb_lines[index+20] = OutputVertex(p6, encode_rgba_u32(r, g, b, 1)); 
 }
 
-// uint get_remainder(uint num, uint divisor) {
-//     return (num - divisor * (num / divisor));
-// }
+uint get_remainder(uint num, uint divisor) {
+    return (num - divisor * (num / divisor));
+}
 
 void log_number(uint n, bool ignore_first) {
-
+       // 4294967295 
+       // 1000000000
     uint local_index = local_id_to_x();
 
     bool found = false;
@@ -600,6 +636,7 @@ void create_char(uint char_index, uint num_points, vec4 offset, uint r, uint g, 
 void log_float(double f, uint max_decimals) {
 
     uint local_index = local_id_to_x();
+    //uint counter_now = counter;
 
     // The sign of given float.
     bool is_negative = f < 0.0;
@@ -607,6 +644,7 @@ void log_float(double f, uint max_decimals) {
     // Add minus.
     if (is_negative) {
         char_arrays[local_index].chars[update_counter()] = 10;
+        //char_arrays[local_index].counter++;
     }
 
     double f_positive = abs(f);
@@ -711,6 +749,7 @@ void initialize_char_array(vec3 position) {
     char_arrays[local_index].position = position;
 }
 
+
 uvec3 index1D_to_index3D() {
 	uint index = gl_GlobalInvocationID.x;
 	uint wh = dimensions.x * dimensions.y;
@@ -744,52 +783,92 @@ uvec3 index1D_to_index3D_group() {
 	return uvec3(x, y, z);	
 }
 
-// uvec3 index1D_to_index3D_custom() {
-// 	//uint index = local_id_to_x();
-//     uvec3 work_index = gl_WorkGroupID;
-// 
-//     // Get the work dimension.
-// 	// uint wh = group_dimension.x * group_dimension.y;
-// 	// uint z = work_index / wh;
-// 	// work_index -= z * wh;
-// 	// uint y = work_index / group_dimension.x;
-// 	// work_index -= y * group_dimension.x;
-// 	// uint x = work_index;
-// 
-//     //uvec3 base_coord = uvec3(x, y, z) * 4 + gl_LocalInvocationID;
-// 
-//     return work_index * 4 + gl_LocalInvocationID;
-// 
-//     // uint new_index = index;
-// 
-// 	// wh = local_dimension.x * local_dimension.y;
-// 	// z = new_index / wh;
-// 	// new_index -= z * wh;
-// 	// y = new_index / local_dimension.x;
-// 	// new_index -= y * local_dimension.x;
-// 	// x = new_index;
-//     // uvec3 local_index = uvec3(x, y, z) + base_coord;
-// 	// return local_index;
-// }
+uvec3 index1D_to_index3D_custom() {
+	//uint index = local_id_to_x();
+    uvec3 work_index = gl_WorkGroupID;
 
-// Get the GoupID from global coordinates. 
-// uvec3 get_group_index(uvec3 global_coord) {
-//       
-// }
+    // Get the work dimension.
+	// uint wh = group_dimension.x * group_dimension.y;
+	// uint z = work_index / wh;
+	// work_index -= z * wh;
+	// uint y = work_index / group_dimension.x;
+	// work_index -= y * group_dimension.x;
+	// uint x = work_index;
+
+    //uvec3 base_coord = uvec3(x, y, z) * 4 + gl_LocalInvocationID;
+
+    return work_index * 4 + gl_LocalInvocationID;
+
+    // uint new_index = index;
+
+	// wh = local_dimension.x * local_dimension.y;
+	// z = new_index / wh;
+	// new_index -= z * wh;
+	// y = new_index / local_dimension.x;
+	// new_index -= y * local_dimension.x;
+	// x = new_index;
+    // uvec3 local_index = uvec3(x, y, z) + base_coord;
+	// return local_index;
+}
+
+void bezier_3c(uint n, vec3 c0, vec3 c1, vec3 c2) {
+
+    uint index = atomicAdd(counter[0], n);
+
+    for (int i=0 ; i<n ; i++) {
+        const float t = float(i)  / (float(n)-1.0);
+        const float t2 = t * t;
+        const float mt = 1.0 - t;
+        const float mt2 = mt * mt;
+        const vec3 result = c0 * mt2 + c1 * 2.0 * mt*t + c2 * t2;
+
+        uvec3 coordinates = index1D_to_index3D();
+        output_points[index] = OutputVertex(
+            result,
+            encode_rgba_u32(
+                255 - coordinates.x * 4,
+                255 - coordinates.y * 4,
+                255 - coordinates.z * 4,
+                255));
+        index++;
+    }
+}
+
+
+void line(uint n, vec3 c0, vec3 c1) {
+
+    uint index = atomicAdd(counter[0], n);
+
+    for (int i=0 ; i<n ; i++) {
+
+        const float t = float(i)  / (float(n)-1.0);
+        const float dist = distance(c0, c1); 
+
+        vec3 norm = normalize(c1 - c0);
+
+        vec3 point = c0 + norm * (dist * t);
+
+        uvec3 coordinates = index1D_to_index3D();
+
+        output_points[index] = OutputVertex(
+            point,
+            encode_rgba_u32(
+                255 - coordinates.x * 4,
+                255 - coordinates.y * 4,
+                255 - coordinates.z * 4,
+                255));
+        index++;
+    }
+}
 
 void main() {
 
   uvec3 local_work_id = gl_LocalInvocationID + 4 * gl_WorkGroupID; // OK
-
-  // TODO: Add this to a function.
   uint global_index = gl_LocalInvocationID.x      + 64 * gl_WorkGroupID.x +
                       gl_LocalInvocationID.y * 4  + 64 * 4 * gl_WorkGroupID.y +
                       gl_LocalInvocationID.z * 16 + 64 * 4 * 4 * gl_WorkGroupID.z;
-
   uint local_index = local_id_to_x();
   uint work_index = gl_WorkGroupID.x;
-
-  if (gl_WorkGroupID == uvec3(0,0,0)) return;
 
   //if (!(gl_WorkGroupID == uvec3(0, 0, 0) ||
   //      gl_WorkGroupID == uvec3(1, 0, 0) ||
@@ -798,9 +877,10 @@ void main() {
   uvec3 this_coord_local = index1D_to_index3D_local(); 
   uvec3 this_coord_group = index1D_to_index3D_group(); 
 
-  uvec3 this_coord = gl_LocalInvocationID + gl_WorkGroupID * 4; 
+  //uvec3 this_coord_global = index1D_to_index3D(); 
 
-  // Initialize the char array.
+  uvec3 this_coord = gl_LocalInvocationID + gl_WorkGroupID * 4; //index1D_to_index3D_custom(); 
+
   initialize_char_array(vec3(this_coord.x + 0.25, this_coord.y + 0.5, this_coord.z + 0.5));
 
   // Log global index.
