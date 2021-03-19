@@ -1,3 +1,4 @@
+use jaankaup_core::wgpu;
 use jaankaup_core::render_pipelines::create_bind_group_layouts;
 
 pub struct AABB_pipeline {

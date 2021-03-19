@@ -1,3 +1,4 @@
+use jaankaup_core::wgpu;
 use rand::prelude::*;
 use cgmath::{prelude::*,Vector3,Vector4};
 use std::collections::HashMap;

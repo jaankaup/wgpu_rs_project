@@ -39,22 +39,22 @@ pub struct Histogram {
 impl Histogram {
 
     /// Create histogram with given capacity and default value.
-    pub fn init(device: &wgpu::Device, capacity: u32, initial_value: u32) -> Self {
+    pub fn init(device: &wgpu::Device, initial_values: &Vec<u32>) -> Self {
 
-        assert!(capacity > 0, format!("{} > 0", capacity));
+        assert!(initial_values.len() > 0, format!("{} > 0", initial_values.len()));
 
-        let data = vec!(initial_value ; capacity as usize);
-        println!("{:?}", data);
+        //let data = vec!(initial_value ; capacity as usize);
+        //println!("{:?}", initial_values);
 
         let histogram = buffer_from_data::<u32>(
             &device,
-            &data,
+            &initial_values,
             wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE,
             None);
 
         Self {
-            histogram,
-            data,
+            histogram: histogram,
+            data: initial_values.to_vec(),
         }
     }
 
@@ -91,6 +91,18 @@ impl Histogram {
     
     pub fn get_histogram(&self) -> &wgpu::Buffer {
         &self.histogram
+    }
+
+    pub fn set_values_cpu_version(&self, queue: &wgpu::Queue, value: &Vec<u32>)
+    {
+        // Make sure the updated values are the same size as old values.
+        assert!(value.len() == self.data.len(), format!("{} > {}", self.data.len(), value.len()));
+
+        queue.write_buffer(
+            &self.histogram,
+            0,
+            bytemuck::cast_slice(&value)
+        );
     }
 
     pub fn reset_cpu_version(&self, queue: &wgpu::Queue, value: u32) {

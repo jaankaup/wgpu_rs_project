@@ -1,3 +1,4 @@
+use jaankaup_core::wgpu;
 use jaankaup_core::render_pipelines::{
     draw,
     create_bind_groups,
@@ -104,6 +105,7 @@ impl Render_vvvvnnnn {
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: Some(wgpu::Face::Front),
                 polygon_mode: wgpu::PolygonMode::Fill,
+                //conservative: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
@@ -251,7 +253,8 @@ impl Render_vvvc {
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill //Point,
+                polygon_mode: wgpu::PolygonMode::Fill, //Point,
+                //conservative: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,

@@ -462,7 +462,6 @@ dependencies = [
  "pollster",
  "rand",
  "render_shaders",
- "wgpu",
  "winit",
 ]
 
@@ -536,9 +535,10 @@ checksum = "37ab347416e802de484e4d03c7316c48f1ecb56574dfd4a46a80f173ce1de04d"
 name = "fmm_project"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "jaankaup_core",
  "model_loader",
- "wgpu",
+ "render_shaders",
  "winit",
 ]
 
@@ -932,7 +932,6 @@ dependencies = [
  "log",
  "pollster",
  "wasm-bindgen-futures",
- "wgpu",
  "wgpu-subscriber",
  "winit",
 ]
@@ -1670,7 +1669,6 @@ name = "render_shaders"
 version = "0.1.0"
 dependencies = [
  "jaankaup_core",
- "wgpu",
 ]
 
 [[package]]

@@ -1,3 +1,4 @@
+use jaankaup_core::wgpu;
 use std::collections::HashMap;
 use jaankaup_core::wgpu_system as ws;
 use jaankaup_core::wgpu_system::{

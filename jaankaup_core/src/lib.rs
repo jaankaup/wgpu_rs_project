@@ -12,6 +12,7 @@ pub mod temp;
 pub mod render_pipelines; 
 pub mod noise3d; 
 pub mod compute; 
+pub use wgpu;
 
 #[cfg(test)]
 mod tests {

@@ -130,7 +130,8 @@ impl Loop for BasicLoop {
         match event {
 
             // Events except RedrawRequested are reported.
-            Event::MainEventsCleared => {
+            //Event::MainEventsCleared => {
+            Event::RedrawEventsCleared => {
                 // log::info!("MainEventsCleared....");
                 input.pre_update();
                 application.update(&device, &queue, &input);
