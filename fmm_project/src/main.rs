@@ -35,7 +35,8 @@ impl WGPUFeatures for FMM_Features {
 
 #[derive(Copy, Clone)]
 struct FMM_Block {
-    base_coord: [u32 ; 3],
+    //base_coord: [u32 ; 3],
+    index: u32,
     band_points_count: u32,
 }
 
@@ -225,9 +226,9 @@ impl Application for FMM_App {
         
         self.fmm_debug_pipeline.dispatch(&self.fmm_debug_bind_groups,
                     &mut encoder,
-                    4,
-                    4,
-                    4
+                    1,
+                    1,
+                    1
         ); 
 
         queue.submit(Some(encoder.finish()));
@@ -286,10 +287,12 @@ fn create_buffers(device: &wgpu::Device,
 
         let mut blocks: Vec<FMM_Block> = Vec::new();
 
+        let mut index_counter: u32 = 0;
         for k in 0..block_dimension[0] {
         for j in 0..block_dimension[1] {
         for i in 0..block_dimension[2] {
-            blocks.push(FMM_Block{ base_coord:[i, j, k], band_points_count: 0});  
+            blocks.push(FMM_Block{ index: index_counter, band_points_count: 3});  
+            index_counter = index_counter + 1;
         }}};
 
         //layout(set = 0, binding = 5) buffer FMM_Blocks {
