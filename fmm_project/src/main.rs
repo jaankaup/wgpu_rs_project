@@ -88,6 +88,7 @@ impl Application for FMM_App {
 
         // Initialize camera for fmm application.
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
+        camera.set_movement_sensitivity(0.01);
 
         // Create buffers for fmm alogrithm.
         create_buffers(&configuration.device,
@@ -239,7 +240,7 @@ impl Application for FMM_App {
                                    0 as wgpu::BufferAddress,
                                    8 as wgpu::BufferAddress);
 
-        println!("point_count == {}, triangle_point_count == {}", histogram[0], histogram[1]);
+        // println!("point_count == {}, triangle_point_count == {}", histogram[0], histogram[1]);
 
         self.debug_point_count = histogram[0];
         self.debug_triangle_draw_count = histogram[1];
@@ -287,15 +288,21 @@ fn create_buffers(device: &wgpu::Device,
 
         let mut blocks: Vec<FMM_Block> = Vec::new();
 
+        println!("CREATING BLOCKS");
         let mut index_counter: u32 = 0;
-        for k in 0..block_dimension[0] {
-        for j in 0..block_dimension[1] {
-        for i in 0..block_dimension[2] {
-            blocks.push(FMM_Block{ index: index_counter, band_points_count: 3});  
+        for k in 0..4 { //block_dimension[0] {
+        for j in 0..4 { //block_dimension[1] {
+        for i in 0..8 { //block_dimension[2] {
+            if k == 1 || (j == 1 || i == 0) { 
+                blocks.push(FMM_Block{ index: index_counter, band_points_count: 3});  
+                println!("{}", index_counter);
+            }
+            else {
+                blocks.push(FMM_Block{ index: index_counter, band_points_count: 0});  
+            }
             index_counter = index_counter + 1;
         }}};
 
-        //layout(set = 0, binding = 5) buffer FMM_Blocks {
         buffers.insert(
             "fmm_blocks".to_string(),
             buffer_from_data::<FMM_Block>(
