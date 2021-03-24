@@ -1,4 +1,5 @@
 use crate::misc::Convert2Vec;
+use std::num::NonZeroU32;
 
 /// All possible texture types. TODO: Are these necessery?
 pub enum TextureType {
@@ -144,7 +145,7 @@ impl Texture {
 
         log::info!("Writing texture.");
         queue.write_texture(
-            wgpu::TextureCopyView {
+            wgpu::ImageCopyTexture {
                 texture: &texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
@@ -154,10 +155,10 @@ impl Texture {
                 4 => &buffer,
                 _ => panic!("Bits size of {} is not supported", bits_per_pixel),
             },
-            wgpu::TextureDataLayout {
+            wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: width * 4, // now only 4 bits per pixel is supported,
-                rows_per_image: height,
+                bytes_per_row: Some(NonZeroU32::new(width * 4).unwrap()), // now only 4 bits per pixel is supported,
+                rows_per_image: Some(NonZeroU32::new(height).unwrap()),
             },
             texture_extent,
             //wgpu::Extent3d::default(), //texture_extent,
@@ -322,17 +323,17 @@ impl Texture {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         encoder.copy_texture_to_buffer(
-            wgpu::TextureCopyView {
+            wgpu::ImageCopyTexture {
                 texture: &self.texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
             },
-            wgpu::BufferCopyView {
+            wgpu::ImageCopyBuffer {
                 buffer: &staging_buffer,
-                layout: wgpu::TextureDataLayout {
+                layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: self.width * 4, 
-                    rows_per_image: self.depth,
+                    bytes_per_row: Some(NonZeroU32::new(self.width * 4).unwrap()), 
+                    rows_per_image: Some(NonZeroU32::new(self.depth).unwrap()),
                 },
             },
             wgpu::Extent3d {
@@ -668,16 +669,16 @@ impl Texture {
         });
 
         queue.write_texture(
-            wgpu::TextureCopyView {
+            wgpu::ImageCopyTexture {
                 texture: &texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
             },
             &buffer,
-            wgpu::TextureDataLayout {
+            wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: 5120,
-                rows_per_image: 1,
+                bytes_per_row: Some(NonZeroU32::new(5120).unwrap()),
+                rows_per_image: Some(NonZeroU32::new(1).unwrap()),
             },
             texture_extent,
         );

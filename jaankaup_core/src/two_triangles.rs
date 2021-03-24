@@ -87,8 +87,8 @@ impl TwoTriangles {
                 &wgpu::RenderPassDescriptor {
                     label: Some("two_triangles_rendes_pass_descriptor"),
                     color_attachments: &[
-                        wgpu::RenderPassColorAttachmentDescriptor {
-                                attachment: &frame.view,
+                        wgpu::RenderPassColorAttachment {
+                                view: &frame.view,
                                 resolve_target: None,
                                 ops: wgpu::Operations {
                                     load: match clear {
@@ -108,8 +108,8 @@ impl TwoTriangles {
                                 },
                         }
                     ],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachmentDescriptor {
-                    attachment: &depth_texture.view,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &depth_texture.view,
                     depth_ops: Some(wgpu::Operations {
                             load: match clear { true => wgpu::LoadOp::Clear(1.0), false => wgpu::LoadOp::Load },
                             store: true,
@@ -182,7 +182,7 @@ impl TwoTriangles {
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: Some(wgpu::Face::Back),
                 polygon_mode: wgpu::PolygonMode::Fill,
-                //conservative: false,
+                conservative: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,

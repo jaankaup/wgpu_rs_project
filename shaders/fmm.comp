@@ -1172,6 +1172,7 @@ void local_prefix_sum(uint chunck_id, uint number_of_items, uint global_index) {
     add_end_of_line();
     log_number(even.band_points_count, false);
     add_end_of_line();
+    add_end_of_line();
     log_number(odd.index, false);
     add_end_of_line();
     log_number(odd.band_points_count, false);
