@@ -88,7 +88,7 @@ impl Application for FMM_App {
 
         // Initialize camera for fmm application.
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
-        camera.set_movement_sensitivity(0.01);
+        camera.set_movement_sensitivity(0.002);
 
         // Create buffers for fmm alogrithm.
         create_buffers(&configuration.device,
@@ -286,19 +286,25 @@ fn create_buffers(device: &wgpu::Device,
             None)
         );
 
-        let mut blocks: Vec<FMM_Block> = Vec::new();
+        let active_block_ids: Vec<u32> = vec![0, 2, 124, 128, 168];;
 
         println!("CREATING BLOCKS");
+
+        let mut test_blocks: Vec<FMM_Block> = Vec::new();
+
         let mut index_counter: u32 = 0;
-        for k in 0..4 { //block_dimension[0] {
-        for j in 0..4 { //block_dimension[1] {
+        for k in 0..8 { //block_dimension[0] {
+        for j in 0..8 { //block_dimension[1] {
         for i in 0..8 { //block_dimension[2] {
-            if k == 1 || (j == 1 || i == 0) { 
-                blocks.push(FMM_Block{ index: index_counter, band_points_count: 3});  
-                println!("{}", index_counter);
-            }
-            else {
-                blocks.push(FMM_Block{ index: index_counter, band_points_count: 0});  
+            if index_counter < 185 {
+                //if k == 1 || (j == 1 || i == 0) { 
+                if active_block_ids.contains(&index_counter) {
+                    test_blocks.push(FMM_Block{ index: index_counter, band_points_count: 3});  
+                    println!("{}", index_counter);
+                }
+                else {
+                    test_blocks.push(FMM_Block{ index: index_counter, band_points_count: 0});  
+                }
             }
             index_counter = index_counter + 1;
         }}};
@@ -307,7 +313,7 @@ fn create_buffers(device: &wgpu::Device,
             "fmm_blocks".to_string(),
             buffer_from_data::<FMM_Block>(
             &device,
-            &blocks,
+            &test_blocks,
             wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
             None)
         );
