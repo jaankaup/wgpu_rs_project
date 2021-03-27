@@ -276,6 +276,29 @@ fn create_buffers(device: &wgpu::Device,
         let number_of_blocks = block_dimension[0] * block_dimension[1] * block_dimension[2]; 
         let number_of_nodes = number_of_blocks * local_dimension[0] * local_dimension[1] * local_dimension[2]; 
 
+        // for i in 0..512 {
+        //     println!("{} >> 16 + {} >> 8 == {}", i, i, (i >> 16) + (i >> 8));
+        // }
+
+        //let offset: u32 = 1;
+        //for i in 0..64 {
+        //    let mut ai: u32 = offset*(2*i+1)-1;
+        //    let mut bi: u32 = offset*(2*i+2)-1;
+        //    ai += ai / 16;
+        //    bi += bi / 16;
+        //    println!("offset == {}. thid == {}. ai == {}. bi == {}", offset, i, ai, bi);
+        //}
+        //
+        
+        // for i in 0..64 {
+        //     let mut ai: u32 = i;
+        //     let mut bi: u32 = i + 64;
+        //     let mut bankOffsetA: u32 = (ai + (ai >> 4));
+        //     let mut bankOffsetB: u32 = (bi + (bi >> 4));
+        //     println!("{} :: bankOffsetA == {}", ai, bankOffsetA);
+        //     println!("{} :: bankOffsetB == {}", bi, bankOffsetB);
+        // }
+
         // layout(set = 0, binding = 4) buffer FMM_Nodes {
         buffers.insert(
             "fmm_nodes".to_string(),
@@ -286,7 +309,7 @@ fn create_buffers(device: &wgpu::Device,
             None)
         );
 
-        let active_block_ids: Vec<u32> = vec![0, 2, 124, 128, 168];;
+        let active_block_ids: Vec<u32> = vec![0, 2, 124, 127, 128, 168];;
 
         println!("CREATING BLOCKS");
 
