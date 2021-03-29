@@ -88,7 +88,7 @@ impl Application for FMM_App {
 
         // Initialize camera for fmm application.
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
-        camera.set_movement_sensitivity(0.004);
+        camera.set_movement_sensitivity(0.002);
 
         // Create buffers for fmm alogrithm.
         create_buffers(&configuration.device,
@@ -309,7 +309,7 @@ fn create_buffers(device: &wgpu::Device,
             None)
         );
 
-        let active_block_ids: Vec<u32> = vec![0, 2, 124, 127, 128, 168];;
+        let active_block_ids: Vec<u32> = vec![0, 2, 124, 127, 128, 168, 300];;
 
         println!("CREATING BLOCKS");
 
@@ -319,7 +319,7 @@ fn create_buffers(device: &wgpu::Device,
         for k in 0..8 { //block_dimension[0] {
         for j in 0..8 { //block_dimension[1] {
         for i in 0..8 { //block_dimension[2] {
-            if index_counter < 185 {
+            if index_counter < 8*8*8 {
                 //if k == 1 || (j == 1 || i == 0) { 
                 if active_block_ids.contains(&index_counter) {
                     test_blocks.push(FMM_Block{ index: index_counter, band_points_count: 3});  
