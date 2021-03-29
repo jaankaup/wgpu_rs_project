@@ -13,7 +13,7 @@
 #define SCAN_BLOCK_COUNT 32 // Maximum 
 #define NUM_BANKS 16
 
-#define DEBUG_OFFSET 0.1
+#define DEBUG_OFFSET 0.05
 // Fast marching method cell node.
 // 1 => Far.
 // 2 => Band.
@@ -74,6 +74,9 @@ const float FONT_SIZE = 0.02;
 const float FONT_OFFSET_Y = 1.2;
 const uint MAX_NUM_OF_POINTS = 700;
 
+//// Super clever hack to avoid if :).
+const uint blah[2] = {0, 0xffffffff};
+
 uint local_id_to_x() { return gl_LocalInvocationID.x + LOCAL_X_DIM * gl_LocalInvocationID.y + LOCAL_X_DIM * LOCAL_Z_DIM * gl_LocalInvocationID.z; }
 
 const uint[10] joo = {1,
@@ -106,6 +109,8 @@ shared uint[SCAN_BLOCK_SIZE * SCAN_BLOCK_COUNT] shared_prefix_sum;
 
 //// The counter of output array size.
 shared uint stream_compation_count;
+
+shared FMM_Block[512] shared_stream_compaction;
 
 // Debugging.
 shared CharInformation[64] char_arrays;
@@ -1175,6 +1180,7 @@ void create_boolean_array_fmm_blocks(uint chunck_id, uint number_of_items) {
     // 1 :: band cells > 0.
 
     // This can overflow, but who cares :). We are only reading.
+    // TODO: should we do something more secure.
     FMM_Block a = fmm_block[global_ai];
     FMM_Block b = fmm_block[global_bi];
 
@@ -1234,34 +1240,30 @@ void solve_active_fmm_blocks() {
     const uint global_ai_conflict_free = ai_conflict_free + j * SCAN_BLOCK_SIZE;
     const uint global_bi_conflict_free = bi_conflict_free + j * SCAN_BLOCK_SIZE;
 
-    // const vec3 this_coord = vec3(global_ai_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
-    // const vec3 this_coord2 = vec3(global_bi_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
+    const vec3 this_coord = vec3(global_ai_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
+    const vec3 this_coord2 = vec3(global_bi_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
 
-    // initialize_char_array(this_coord);
+    initialize_char_array(this_coord);
 
     // log_number(global_ai_conflict_free, false);
     // add_end_of_line();
-    // log_number(shared_prefix_sum[global_ai_conflict_free], false);
-    // add_end_of_line();
-    // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+    log_number(shared_prefix_sum[global_ai_conflict_free], false);
+    add_end_of_line();
+    push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
 
-    // initialize_char_array(this_coord2);
+    initialize_char_array(this_coord2);
 
     // log_number(global_bi_conflict_free, false);
     // add_end_of_line();
-    // log_number(shared_prefix_sum[global_bi_conflict_free], false);
-    // add_end_of_line();
-    // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+    log_number(shared_prefix_sum[global_bi_conflict_free], false);
+    add_end_of_line();
+    push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
 
     // Up sweep.
-
-    vec3 z_dir = vec3(0.0, 0.0, DEBUG_OFFSET * (-0.2));
-    int debug_counter = 1;
 
     const int n = THREAD_COUNT*2;
     int offset = 1;
     for (int d = n>>1 ; d > 0; d >>= 1) {
-      debug_counter++;
       barrier();
       if (local_id_x < d) {
 
@@ -1274,58 +1276,15 @@ void solve_active_fmm_blocks() {
           ai_temp += j * SCAN_BLOCK_SIZE;
           bi_temp += j * SCAN_BLOCK_SIZE;
 
-          // LOG the up sweep phase.
-          const vec3 coord = vec3(float(ai_temp)*DEBUG_OFFSET, 0.0, 0.0);
-          const vec3 coord2 = vec3(float(bi_temp)*DEBUG_OFFSET, 0.0, 0.0);
-
-          initialize_char_array(coord + vec3(0.0, DEBUG_OFFSET, 0.0) * debug_counter);
-          log_number(ai_temp, false);
-          add_end_of_line();
-          log_number(shared_prefix_sum[ai_temp], false);
-          add_end_of_line();
-          push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-
-          initialize_char_array(coord2 + vec3(0.0, DEBUG_OFFSET, 0.0) * debug_counter);
-          log_number(bi_temp, false);
-          add_end_of_line();
-          log_number(shared_prefix_sum[bi_temp], false);
-          add_end_of_line();
-          push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-
           shared_prefix_sum[bi_temp] += shared_prefix_sum[ai_temp];
-          
-          if (d > 1 ) {
-          create_array(
-            0.006,
-            vec3(ai_temp * DEBUG_OFFSET, 0.0, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-            vec3(bi_temp * DEBUG_OFFSET, 0.0, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 1) + z_dir,
-            125,
-            20,
-            0
-          );
-          create_array(
-            0.006,
-            vec3(bi_temp * DEBUG_OFFSET, 0.0, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-            vec3(bi_temp * DEBUG_OFFSET, 0.0, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 1) + z_dir,
-            125,
-            120,
-            0
-          );
-          }
-
       }
       offset *= 2;
     }
-    debug_counter++;
     barrier();
       
     // Add the value to shared_aux array. Clear the last item. 
-    //uint last_index = 127 + 127/NUM_BANKS;
     if (local_id_x == 0) {
 
-        // Local last_index.
-        // uint local_last_index = n-1 + ((n-1) >> 4);
-    
         // Global last index.
         uint last_index = n-1 + ((n-1) >> 4) + j*SCAN_BLOCK_SIZE;
 
@@ -1333,313 +1292,88 @@ void solve_active_fmm_blocks() {
         shared_aux[j + (j>>4)] = shared_prefix_sum[last_index];
 
         shared_prefix_sum[last_index] = 0;
-
-        const vec3 coord = vec3(last_index*DEBUG_OFFSET, 0.0, 0.0);
-
-        initialize_char_array(coord + vec3(0.0, DEBUG_OFFSET, 0.0) * debug_counter);
-        log_number(last_index, false);
-        add_end_of_line();
-        log_number(shared_prefix_sum[last_index], false);
-        add_end_of_line();
-        push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
     }
     
     // Down sweep.
     for (int d = 1; d < n ; d *=2) {
       offset >>= 1;
-      debug_counter++;
       barrier();
       if (local_id_x < d) {
-          int ai_temp = offset*(int(local_id_x*2)+1)-1; // 0, 2, 4, 6
-          int bi_temp = offset*(int(local_id_x*2)+2)-1; // 1, 3, 5, 7
+          int ai_temp = offset*(int(local_id_x*2)+1)-1;
+          int bi_temp = offset*(int(local_id_x*2)+2)-1;
           ai_temp += (ai_temp >> 4);
           bi_temp += (bi_temp >> 4);
           ai_temp += j * SCAN_BLOCK_SIZE;
           bi_temp += j * SCAN_BLOCK_SIZE;
           uint t = shared_prefix_sum[ai_temp];
 
-          // LOG the down sweep phase.
-          const vec3 coord = vec3(float(ai_temp)*DEBUG_OFFSET, 0.0, 0.0);
-          const vec3 coord2 = vec3(float(bi_temp)*DEBUG_OFFSET, 0.0, 0.0);
-
-          initialize_char_array(coord + vec3(0.0, DEBUG_OFFSET, 0.0) * debug_counter);
-          log_number(ai_temp, false);
-          add_end_of_line();
-          log_number(shared_prefix_sum[ai_temp], false);
-          add_end_of_line();
-          push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-
-          initialize_char_array(coord2 + vec3(0.0, DEBUG_OFFSET, 0.0) * debug_counter);
-          log_number(bi_temp, false);
-          add_end_of_line();
-          log_number(shared_prefix_sum[bi_temp], false);
-          add_end_of_line();
-          push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-
           shared_prefix_sum[ai_temp] = shared_prefix_sum[bi_temp];
           shared_prefix_sum[bi_temp] += t;
-
-          create_array(
-            0.006,
-            vec3(bi_temp * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-            vec3(ai_temp * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-            255,
-            20,
-            0
-          );
-          create_array(
-            0.006,
-            vec3(ai_temp * DEBUG_OFFSET, -0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-            vec3(bi_temp * DEBUG_OFFSET, -0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-            125,
-            120,
-            0
-          );
       }
     }
     //barrier();
   }
 
-  //barrier();
-
-  // for (int j=0 ; j < number_of_scan_blocks ; j++) {
-  //   barrier();
-  //   const vec3 this_coord  = vec3((ai_conflict_free + j*SCAN_BLOCK_SIZE) * DEBUG_OFFSET, 0.0, 0.0);
-  //   const vec3 this_coord2 = vec3((bi_conflict_free + j*SCAN_BLOCK_SIZE) * DEBUG_OFFSET, 0.0, 0.0);
-
-  //   initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * 17, 0.0));
-  //   log_number(ai_conflict_free + j*SCAN_BLOCK_SIZE, false);
-  //   //log_number((128-1 + (128-1)/NUM_BANKS) + j*SCAN_BLOCK_SIZE, false);
-  //   //log_number(6666, false);
-  //   add_end_of_line();
-  //   log_number(shared_prefix_sum[ai_conflict_free + j*SCAN_BLOCK_SIZE], false);
-  //   add_end_of_line();
-  //   push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-
-  //   initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * 17, 0.0));
-
-  //   log_number(bi_conflict_free + j*SCAN_BLOCK_SIZE, false);
-  //   add_end_of_line();
-  //   log_number(shared_prefix_sum[bi_conflict_free + j*SCAN_BLOCK_SIZE], false);
-  //   add_end_of_line();
-  //   push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-  // }
-
   // AUXILIAR
-  // Super clever hack to avoid if :).
-  const uint blah[2] = {0, 0xffffffff};
+
+  //// Super clever hack to avoid if :).
+  //const uint blah[2] = {0, 0xffffffff};
 
   // Create auxiliar prefix sum. TODO!!! Check boundaries when index is 128.
-  // Check local_id_x+1. Should it be even!!!
 
-  // Only zeroes!!!.
+  // Keep the original value if the id is in range. Add 0 otherwise.
   uint last_index = (THREAD_COUNT * 2 - 1) + ((THREAD_COUNT * 2 - 1) >> 4);
   uint last_index_ai = last_index + local_id_x * SCAN_BLOCK_SIZE; // (local_id_x + 1) * last_index; 
   uint last_index_bi = last_index + (local_id_x + THREAD_COUNT) * SCAN_BLOCK_SIZE; // (local_id_x + 1) * last_index; 
 
-  // shared_aux[ai_conflict_free] = blah[(uint(local_id_x < number_of_scan_blocks))] & shared_prefix_sum[last_index_ai];
-  // shared_aux[bi_conflict_free] = blah[(uint(local_id_x + THREAD_COUNT < number_of_scan_blocks))] & shared_prefix_sum[last_index_bi];
   shared_aux[ai_conflict_free] = blah[(uint(local_id_x < number_of_scan_blocks))] & shared_aux[ai_conflict_free];
   shared_aux[bi_conflict_free] = blah[(uint(local_id_x + THREAD_COUNT < number_of_scan_blocks))] & shared_aux[ai_conflict_free];
 
-  // const vec3 this_coord  = vec3(ai_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
-  // const vec3 this_coord2 = vec3(bi_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
-
-  // initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * 23, 0.0));
-
-  // log_number(ai_conflict_free, false);
-  // add_end_of_line();
-  // log_number(shared_aux[ai_conflict_free], false);
-  // add_end_of_line();
-  // push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
-
-  // initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * 23, 0.0));
-
-  // log_number(bi_conflict_free, false);
-  // add_end_of_line();
-  // log_number(shared_aux[bi_conflict_free], false);
-  // add_end_of_line();
-  // push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
-
-  vec3 z_dir = vec3(0.0, 0.0, DEBUG_OFFSET * (-0.1));
-
-  float y_offset = float(64.0 - local_id_x) / 64.0; 
-  if (local_id_x < number_of_scan_blocks) {
-    create_array(
-      0.006,
-      vec3(ai_conflict_free * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * 24.0 + z_dir*y_offset,
-      vec3(ai_conflict_free * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (24.0 - (local_id_x + 1) * 0.8) + z_dir*y_offset,
-      255,
-      20,
-      0
-    );
-    create_array(
-      0.006,
-      vec3(ai_conflict_free * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (24.0 - (local_id_x + 1) * 0.8) + z_dir*y_offset,
-      vec3(last_index_ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (24.0 - (local_id_x + 1) * 0.8) + z_dir*y_offset,
-      255,
-      20,
-      0
-    );
-    create_array(
-      0.006,
-      vec3(last_index_ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (24.0 - (local_id_x + 1) * 0.8) + z_dir*y_offset,
-      vec3(last_index_ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * 17.0 + z_dir*y_offset,
-      255,
-      20,
-      0
-    );
-  }
-
   // Aux up sweep
   const int n = THREAD_COUNT*2;
-  uint debug_counter = 23;
   int offset = 1;
   for (int d = n>>1 ; d > 0; d >>= 1) {
-    debug_counter++;
     barrier();
     if (local_id_x < d) {
-        int ai = offset*(int(local_id_x*2)+1)-1; // 0, 2, 4, 6
-        int bi = offset*(int(local_id_x*2)+2)-1; // 1, 3, 5, 7
+        int ai = offset*(int(local_id_x*2)+1)-1;
+        int bi = offset*(int(local_id_x*2)+2)-1;
         ai += (ai >> 4);
         bi += (bi >> 4);
 
-        // LOG the up sweep phase.
-        const vec3 coord = vec3(float(ai)*DEBUG_OFFSET, 0.0, 0.0);
-        const vec3 coord2 = vec3(float(bi)*DEBUG_OFFSET, 0.0, 0.0);
-
-        initialize_char_array(coord + vec3(0.0, DEBUG_OFFSET, 0.0) * debug_counter);
-        log_number(ai, false);
-        add_end_of_line();
-        log_number(shared_aux[ai], false);
-        add_end_of_line();
-        push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
-
-        initialize_char_array(coord2 + vec3(0.0, DEBUG_OFFSET, 0.0) * debug_counter);
-        log_number(bi, false);
-        add_end_of_line();
-        log_number(shared_aux[bi], false);
-        add_end_of_line();
-        push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
-
         shared_aux[bi] += shared_aux[ai];
-          
-        if (d > 1 ) {
-            create_array(
-              0.006,
-              vec3(ai * DEBUG_OFFSET, 0.0, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-              vec3(bi * DEBUG_OFFSET, 0.0, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 1) + z_dir,
-              125,
-              20,
-              0
-            );
-            create_array(
-              0.006,
-              vec3(bi * DEBUG_OFFSET, 0.0, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-              vec3(bi * DEBUG_OFFSET, 0.0, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 1) + z_dir,
-              125,
-              120,
-              0
-            );
-        }
     }
     offset *= 2;
   }
-  debug_counter++;
 
   // Clear the last item.
   if (local_id_x == 0) {
 
     uint last_index = (THREAD_COUNT * 2 - 1) + ((THREAD_COUNT * 2 - 1) >> 4);
+
+    // Copy the compaction count. 
+    stream_compation_count = shared_aux[last_index];
     shared_aux[last_index] = 0;
-
-    const vec3 coord = vec3(last_index*DEBUG_OFFSET, 0.0, 0.0);
-
-    initialize_char_array(coord + vec3(0.0, DEBUG_OFFSET, 0.0) * debug_counter);
-    log_number(last_index, false);
-    add_end_of_line();
-    log_number(shared_prefix_sum[last_index], false);
-    add_end_of_line();
-    push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
   }
 
   // Down sweep.
   for (int d = 1; d < n ; d *=2) {
     offset >>= 1;
-    debug_counter++;
     barrier();
     if (local_id_x < d) {
-        int ai = offset*(int(local_id_x*2)+1)-1; // 0, 2, 4, 6
-        int bi = offset*(int(local_id_x*2)+2)-1; // 1, 3, 5, 7
+        int ai = offset*(int(local_id_x*2)+1)-1;
+        int bi = offset*(int(local_id_x*2)+2)-1;
         ai += (ai >> 4);
         bi += (bi >> 4);
         uint t = shared_aux[ai];
 
-        // LOG the down sweep phase.
-        const vec3 coord = vec3(float(ai)*DEBUG_OFFSET, 0.0, 0.0);
-        const vec3 coord2 = vec3(float(bi)*DEBUG_OFFSET, 0.0, 0.0);
-
-        initialize_char_array(coord + vec3(0.0, DEBUG_OFFSET, 0.0) * debug_counter);
-        log_number(ai, false);
-        add_end_of_line();
-        log_number(shared_aux[ai], false);
-        add_end_of_line();
-        push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
-
-        initialize_char_array(coord2 + vec3(0.0, DEBUG_OFFSET, 0.0) * debug_counter);
-        log_number(bi, false);
-        add_end_of_line();
-        log_number(shared_aux[bi], false);
-        add_end_of_line();
-        push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
-
         shared_aux[ai] = shared_aux[bi];
         shared_aux[bi] += t;
-
-         create_array(
-           0.006,
-           vec3(bi * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-           vec3(ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-           255,
-           20,
-           0
-         );
-         create_array(
-           0.006,
-           vec3(ai * DEBUG_OFFSET, -0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-           vec3(bi * DEBUG_OFFSET, -0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-           125,
-           120,
-           0
-         );
     }
-
   }
 
-  debug_counter++;
-
   barrier();
-  const vec3 this_coord_aux_final  = vec3(ai_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
-  const vec3 this_coord_aux_final2 = vec3(bi_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
-
-  initialize_char_array(this_coord_aux_final + vec3(0.0, DEBUG_OFFSET * debug_counter, 0.0));
-
-  log_number(ai_conflict_free, false);
-  add_end_of_line();
-  log_number(shared_aux[ai_conflict_free], false);
-  add_end_of_line();
-  push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
-
-  initialize_char_array(this_coord_aux_final2 + vec3(0.0, DEBUG_OFFSET * debug_counter, 0.0));
-
-  log_number(bi_conflict_free, false);
-  add_end_of_line();
-  log_number(shared_aux[bi_conflict_free], false);
-  add_end_of_line();
-  push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
 
   // SUM
-
   for (int j=1 ; j < number_of_scan_blocks ; j++) {
     barrier();
     uint conflict_free_index = j + (j >> 4); 
@@ -1649,66 +1383,96 @@ void solve_active_fmm_blocks() {
     shared_prefix_sum[ai] += value_to_add;
     shared_prefix_sum[bi] += value_to_add;
 
-    create_array(
-      0.003,
-      vec3(conflict_free_index * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-      vec3(conflict_free_index * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 2) + z_dir,
-      100,
-      120,
-      50 
-    );
-
-    create_array(
-      0.006,
-      vec3(conflict_free_index * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 2) + z_dir,
-      vec3(ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 2) + z_dir,
-      100,
-      120,
-      50
-    );
-    create_array(
-      0.003,
-      vec3(ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 2) + z_dir,
-      vec3(ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 4) + z_dir,
-      100,
-      120,
-      50
-    );
-    create_array(
-      0.006,
-      vec3(conflict_free_index * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 2) + z_dir,
-      vec3(bi * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 2) + z_dir,
-      100,
-      120,
-      50
-    );
-    create_array(
-      0.003,
-      vec3(bi * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 2) + z_dir,
-      vec3(bi * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter + 4) + z_dir,
-      100,
-      120,
-      50
-    );
   }
   
   barrier();
-  debug_counter += 4;
+
+  // STREAM COMPACTION.
+
+  uint max_items_conflict_free = 
+      number_of_scan_blocks * (THREAD_COUNT * 2 - 1) + ((number_of_scan_blocks * (THREAD_COUNT * 2 - 1)) >> 4);
+
+  for (int j=0 ; j < number_of_scan_blocks ; j++) {
+
+    uint ai = local_id_x + j * THREAD_COUNT * 2;
+    uint bi = (local_id_x + THREAD_COUNT) + j * THREAD_COUNT * 2;
+
+    uint ai_conflict_free = ai + (ai >> 4);
+    uint bi_conflict_free = bi + (bi >> 4);
+
+
+    FMM_Block a = fmm_block[ai];
+    FMM_Block b = fmm_block[bi];
+
+    // const FMM_Block[2] a_block = {FMM_Block(0, 0), a}; 
+    // const FMM_Block[2] b_block = {FMM_Block(0, 0), b}; 
+
+    bool add_a = (ai_conflict_free < max_items_conflict_free) && (a.band_points_count > 0);
+    bool add_b = (bi_conflict_free < max_items_conflict_free) && (b.band_points_count > 0);
+
+    if (add_a) {
+        uint index_to_add = shared_prefix_sum[ai_conflict_free];
+        shared_stream_compaction[index_to_add] = a;
+    }
+    if (add_b) {
+        uint index_to_add = shared_prefix_sum[bi_conflict_free];
+        shared_stream_compaction[index_to_add] = b;
+    }
+  }
+  barrier();
+
+  for (int j=0 ; j < number_of_scan_blocks ; j++) {
+    uint ai = local_id_x + j * THREAD_COUNT * 2;
+    uint bi = (local_id_x + THREAD_COUNT) + j * THREAD_COUNT * 2;
+
+    if (ai < stream_compation_count) {
+
+        const vec3 this_coord = vec3(ai * (DEBUG_OFFSET + 0.05), 0.0, 0.0) - 3 * vec3(0.0, DEBUG_OFFSET, 0.0) ;
+
+        initialize_char_array(this_coord);
+
+        log_number(shared_stream_compaction[ai].index, false);
+        //log_number(ai, false);
+        add_end_of_line();
+        log_number(shared_stream_compaction[ai].band_points_count, false);
+        //log_number(number_of_scan_blocks, false);
+        add_end_of_line();
+        push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+
+    }
+
+    if (bi < stream_compation_count) {
+
+        const vec3 this_coord2 = vec3(bi * (DEBUG_OFFSET + 0.05), 0.0, 0.0) - 3 * vec3(0.0, DEBUG_OFFSET, 0.0) ;
+
+        initialize_char_array(this_coord2);
+
+        log_number(shared_stream_compaction[bi].index, false);
+        //log_number(bi, false);
+        add_end_of_line();
+        log_number(shared_stream_compaction[bi].band_points_count, false);
+        //log_number(number_of_scan_blocks, false);
+        add_end_of_line();
+        push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+    }
+  }
+
+  // LOG the final result.
   for (int j=0 ; j < number_of_scan_blocks ; j++) {
     const vec3 this_coord  = vec3((ai_conflict_free + j*SCAN_BLOCK_SIZE) * DEBUG_OFFSET, 0.0, 0.0);
     const vec3 this_coord2 = vec3((bi_conflict_free + j*SCAN_BLOCK_SIZE) * DEBUG_OFFSET, 0.0, 0.0);
 
-    initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * debug_counter, 0.0));
-    log_number(ai_conflict_free + j*SCAN_BLOCK_SIZE, false);
-    add_end_of_line();
+    initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * 2, 0.0));
+    //log_number(ai_conflict_free + j*SCAN_BLOCK_SIZE, false);
+    //add_end_of_line();
     log_number(shared_prefix_sum[ai_conflict_free + j*SCAN_BLOCK_SIZE], false);
     add_end_of_line();
     push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
 
-    initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * debug_counter, 0.0));
+    initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * 2, 0.0));
 
-    log_number(bi_conflict_free + j*SCAN_BLOCK_SIZE, false);
-    add_end_of_line();
+    //log_number(bi_conflict_free + j*SCAN_BLOCK_SIZE, false);
+    //add_end_of_line();
     log_number(shared_prefix_sum[bi_conflict_free + j*SCAN_BLOCK_SIZE], false);
     add_end_of_line();
     push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
