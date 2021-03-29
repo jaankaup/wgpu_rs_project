@@ -369,7 +369,6 @@ void create_aabb_triangles(AABB aabb, uint r, uint b, uint g) {
     OutputVertex p5_out = OutputVertex( p5, encode_rgba_u32(r, g, b, 0));
     OutputVertex p6_out = OutputVertex( p6, encode_rgba_u32(r, g, b, 0));
     OutputVertex p7_out = OutputVertex( p7, encode_rgba_u32(r, g, b, 0));
-
 }
 
 
@@ -1181,8 +1180,6 @@ void create_boolean_array_fmm_blocks(uint chunck_id, uint number_of_items) {
 
     shared_prefix_sum[global_ai_conflict_free] = uint((ai < number_of_items) && (a.band_points_count > 0));
     shared_prefix_sum[global_bi_conflict_free] = uint((bi < number_of_items) && (b.band_points_count > 0));
-    //shared_prefix_sum[global_ai_conflict_free] = global_ai_conflict_free;
-    //shared_prefix_sum[global_bi_conflict_free] = global_bi_conflict_free;
 }
 
 void solve_active_fmm_blocks() {
@@ -1234,17 +1231,11 @@ void solve_active_fmm_blocks() {
 
   for (int j=0 ; j < number_of_scan_blocks ; j++) {
 
-    //const uint global_ai = ai + chunck_id * SCAN_BLOCK_SIZE;
-    //const uint global_bi = bi + chunck_id * SCAN_BLOCK_SIZE;
-
     const uint global_ai_conflict_free = ai_conflict_free + j * SCAN_BLOCK_SIZE;
     const uint global_bi_conflict_free = bi_conflict_free + j * SCAN_BLOCK_SIZE;
 
-    //const int global_id_x_even = int(local_id_x + j * SCAN_BLOCK_SIZE);
-    //const int global_id_x_b  = int(local_id_x_b + j * SCAN_BLOCK_SIZE);
-
-    const vec3 this_coord = vec3(global_ai_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
-    const vec3 this_coord2 = vec3(global_bi_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
+    // const vec3 this_coord = vec3(global_ai_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
+    // const vec3 this_coord2 = vec3(global_bi_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
 
     // initialize_char_array(this_coord);
 
@@ -1328,11 +1319,18 @@ void solve_active_fmm_blocks() {
     debug_counter++;
     barrier();
       
-    // Clear the last item.
+    // Add the value to shared_aux array. Clear the last item. 
     //uint last_index = 127 + 127/NUM_BANKS;
     if (local_id_x == 0) {
+
+        // Local last_index.
+        // uint local_last_index = n-1 + ((n-1) >> 4);
     
+        // Global last index.
         uint last_index = n-1 + ((n-1) >> 4) + j*SCAN_BLOCK_SIZE;
+
+        // Copy the last prefix sum to the shared_aux. 
+        shared_aux[j + (j>>4)] = shared_prefix_sum[last_index];
 
         shared_prefix_sum[last_index] = 0;
 
@@ -1404,28 +1402,28 @@ void solve_active_fmm_blocks() {
 
   //barrier();
 
-  for (int j=0 ; j < number_of_scan_blocks ; j++) {
-    barrier();
-    const vec3 this_coord  = vec3((ai_conflict_free + j*SCAN_BLOCK_SIZE) * DEBUG_OFFSET, 0.0, 0.0);
-    const vec3 this_coord2 = vec3((bi_conflict_free + j*SCAN_BLOCK_SIZE) * DEBUG_OFFSET, 0.0, 0.0);
+  // for (int j=0 ; j < number_of_scan_blocks ; j++) {
+  //   barrier();
+  //   const vec3 this_coord  = vec3((ai_conflict_free + j*SCAN_BLOCK_SIZE) * DEBUG_OFFSET, 0.0, 0.0);
+  //   const vec3 this_coord2 = vec3((bi_conflict_free + j*SCAN_BLOCK_SIZE) * DEBUG_OFFSET, 0.0, 0.0);
 
-    initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * 17, 0.0));
-    log_number(ai_conflict_free + j*SCAN_BLOCK_SIZE, false);
-    //log_number((128-1 + (128-1)/NUM_BANKS) + j*SCAN_BLOCK_SIZE, false);
-    //log_number(6666, false);
-    add_end_of_line();
-    log_number(shared_prefix_sum[ai_conflict_free + j*SCAN_BLOCK_SIZE], false);
-    add_end_of_line();
-    push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+  //   initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * 17, 0.0));
+  //   log_number(ai_conflict_free + j*SCAN_BLOCK_SIZE, false);
+  //   //log_number((128-1 + (128-1)/NUM_BANKS) + j*SCAN_BLOCK_SIZE, false);
+  //   //log_number(6666, false);
+  //   add_end_of_line();
+  //   log_number(shared_prefix_sum[ai_conflict_free + j*SCAN_BLOCK_SIZE], false);
+  //   add_end_of_line();
+  //   push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
 
-    initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * 17, 0.0));
+  //   initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * 17, 0.0));
 
-    log_number(bi_conflict_free + j*SCAN_BLOCK_SIZE, false);
-    add_end_of_line();
-    log_number(shared_prefix_sum[bi_conflict_free + j*SCAN_BLOCK_SIZE], false);
-    add_end_of_line();
-    push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-  }
+  //   log_number(bi_conflict_free + j*SCAN_BLOCK_SIZE, false);
+  //   add_end_of_line();
+  //   log_number(shared_prefix_sum[bi_conflict_free + j*SCAN_BLOCK_SIZE], false);
+  //   add_end_of_line();
+  //   push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+  // }
 
   // AUXILIAR
   // Super clever hack to avoid if :).
@@ -1434,35 +1432,34 @@ void solve_active_fmm_blocks() {
   // Create auxiliar prefix sum. TODO!!! Check boundaries when index is 128.
   // Check local_id_x+1. Should it be even!!!
 
+  // Only zeroes!!!.
   uint last_index = (THREAD_COUNT * 2 - 1) + ((THREAD_COUNT * 2 - 1) >> 4);
   uint last_index_ai = last_index + local_id_x * SCAN_BLOCK_SIZE; // (local_id_x + 1) * last_index; 
   uint last_index_bi = last_index + (local_id_x + THREAD_COUNT) * SCAN_BLOCK_SIZE; // (local_id_x + 1) * last_index; 
-  //uint last_index_bi = (local_id_x + THREAD_COUNT + 1) * last_index; 
 
-  //const uint ai_conflict_free = local_id_x + (local_id_x >> 4); 
-  //const uint bi_conflict_free = local_id_x+THREAD_COUNT + ((local_id_x+THREAD_COUNT) >> 4); 
+  // shared_aux[ai_conflict_free] = blah[(uint(local_id_x < number_of_scan_blocks))] & shared_prefix_sum[last_index_ai];
+  // shared_aux[bi_conflict_free] = blah[(uint(local_id_x + THREAD_COUNT < number_of_scan_blocks))] & shared_prefix_sum[last_index_bi];
+  shared_aux[ai_conflict_free] = blah[(uint(local_id_x < number_of_scan_blocks))] & shared_aux[ai_conflict_free];
+  shared_aux[bi_conflict_free] = blah[(uint(local_id_x + THREAD_COUNT < number_of_scan_blocks))] & shared_aux[ai_conflict_free];
 
-  shared_aux[ai_conflict_free] = blah[(uint(local_id_x < number_of_scan_blocks))] & shared_prefix_sum[last_index_ai];
-  shared_aux[bi_conflict_free] = blah[(uint(local_id_x + THREAD_COUNT < number_of_scan_blocks))] & shared_prefix_sum[last_index_bi];
+  // const vec3 this_coord  = vec3(ai_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
+  // const vec3 this_coord2 = vec3(bi_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
 
-  const vec3 this_coord  = vec3(ai_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
-  const vec3 this_coord2 = vec3(bi_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
+  // initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * 23, 0.0));
 
-  initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * 23, 0.0));
+  // log_number(ai_conflict_free, false);
+  // add_end_of_line();
+  // log_number(shared_aux[ai_conflict_free], false);
+  // add_end_of_line();
+  // push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
 
-  log_number(ai_conflict_free, false);
-  add_end_of_line();
-  log_number(shared_aux[ai_conflict_free], false);
-  add_end_of_line();
-  push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
+  // initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * 23, 0.0));
 
-  initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * 23, 0.0));
-
-  log_number(bi_conflict_free, false);
-  add_end_of_line();
-  log_number(shared_aux[bi_conflict_free], false);
-  add_end_of_line();
-  push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
+  // log_number(bi_conflict_free, false);
+  // add_end_of_line();
+  // log_number(shared_aux[bi_conflict_free], false);
+  // add_end_of_line();
+  // push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
 
   vec3 z_dir = vec3(0.0, 0.0, DEBUG_OFFSET * (-0.1));
 
@@ -1470,33 +1467,29 @@ void solve_active_fmm_blocks() {
   if (local_id_x < number_of_scan_blocks) {
     create_array(
       0.006,
-      vec3(ai_conflict_free * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * 23.0 + z_dir*y_offset,
-      vec3(ai_conflict_free * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (23.0 - (local_id_x + 1) * 0.8) + z_dir*y_offset,
+      vec3(ai_conflict_free * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * 24.0 + z_dir*y_offset,
+      vec3(ai_conflict_free * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (24.0 - (local_id_x + 1) * 0.8) + z_dir*y_offset,
       255,
       20,
       0
     );
     create_array(
       0.006,
-      vec3(ai_conflict_free * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (23.0 - (local_id_x + 1) * 0.8) + z_dir*y_offset,
-      vec3(last_index_ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (23.0 - (local_id_x + 1) * 0.8) + z_dir*y_offset,
+      vec3(ai_conflict_free * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (24.0 - (local_id_x + 1) * 0.8) + z_dir*y_offset,
+      vec3(last_index_ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (24.0 - (local_id_x + 1) * 0.8) + z_dir*y_offset,
       255,
       20,
       0
     );
     create_array(
       0.006,
-      vec3(last_index_ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (23.0 - (local_id_x + 1) * 0.8) + z_dir*y_offset,
+      vec3(last_index_ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (24.0 - (local_id_x + 1) * 0.8) + z_dir*y_offset,
       vec3(last_index_ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * 17.0 + z_dir*y_offset,
       255,
       20,
       0
     );
   }
-  if (local_id_x + THREAD_COUNT < number_of_scan_blocks) {
-  }
-
-  //shared_prefix_sum[local_id_x*128-1];
 
   // Aux up sweep
   const int n = THREAD_COUNT*2;
@@ -1525,7 +1518,7 @@ void solve_active_fmm_blocks() {
         initialize_char_array(coord2 + vec3(0.0, DEBUG_OFFSET, 0.0) * debug_counter);
         log_number(bi, false);
         add_end_of_line();
-        log_number(shared_prefix_sum[bi], false);
+        log_number(shared_aux[bi], false);
         add_end_of_line();
         push_chars(40, local_id_to_x() * 2, 255 - local_id_to_x() * 4);
 
@@ -1603,22 +1596,22 @@ void solve_active_fmm_blocks() {
         shared_aux[ai] = shared_aux[bi];
         shared_aux[bi] += t;
 
-          create_array(
-            0.006,
-            vec3(bi * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-            vec3(ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-            255,
-            20,
-            0
-          );
-          create_array(
-            0.006,
-            vec3(ai * DEBUG_OFFSET, -0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-            vec3(bi * DEBUG_OFFSET, -0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
-            125,
-            120,
-            0
-          );
+         create_array(
+           0.006,
+           vec3(bi * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
+           vec3(ai * DEBUG_OFFSET, 0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
+           255,
+           20,
+           0
+         );
+         create_array(
+           0.006,
+           vec3(ai * DEBUG_OFFSET, -0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
+           vec3(bi * DEBUG_OFFSET, -0.005, z_dir) + vec3(0.0, DEBUG_OFFSET, 0.0) * (debug_counter) + z_dir,
+           125,
+           120,
+           0
+         );
     }
 
   }

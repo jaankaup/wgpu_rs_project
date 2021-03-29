@@ -16,28 +16,40 @@ struct AABB {
     vec4 max; 
 };
 
-layout(set = 0, binding = 0) uniform Dimensions {
-    uvec3 dimensions;
+struct CharInformation {
+    uint counter;
+    vec3 position;
+    uint[MAX_NUM_CHARS] chars;
 };
 
-layout(set = 0, binding = 1) buffer Counter {
-    uint[] counter;
+layout(set = 0, binding = 0) buffer Counter {
+    uint[2] counter;
 };
 
-layout(set=0, binding=2) uniform camerauniform {
+layout(set=0, binding = 1) uniform camerauniform {
     mat4 u_view_proj;
     vec4 camera_pos;
 };
 
-layout(set = 0, binding = 3) buffer Points_out {
+layout(set = 0, binding = 2) readonly buffer LogInChar {
+    CharInformation[] input_chars;
+};
+
+layout(set = 0, binding = 3) readonly buffer LogInGeometry {
+    CharInformation[] input_geometry;
+};
+
+layout(set = 0, binding = 4) buffer Points_out {
     OutputVertex[] output_points;
 };
 
-layout(set = 0, binding = 4) buffer AABB_out {
+layout(set = 0, binding = 5) buffer AABB_out {
     OutputVertex[] aabb_lines;
 };
 
 layout(local_size_x = LOCAL_X_DIM, local_size_y = LOCAL_Y_DIM, local_size_z = LOCAL_Z_DIM) in;
+
+const uvec3 dimensions = uvec3(555, 777, 888);
 
 const float FONT_SIZE = 0.02;
 const float FONT_OFFSET_Y = 1.2;
@@ -55,12 +67,6 @@ const uint[10] joo = {1,
                       10000000,
                       100000000,
                       1000000000};
-
-struct CharInformation {
-    uint counter;
-    vec3 position;
-    uint[MAX_NUM_CHARS] chars;
-};
 
 shared CharInformation[64] char_arrays;
 

@@ -321,7 +321,7 @@ impl Application for Debug_App {
         );
 
         // Histogram.
-        let histogram = Histogram::init(&configuration.device, 2, 0); 
+        let histogram = Histogram::init(&configuration.device, &vec![0, 0]); 
 
         let font_pipeline = Font_pipeline::init(&configuration.device);
 
