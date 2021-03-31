@@ -14,8 +14,7 @@ edition = "2018"
 #wgpu = { git = "https://github.com/gfx-rs/wgpu-rs" }
 
 # Working brach.
-#wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", rev="cadc2df8a106ad122c10c2e07733ade8f1e5653c" }
-#wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", rev="1aeb1e5c47badbb876f0976b282aa0ddc1dbeb7a" }
+#wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", rev="55d3aef00d1a4aac42abd4cab821fe626a5d213b" }
 wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", rev="67eb3cc4d1c2ccd6aa18ee8dc3dd2b93b1858287" }
 
 #wgpu-core = "0.6.5"
@@ -53,7 +52,9 @@ version = "0.1"
 #gfx-backend-vulkan = "0.6"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+#wasm-bindgen = "=0.2.73" # remember to change version in wiki as well
 wasm-bindgen = "=0.2.72" # remember to change version in wiki as well
+#web-sys = { version = "=0.3.50", features = [
 web-sys = { version = "=0.3.49", features = [
     "Document",
     "Navigator",
@@ -180,7 +181,9 @@ web-sys = { version = "=0.3.49", features = [
     "Window",
 ]}
 js-sys = "0.3.49"
+#js-sys = "0.3.50"
 wasm-bindgen-futures = "0.4.22"
+#wasm-bindgen-futures = "0.4.23"
 wasm-timer = "0.2.5"
 console_error_panic_hook = "0.1.6"
 console_log = "0.1.2"

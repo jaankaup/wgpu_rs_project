@@ -940,7 +940,6 @@ dependencies = [
  "jaankaup_core",
  "log",
  "pollster",
- "wasm-bindgen-futures",
  "wgpu-subscriber",
  "winit",
 ]
@@ -1063,9 +1062,9 @@ dependencies = [
 
 [[package]]
 name = "khronos-egl"
-version = "4.0.0"
+version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e8cc4d128654d2191681ab98140c4d99e4bd9333efe1526e033586a5a061e1e"
+checksum = "8c2352bd1d0bceb871cb9d40f24360c8133c11d7486b68b5381c1dd1a32015e3"
 dependencies = [
  "libc",
  "libloading 0.7.0",
@@ -1868,9 +1867,9 @@ checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
 name = "syn"
-version = "1.0.63"
+version = "1.0.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fd9bc7ccc2688b3344c2f48b9b546648b25ce0b20fc717ee7fa7981a8ca9717"
+checksum = "6498a9efc342871f91cc2d0d694c674368b4ceb40f62b65a7a08c3792935e702"
 dependencies = [
  "proc-macro2",
  "quote",

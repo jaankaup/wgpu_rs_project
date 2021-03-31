@@ -20,12 +20,16 @@ use jaankaup_core::compute::Histogram;
 use jaankaup_core::texture::Texture as JTexture;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
+use jaankaup_core::misc::OutputVertex;
 use model_loader::load_triangles_from_obj;
 use bytemuck::{Pod, Zeroable};
 
 //static DEBUG_BUFFER_SIZE: u32 = 33554432;
-static DEBUG_BUFFER_SIZE: u32 = 33554428;
-static DEBUG_BUFFER_OFFSET: u32 = 4194302;
+//TODO: rename. This is not the buffer size. It's the number on poinst, and the number of line
+//triangle points.
+static DEBUG_BUFFER_SIZE: u32   = 1024000; //4194300; // 1048575; //33554416;
+static DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
+static BLOCK_DIMENSIONS: [u32; 3] = [8, 8, 8];
 //8388607
 
 // Redefine needed features for this application.
@@ -33,6 +37,7 @@ struct FMM_Features {}
 impl WGPUFeatures for FMM_Features {
 }
 
+#[repr(C)]
 #[derive(Copy, Clone)]
 struct FMM_Block {
     //base_coord: [u32 ; 3],
@@ -43,6 +48,7 @@ struct FMM_Block {
 unsafe impl bytemuck::Zeroable for FMM_Block {}
 unsafe impl bytemuck::Pod for FMM_Block {}
 
+#[repr(C)]
 #[derive(Copy, Clone)]
 struct FMM_Node {
     value: f32,
@@ -63,7 +69,7 @@ struct FMM_App {
     render_vvvc_triangle_bind_groups: Vec<wgpu::BindGroup>,
     fmm_debug_pipeline: FMM_debug_pipeline,
     fmm_debug_bind_groups: Vec<wgpu::BindGroup>,
-    histogram: Histogram, 
+//    histogram: Histogram, 
     debug_point_count: u32,
     debug_triangle_draw_count: u32,
 }
@@ -92,7 +98,7 @@ impl Application for FMM_App {
 
         // Create buffers for fmm alogrithm.
         create_buffers(&configuration.device,
-                       [4, 4, 4], // block_dimension: [u32 ; 3],
+                       BLOCK_DIMENSIONS, // block_dimension: [u32 ; 3],
                        [4, 4, 4], //local_dimension: [u32 ; 3],
                        DEBUG_BUFFER_SIZE, //debug_point_output_size: u32,
                        &mut buffers
@@ -128,11 +134,18 @@ impl Application for FMM_App {
             &camera.get_camera_uniform(&configuration.device)
         );
 
-        let mut debug_point_count = 0;
-        let mut debug_triangle_draw_count = DEBUG_BUFFER_OFFSET;
+        let mut debug_point_count = 2;
+        let mut debug_triangle_draw_count = DEBUG_BUFFER_SIZE;
 
         // Create histogram for fmm debug.
-        let mut histogram = Histogram::init(&configuration.device, &vec![0, DEBUG_BUFFER_OFFSET]); 
+        //let mut histogram = Histogram::init(&configuration.device, &vec![0, DEBUG_BUFFER_OFFSET]); 
+
+        // let block_dimension_size = (BLOCK_DIMENSIONS[0] * BLOCK_DIMENSIONS[1] * BLOCK_DIMENSIONS[2] + 
+        //                            ((BLOCK_DIMENSIONS[0] * BLOCK_DIMENSIONS[1] * BLOCK_DIMENSIONS[2]) >> 4)) 
+        //                            * std::mem::size_of::<u32>() as u32;
+        // let output_vertex_size = std::mem::size_of::<OutputVertex>() as u32 * DEBUG_BUFFER_SIZE * 2;
+        // let fmm_block_size = std::mem::size_of::<FMM_Block>() as u32 * BLOCK_DIMENSIONS[0] * BLOCK_DIMENSIONS[1] * BLOCK_DIMENSIONS[2];
+        // let fmm_nodes_size = std::mem::size_of::<FMM_Node>() as u32 * BLOCK_DIMENSIONS[0] * BLOCK_DIMENSIONS[1] * BLOCK_DIMENSIONS[2] * 64;
 
         let fmm_debug_pipeline = FMM_debug_pipeline::init(&configuration.device);
 
@@ -142,9 +155,9 @@ impl Application for FMM_App {
                     &fmm_debug_pipeline.get_bind_group_layout_entries(),
                     &vec![
                         vec![
-                            &buffers.get("dimensions_font").unwrap().as_entire_binding(),
-                            &histogram.get_histogram().as_entire_binding(),
+                            //&buffers.get("").as_entire_binding(),
                             &camera.get_camera_uniform(&configuration.device).as_entire_binding(),
+                            &buffers.get("prefix_sum_temp").unwrap().as_entire_binding(),
                             &buffers.get("debug_points_output").unwrap().as_entire_binding(),
                             &buffers.get("fmm_nodes").unwrap().as_entire_binding(),
                             &buffers.get("fmm_blocks").unwrap().as_entire_binding(),
@@ -162,7 +175,7 @@ impl Application for FMM_App {
             render_vvvc_triangle_bind_groups,
             fmm_debug_pipeline,
             fmm_debug_bind_groups,
-            histogram,
+            //histogram,
             debug_point_count,
             debug_triangle_draw_count,
         }
@@ -182,32 +195,32 @@ impl Application for FMM_App {
             },
         };
 
-        let mut encoder = device.create_command_encoder(
-            &wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-        });
+         let mut encoder = device.create_command_encoder(
+             &wgpu::CommandEncoderDescriptor {
+                 label: Some("Render Encoder"),
+         });
 
-        draw(&mut encoder,
-             &frame,
-             &self.depth_texture,
-             &self.render_vvvc_point_bind_groups,
-             &self.render_vvvc_point_pipeline.get_pipeline(),
-             &self.buffers.get("debug_points_output").unwrap(),
-             0..self.debug_point_count,
-             true
-        );
+         draw(&mut encoder,
+              &frame,
+              &self.depth_texture,
+              &self.render_vvvc_point_bind_groups,
+              &self.render_vvvc_point_pipeline.get_pipeline(),
+              &self.buffers.get("debug_points_output").unwrap(),
+              2..self.debug_point_count,
+              //3..3000,
+              true
+         );
 
-        draw(&mut encoder,
-             &frame,
-             &self.depth_texture,
-             &self.render_vvvc_triangle_bind_groups,
-             &self.render_vvvc_triangle_pipeline.get_pipeline(),
-             &self.buffers.get("debug_points_output").unwrap(),
-             DEBUG_BUFFER_OFFSET..self.debug_triangle_draw_count,
-             false
-        );
-
-        queue.submit(Some(encoder.finish()));
+         draw(&mut encoder,
+              &frame,
+              &self.depth_texture,
+              &self.render_vvvc_triangle_bind_groups,
+              &self.render_vvvc_triangle_pipeline.get_pipeline(),
+              &self.buffers.get("debug_points_output").unwrap(),
+              DEBUG_BUFFER_SIZE..self.debug_triangle_draw_count,
+              false
+         );
+         queue.submit(Some(encoder.finish()));
     }
 
     fn input(&mut self, queue: &wgpu::Queue, input_cache: &InputCache) {
@@ -221,7 +234,7 @@ impl Application for FMM_App {
 
     fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, input: &InputCache) {
 
-        self.histogram.set_values_cpu_version(&queue, &vec![0, DEBUG_BUFFER_OFFSET]);
+        //self.histogram.set_values_cpu_version(&queue, &vec![0, DEBUG_BUFFER_OFFSET]);
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("FMM update encoder.") });
         
@@ -234,16 +247,15 @@ impl Application for FMM_App {
 
         queue.submit(Some(encoder.finish()));
 
-        let histogram = to_vec::<u32>(&device,
+        let histogram = to_vec::<OutputVertex>(&device,
                                    &queue,
-                                   &self.histogram.get_histogram(),
+                                   &self.buffers.get("debug_points_output").unwrap(),
                                    0 as wgpu::BufferAddress,
-                                   8 as wgpu::BufferAddress);
+                                   (std::mem::size_of::<OutputVertex>() * 2) as wgpu::BufferAddress);
 
-        // println!("point_count == {}, triangle_point_count == {}", histogram[0], histogram[1]);
 
-        self.debug_point_count = histogram[0];
-        self.debug_triangle_draw_count = histogram[1];
+        self.debug_point_count = histogram[0].color_point_size;
+        self.debug_triangle_draw_count = histogram[1].color_point_size;
     }
 }
 
@@ -253,22 +265,31 @@ fn create_buffers(device: &wgpu::Device,
                   debug_point_output_size: u32,
                   buffers: &mut HashMap<String, wgpu::Buffer>) {
 
-        // layout(set = 0, binding = 0) uniform Dimensions
+        // Define the bank conflict free prefix sum temp array size.
+        //let block_dimension_size_bkf = block_dimension[0] * block_dimension[1] * block_dimension[2] + 
+        //                               ((block_dimension[0] * block_dimension[1] * block_dimension[2]) >> 4);
+        //println!("block_dimension_size_bkf == {}", block_dimension_size_bkf);
+        let block_dimension_size = block_dimension[0] * block_dimension[1] * block_dimension[2];
+        println!("block_dimension_size == {}", block_dimension_size);
+
+        // layout(set = 0, binding = 1) buffer Prefix_sums  {
+        // This buffer holds the temporary bank confict free data.
         buffers.insert(
-            "dimensions_font".to_string(),
+            "prefix_sum_temp".to_string(),
             buffer_from_data::<u32>(
             &device,
-            &block_dimension,
-            wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::COPY_DST,
+            &vec![0 as u32; block_dimension_size as usize],
+            //&vec![0; block_dimension_size_bkf * 4 as usize],
+            wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
             None)
         );
 
         // layout(set = 0, binding = 3) buffer Points_out {
         buffers.insert(
             "debug_points_output".to_string(),
-            buffer_from_data::<f32>(
+            buffer_from_data::<OutputVertex>(
             &device,
-            &vec![0 as f32 ; debug_point_output_size as usize],
+            &vec![OutputVertex { pos: [0.0, 0.0, 0.0], color_point_size: 0 } ; (1024000*2) as usize],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
         );
@@ -286,16 +307,16 @@ fn create_buffers(device: &wgpu::Device,
             None)
         );
 
-        let active_block_ids: Vec<u32> = vec![0, 2, 124, 127, 128, 168, 300];;
+        let active_block_ids: Vec<u32> = vec![0, 2, 124, 127, 128, 168, 300];
 
         println!("CREATING BLOCKS");
 
         let mut test_blocks: Vec<FMM_Block> = Vec::new();
 
         let mut index_counter: u32 = 0;
-        for k in 0..8 { //block_dimension[0] {
-        for j in 0..8 { //block_dimension[1] {
-        for i in 0..8 { //block_dimension[2] {
+        for k in 0..block_dimension[0] {
+        for j in 0..block_dimension[1] {
+        for i in 0..block_dimension[2] {
             if index_counter < 8*8*8 {
                 //if k == 1 || (j == 1 || i == 0) { 
                 if active_block_ids.contains(&index_counter) {
@@ -309,6 +330,11 @@ fn create_buffers(device: &wgpu::Device,
             index_counter = index_counter + 1;
         }}};
 
+        // Populate the 'Active FMM_Blocks'.
+        for i in 0..number_of_blocks {
+            test_blocks.push(FMM_Block{ index: 777, band_points_count: 0});  
+        }
+
         buffers.insert(
             "fmm_blocks".to_string(),
             buffer_from_data::<FMM_Block>(
@@ -319,23 +345,23 @@ fn create_buffers(device: &wgpu::Device,
         );
 }
 
-fn create_fmm_buffer(device: &wgpu::Device,
-                     name: String, 
-                     dimension: [u32; 3],
-                     element_size: u32,
-                     buffers: &mut HashMap<String, wgpu::Buffer>) {
-
-        assert!(dimension[0] % 4 == 0 && dimension[1] % 4 == 0 && dimension[2] % 4 == 0, "Each dimension should be a multiple of 4.");  
-
-        buffers.insert(
-            name,
-            buffer_from_data::<f32>(
-            &device,
-            &vec![0 as f32 ; dimension[0] as usize * dimension[1] as usize * dimension[2] as usize],
-            wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
-            None)
-        );
-}
+// fn create_fmm_buffer(device: &wgpu::Device,
+//                      name: String, 
+//                      dimension: [u32; 3],
+//                      element_size: u32,
+//                      buffers: &mut HashMap<String, wgpu::Buffer>) {
+// 
+//         assert!(dimension[0] % 4 == 0 && dimension[1] % 4 == 0 && dimension[2] % 4 == 0, "Each dimension should be a multiple of 4.");  
+// 
+//         buffers.insert(
+//             name,
+//             buffer_from_data::<f32>(
+//             &device,
+//             &vec![0 as f32 ; dimension[0] as usize * dimension[1] as usize * dimension[2] as usize],
+//             wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+//             None)
+//         );
+// }
 
 /// Struct for fmm development version.
 pub struct FMM_debug_pipeline {
@@ -372,38 +398,17 @@ impl FMM_debug_pipeline {
         pass.dispatch(x, y, z)
     }
 
-    pub fn init(device: &wgpu::Device
-                ) -> Self {
+    pub fn init(device: &wgpu::Device) -> Self {
 
         let comp_module = wgpu::include_spirv!("../../shaders/spirv/fmm.comp.spv");
 
         // Define all bind grout entries for pipeline and bind groups.
         let layout_entries = vec![
                 // layout(set = 0, binding = 0) uniform Dimensions. 
-                vec![wgpu::BindGroupLayoutEntry {
+                vec![
+                    // layout(set=0, binding=0) uniform camerauniform {
+                    wgpu::BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStage::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: wgpu::BufferSize::new(3), //None,
-                            },
-                        count: None,
-                    },
-                    //layout(set = 0, binding = 1) buffer Counter
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStage::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: wgpu::BufferSize::new(1), //None,
-                        },
-                        count: None,
-                    },
-                    //layout(set=0, binding=2) uniform camerauniform
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
                         visibility: wgpu::ShaderStage::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
@@ -412,36 +417,47 @@ impl FMM_debug_pipeline {
                             },
                         count: None,
                     },
-                    //layout(set = 0, binding = 3) buffer Points_out.
+                    // layout(set = 0, binding = 1) buffer Prefix_sums  {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None, // wgpu::BufferSize::new(temp_prefix_sum_size),
+                        },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 2) buffer Points_out {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None, //wgpu::BufferSize::new(points_out_size),
+                        },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 3) buffer FMM_Nodes {
                     wgpu::BindGroupLayoutEntry {
                         binding: 3,
                         visibility: wgpu::ShaderStage::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
-                            min_binding_size: None,
+                            min_binding_size: None, //wgpu::BufferSize::new(fmm_nodes_size),
                         },
                         count: None,
                     },
-                    //layout(set = 0, binding = 4) buffer FMM_Nodes {
+                    // layout(set = 0, binding = 4) buffer FMM_Blocks {
                     wgpu::BindGroupLayoutEntry {
                         binding: 4,
                         visibility: wgpu::ShaderStage::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                    //layout(set = 0, binding = 5) buffer FMM_Blocks {
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 5,
-                        visibility: wgpu::ShaderStage::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
+                            min_binding_size: None, //wgpu::BufferSize::new(fmm_blocks_size),
                         },
                         count: None,
                     },
@@ -471,7 +487,6 @@ impl FMM_debug_pipeline {
         }
     }
 }
-
 
 fn main() {
     ws::run_loop::<FMM_App, BasicLoop, FMM_Features>(); 

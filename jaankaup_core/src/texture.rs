@@ -173,6 +173,7 @@ impl Texture {
             aspect: wgpu::TextureAspect::All,
             base_mip_level: 0,
             level_count: std::num::NonZeroU32::new(1),
+            //mip_level_count: std::num::NonZeroU32::new(1),
             base_array_layer: 0,
             array_layer_count: std::num::NonZeroU32::new(1),
         });
@@ -233,6 +234,7 @@ impl Texture {
             aspect: wgpu::TextureAspect::All,
             base_mip_level: 0,
             level_count: std::num::NonZeroU32::new(1),
+            //mip_level_count: std::num::NonZeroU32::new(1),
             base_array_layer: 0,
             array_layer_count: std::num::NonZeroU32::new(1),
         });
@@ -291,6 +293,7 @@ impl Texture {
             aspect: wgpu::TextureAspect::All,
             base_mip_level: 0,
             level_count: std::num::NonZeroU32::new(1),
+            //mip_level_count: std::num::NonZeroU32::new(1),
             base_array_layer: 0,
             array_layer_count: std::num::NonZeroU32::new(1),
         });
@@ -690,6 +693,7 @@ impl Texture {
             aspect: wgpu::TextureAspect::default(),
             base_mip_level: 0,
             level_count: std::num::NonZeroU32::new(1),
+            //mip_level_count: std::num::NonZeroU32::new(1),
             base_array_layer: 0,
             array_layer_count: std::num::NonZeroU32::new(1), //Some(0),
         });

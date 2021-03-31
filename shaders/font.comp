@@ -1,6 +1,6 @@
 #version 450
 
-#define MAX_NUM_CHARS 92
+#define MAX_NUM_CHARS 60
 
 #define LOCAL_X_DIM 4
 #define LOCAL_Y_DIM 4

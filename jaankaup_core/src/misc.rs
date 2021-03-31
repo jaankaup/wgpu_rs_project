@@ -7,6 +7,16 @@ pub trait Convert2Vec where Self: std::marker::Sized {
     fn convert(data: &[u8]) -> Vec<Self>;  
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+pub struct OutputVertex {
+    pub pos: [f32; 3],
+    pub color_point_size: u32,
+}
+
+// unsafe impl bytemuck::Zeroable for OutputVertex {}
+// unsafe impl bytemuck::Pod for OutputVertex {}
+
 /// A macro for creating Convert2Vec for specific a primitive 
 /// number type. Note that the type must implement from_ne_bytes.
 /// This works only in async functions. This cannot be used
@@ -30,6 +40,7 @@ impl_convert!{Vertex_vvvvnnnn}
 impl_convert!{f32}
 impl_convert!{u32}
 impl_convert!{u8}
+impl_convert!{OutputVertex}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]

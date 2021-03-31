@@ -3,17 +3,16 @@
 
 #version 450
 
-#define MAX_NUM_CHARS 60
+#define MAX_NUM_CHARS 32 
 
 #define LOCAL_X_DIM 4 
 #define LOCAL_Y_DIM 4
 #define LOCAL_Z_DIM 4
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
 #define SCAN_BLOCK_SIZE (THREAD_COUNT * 2 + (THREAD_COUNT * 2 >> 4)) //136 // 128 + (128 >> 4)
-#define SCAN_BLOCK_COUNT 32 // Maximum 
-#define NUM_BANKS 16
+#define ACTIVE_FMM_BLOCKS_OFFSET 512 // TODO: from uniform
 
-#define DEBUG_OFFSET 0.05
+#define DEBUG_OFFSET 0.07
 // Fast marching method cell node.
 // 1 => Far.
 // 2 => Band.
@@ -39,32 +38,33 @@ struct AABB {
     vec4 max; 
 };
 
-struct Block {
-    uint band_points_count;
-};
 
-layout(set = 0, binding = 0) uniform Dimensions {
-    uvec3 dimensions;
-};
+//layout(set = 0, binding = 1) buffer Counter {
+//    uint counter[2];
+//};
 
-layout(set = 0, binding = 1) buffer Counter {
-    uint counter[2];
-};
-
-layout(set=0, binding=2) uniform camerauniform {
+layout(set=0, binding=0) uniform camerauniform {
     mat4 u_view_proj;
     vec4 camera_pos;
 };
 
-layout(set = 0, binding = 3) buffer Points_out {
+// This buffer holds the temporary prefix sum data.
+layout(set = 0, binding = 1) buffer Prefix_sums  {
+    uint[] temp_prefix_sum;
+};
+
+layout(set = 0, binding = 2) buffer Points_out {
     OutputVertex[] output_points;
 };
 
-layout(set = 0, binding = 4) buffer FMM_Nodes {
+layout(set = 0, binding = 3) buffer FMM_Nodes {
     FMM_Node[] fmm_cells;
 };
 
-layout(set = 0, binding = 5) buffer FMM_Blocks {
+// This buffer is divided to two parts.
+// The first part includes the actual FMM_Blocks.
+// The second part includes the active FMM_Blocks.
+layout(set = 0, binding = 4) buffer FMM_Blocks {
     FMM_Block[] fmm_block;
 };
 
@@ -78,6 +78,7 @@ const uint MAX_NUM_OF_POINTS = 700;
 const uint blah[2] = {0, 0xffffffff};
 
 uint local_id_to_x() { return gl_LocalInvocationID.x + LOCAL_X_DIM * gl_LocalInvocationID.y + LOCAL_X_DIM * LOCAL_Z_DIM * gl_LocalInvocationID.z; }
+
 
 const uint[10] joo = {1,
                       10,
@@ -96,24 +97,25 @@ struct CharInformation {
     uint[MAX_NUM_CHARS] chars;
 };
 
+// 2 x float
+shared uint[2] counter;
+
+// 136 x float
 // The auxiliar scan block array
 shared uint shared_aux[SCAN_BLOCK_SIZE];
 
+// 136 x float
 // The output of global active fmm block scan.
-shared uint[SCAN_BLOCK_SIZE * SCAN_BLOCK_COUNT] shared_prefix_sum;
+shared uint[SCAN_BLOCK_SIZE] shared_prefix_sum;
 
-// A temporary buffer that holds the intermediate and final result of prefix
-// sum for FMM_Blocks. TODO: this requires too much memory. Load from global
-// memory. 
-//shared FMM_Block[SCAN_BLOCK_SIZE * SCAN_BLOCK_COUNT] shared_fmm_block_array;
-
-//// The counter of output array size.
+//// The counter for active fmm blocks.
 shared uint stream_compation_count;
 
-shared FMM_Block[512] shared_stream_compaction;
+// TODO: define a buffer for active scan blocks.
+//shared FMM_Block[SCAN_BLOCK_SIZE * SCAN_BLOCK_COUNT] shared_stream_compaction;
 
 // Debugging.
-shared CharInformation[64] char_arrays;
+shared CharInformation[THREAD_COUNT] char_arrays;
 
 const uvec3 local_dimension = uvec3(4,4,4);
 const uvec3 group_dimension = uvec3(4,4,4);
@@ -354,6 +356,7 @@ uint update_counter() {
 
 void create_aabb_triangles(AABB aabb, uint r, uint b, uint g) {
 
+    //uint aabb_index = atomicAdd(output_points[1].color_point_size, 24); // = OutputVertex(vec3(7,7,7), counter[0]);
     uint aabb_index = atomicAdd(counter[1], 24);
 
     const vec3 delta = aabb.max.xyz - aabb.min.xyz;
@@ -380,6 +383,7 @@ void create_aabb_triangles(AABB aabb, uint r, uint b, uint g) {
 // TODO rename to triangles.
 void create_output_points(AABB aabb, uint r, uint g, uint b) {
 
+    //uint aabb_index = atomicAdd(output_points[1].color_point_size, 36);
     uint aabb_index = atomicAdd(counter[1], 36);
 
     const vec3 delta = aabb.max.xyz - aabb.min.xyz;
@@ -521,6 +525,7 @@ void bezier_4c(uint n, vec4 c0, vec4 c1, vec4 c2, vec4 c3, uint r, uint g, uint 
 
     if (n < 4) return;
 
+    //uint index = atomicAdd(output_points[0].color_point_size, n);
     uint index = atomicAdd(counter[0], n);
 
     for (int i=0 ; i<n ; i++) {
@@ -554,6 +559,7 @@ void create_array(float array_width, vec3 base_pos, vec3 dest_pos, uint r, uint 
 
     vec3 side_direction = cross(camera_direction, array_direction);   
 
+    //uint index = atomicAdd(output_points[1].color_point_size, 21);
     uint index = atomicAdd(counter[1], 21);
 
     const vec3 p0 = base_pos;
@@ -789,91 +795,6 @@ void initialize_char_array(vec3 position) {
 
     char_arrays[local_index].counter = 0;
     char_arrays[local_index].position = position;
-}
-
-
-uvec3 index1D_to_index3D() {
-	uint index = gl_GlobalInvocationID.x;
-	uint wh = dimensions.x * dimensions.y;
-	uint z = index / wh;
-	index -= z * wh;
-	uint y = index / dimensions.x;
-	index -= y * dimensions.x;
-	uint x = index;
-	return ivec3(x, y, z);	
-}
-
-uvec3 index1D_to_index3D_local() {
-	uint index = gl_GlobalInvocationID.x;
-	uint wh = local_dimension.x * local_dimension.y;
-	uint z = index / wh;
-	index -= z * wh;
-	uint y = index / local_dimension.x;
-	index -= y * local_dimension.x;
-	uint x = index;
-	return uvec3(x, y, z);	
-}
-
-uvec3 index1D_to_index3D_group() {
-	uint index = gl_GlobalInvocationID.x;
-	uint wh = group_dimension.x * group_dimension.y;
-	uint z = index / wh;
-	index -= z * wh;
-	uint y = index / group_dimension.x;
-	index -= y * group_dimension.x;
-	uint x = index;
-	return uvec3(x, y, z);	
-}
-
-uvec3 index1D_to_index3D_custom() {
-	//uint index = local_id_to_x();
-    uvec3 work_index = gl_WorkGroupID;
-
-    // Get the work dimension.
-	// uint wh = group_dimension.x * group_dimension.y;
-	// uint z = work_index / wh;
-	// work_index -= z * wh;
-	// uint y = work_index / group_dimension.x;
-	// work_index -= y * group_dimension.x;
-	// uint x = work_index;
-
-    //uvec3 base_coord = uvec3(x, y, z) * 4 + gl_LocalInvocationID;
-
-    return work_index * 4 + gl_LocalInvocationID;
-
-    // uint new_index = index;
-
-	// wh = local_dimension.x * local_dimension.y;
-	// z = new_index / wh;
-	// new_index -= z * wh;
-	// y = new_index / local_dimension.x;
-	// new_index -= y * local_dimension.x;
-	// x = new_index;
-    // uvec3 local_index = uvec3(x, y, z) + base_coord;
-	// return local_index;
-}
-
-void bezier_3c(uint n, vec3 c0, vec3 c1, vec3 c2) {
-
-    uint index = atomicAdd(counter[0], n);
-
-    for (int i=0 ; i<n ; i++) {
-        const float t = float(i)  / (float(n)-1.0);
-        const float t2 = t * t;
-        const float mt = 1.0 - t;
-        const float mt2 = mt * mt;
-        const vec3 result = c0 * mt2 + c1 * 2.0 * mt*t + c2 * t2;
-
-        uvec3 coordinates = index1D_to_index3D();
-        output_points[index] = OutputVertex(
-            result,
-            encode_rgba_u32(
-                255 - coordinates.x * 4,
-                255 - coordinates.y * 4,
-                255 - coordinates.z * 4,
-                255));
-        index++;
-    }
 }
 
 // Calculate value for chosen grid cell. 
@@ -1154,43 +1075,232 @@ void push_chars(uint r, uint g, uint b) {
   //initialize_char_array(new_base_coord);
 }
 
-
-void create_boolean_array_fmm_blocks(uint chunck_id, uint number_of_items) {
+// Add a chunk of block data to a temporary 'shared_perix_sum' buffer.
+// Copies FMM_Block to shared_prefix_sum {0,1}. Add padding 0 if necessery.
+void copy_block_to_temp(uint chunck_id, uint number_of_items) {
 
     // Create the local indices.
     const uint ai = local_id_to_x(); 
     const uint bi = ai + THREAD_COUNT;
 
+    // Create the bank conflict free local indices.
+    const uint ai_bcf = ai + (ai >> 4); 
+    const uint bi_bcf = bi + (bi >> 4);
+
     // Create the global indices to access the global memory.
-    const uint global_ai = ai + chunck_id * (THREAD_COUNT * 2); // TODO: define 128 
-    const uint global_bi = bi + chunck_id * (THREAD_COUNT * 2); // TODO: define 128 
-
-    // Create bank conflict free indices.
-    //const uint ai_conflict_free = ai + (ai >> 4); 
-    //const uint bi_conflict_free = bi + (bi >> 4); 
-
-    // Create the bank conflict free global indices.
-    // const uint global_ai_conflict_free = ai_conflict_free + chunck_id * SCAN_BLOCK_SIZE;
-    // const uint global_bi_conflict_free = bi_conflict_free + chunck_id * SCAN_BLOCK_SIZE;
-    const uint global_ai_conflict_free = global_ai + (global_ai >> 4);
-    const uint global_bi_conflict_free = global_bi + (global_bi >> 4);
+    const uint global_ai = ai + chunck_id * (THREAD_COUNT * 2);
+    const uint global_bi = bi + chunck_id * (THREAD_COUNT * 2);
 
     // Create {0:1} array from the global fmm_block array.
     // 0 :: no band cells.
     // 1 :: band cells > 0.
 
-    // This can overflow, but who cares :). We are only reading.
-    // TODO: should we do something more secure.
     FMM_Block a = fmm_block[global_ai];
     FMM_Block b = fmm_block[global_bi];
 
-    shared_prefix_sum[global_ai_conflict_free] = uint((ai < number_of_items) && (a.band_points_count > 0));
-    shared_prefix_sum[global_bi_conflict_free] = uint((bi < number_of_items) && (b.band_points_count > 0));
+    shared_prefix_sum[ai_bcf] = uint((ai < number_of_items) && (a.band_points_count > 0));
+    shared_prefix_sum[bi_bcf] = uint((bi < number_of_items) && (b.band_points_count > 0));
+
+    // const vec3 this_coord  = vec3((ai + chunck_id*(THREAD_COUNT * 2)) * DEBUG_OFFSET, 0.0, 0.0);
+    // const vec3 this_coord2 = vec3((bi + chunck_id*(THREAD_COUNT * 2)) * DEBUG_OFFSET, 0.0, 0.0);
+    // const vec3 this_coord  = vec3(ai * DEBUG_OFFSET, 0.0, 0.0);
+    // const vec3 this_coord2 = vec3(bi * DEBUG_OFFSET, 0.0, 0.0);
+
+    // initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * (chunck_id+4), 0.0));
+    // log_number(ai + chunck_id*(THREAD_COUNT * 2), false);
+    // add_end_of_line();
+    // log_number(shared_prefix_sum[ai_bcf], false);
+    // add_end_of_line();
+    // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+
+    // initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * (chunck_id+4), 0.0));
+
+    // log_number(bi + chunck_id*(THREAD_COUNT * 2), false);
+    // add_end_of_line();
+    // log_number(shared_prefix_sum[bi_bcf], false);
+    // add_end_of_line();
+    // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
 }
 
-void solve_active_fmm_blocks() {
+void copy_prefix_sum_to_temp(uint chunck_id) {
 
-  // ASSERT number_of_blocks == 0
+    // Create the local indices.
+    const uint ai = local_id_to_x(); 
+    const uint bi = ai + THREAD_COUNT;
+
+    // Create the bank conflict free local indices.
+    const uint ai_bcf = ai + (ai >> 4); 
+    const uint bi_bcf = bi + (bi >> 4);
+
+    // Create the global indices to access the global memory.
+    const uint global_ai = ai + chunck_id * (THREAD_COUNT * 2);
+    const uint global_bi = bi + chunck_id * (THREAD_COUNT * 2);
+
+    temp_prefix_sum[global_ai] = shared_prefix_sum[ai_bcf];
+    temp_prefix_sum[global_bi] = shared_prefix_sum[bi_bcf];
+}
+
+// Perform prefix sum. Return the exclusive part of the prefix sum.
+// NOTE: only the thread 0 returns the actual exclusive part.
+uint local_prefix_sum() {
+
+    // Create the local indices.
+    const uint ai = local_id_to_x(); 
+    const uint bi = ai + THREAD_COUNT;
+
+    // Create the bank conflict free local indices.
+    const uint ai_bcf = ai + (ai >> 4); 
+    const uint bi_bcf = bi + (bi >> 4);
+
+    uint exclusive_part = 0;
+
+    // Up sweep.
+
+    const int n = THREAD_COUNT*2;
+    int offset = 1;
+    for (int d = n>>1 ; d > 0; d >>= 1) {
+      barrier();
+      //if (local_id_x < d) {
+      if (ai < d) {
+
+          int ai_temp = offset*(int(ai*2)+1)-1; // 0, 2, 4, 6
+          int bi_temp = offset*(int(ai*2)+2)-1; // 1, 3, 5, 7
+
+          ai_temp += (ai_temp >> 4);
+          bi_temp += (bi_temp >> 4);
+
+          shared_prefix_sum[bi_temp] += shared_prefix_sum[ai_temp];
+      }
+      offset *= 2;
+    }
+    barrier();
+      
+    // Clear the last item. 
+    if (ai == 0) {
+
+        // Global last index.
+        uint last_index = (THREAD_COUNT * 2) -1 + ((THREAD_COUNT * 2 - 1) >> 4);
+
+        // Copy the last prefix sum to the shared_aux. 
+        exclusive_part = shared_prefix_sum[last_index];
+
+        // Add zero to the last index.
+        shared_prefix_sum[last_index] = 0;
+    }
+    
+    // Down sweep.
+    for (int d = 1; d < n ; d *=2) {
+      offset >>= 1;
+      barrier();
+      if (ai < d) {
+          int ai_temp = offset*(int(ai*2)+1)-1;
+          int bi_temp = offset*(int(ai*2)+2)-1;
+          ai_temp += (ai_temp >> 4);
+          bi_temp += (bi_temp >> 4);
+          uint t = shared_prefix_sum[ai_temp];
+
+          shared_prefix_sum[ai_temp] = shared_prefix_sum[bi_temp];
+          shared_prefix_sum[bi_temp] += t;
+      }
+  }
+  return exclusive_part;
+}
+
+// Perform prefix sum for shared_aux. Return the exclusive part of the prefix sum.
+uint local_prefix_sum_aux() {
+
+    // Create the local indices.
+    const uint ai = local_id_to_x(); 
+    const uint bi = ai + THREAD_COUNT;
+
+    // Create the bank conflict free local indices.
+    const uint ai_bcf = ai + (ai >> 4); 
+    const uint bi_bcf = bi + (bi >> 4);
+
+    uint exclusive_part = 0;
+
+    // Up sweep.
+
+    const int n = THREAD_COUNT*2;
+    int offset = 1;
+    for (int d = n>>1 ; d > 0; d >>= 1) {
+      barrier();
+      if (ai < d) {
+
+          int ai_temp = offset*(int(ai*2)+1)-1; // 0, 2, 4, 6
+          int bi_temp = offset*(int(ai*2)+2)-1; // 1, 3, 5, 7
+
+          ai_temp += (ai_temp >> 4);
+          bi_temp += (bi_temp >> 4);
+
+          shared_aux[bi_temp] += shared_aux[ai_temp];
+      }
+      offset *= 2;
+    }
+    barrier();
+      
+    // Clear the last item. 
+    if (ai == 0) {
+
+        // Global last index.
+        uint last_index = (THREAD_COUNT * 2) -1 + ((THREAD_COUNT * 2 - 1) >> 4);
+
+        // Copy the last prefix sum to the shared_aux. 
+        stream_compation_count = shared_aux[last_index];
+
+        // Add zero to the last index.
+        shared_aux[last_index] = 0;
+    }
+    
+    // Down sweep.
+    for (int d = 1; d < n ; d *=2) {
+      offset >>= 1;
+      barrier();
+      if (ai < d) {
+          int ai_temp = offset*(int(ai*2)+1)-1;
+          int bi_temp = offset*(int(ai*2)+2)-1;
+          ai_temp += (ai_temp >> 4);
+          bi_temp += (bi_temp >> 4);
+          uint t = shared_aux[ai_temp];
+
+          shared_aux[ai_temp] = shared_aux[bi_temp];
+          shared_aux[bi_temp] += t;
+      }
+  }
+  return exclusive_part;
+}
+
+// Stream compation.
+void solve_active_fmm_block(uint number_of_scan_blocks) {
+
+    uint local_id_x = local_id_to_x(); 
+
+    for (int j=0 ; j < number_of_scan_blocks ; j++) {
+    
+      uint ai = local_id_x + j * THREAD_COUNT * 2;
+      uint bi = (local_id_x + THREAD_COUNT) + j * THREAD_COUNT * 2;
+    
+      uint ai_active = ai + ACTIVE_FMM_BLOCKS_OFFSET;
+      uint bi_active = bi + ACTIVE_FMM_BLOCKS_OFFSET;
+    
+      FMM_Block a = fmm_block[ai];
+      FMM_Block b = fmm_block[bi];
+    
+      bool add_a = a.band_points_count > 0;
+      bool add_b = b.band_points_count > 0;
+    
+      if (add_a) {
+          uint index_to_add = temp_prefix_sum[ai];
+          fmm_block[index_to_add + ACTIVE_FMM_BLOCKS_OFFSET] = a;
+      }
+      if (add_b) {
+          uint index_to_add = temp_prefix_sum[bi];
+          fmm_block[index_to_add + ACTIVE_FMM_BLOCKS_OFFSET] = b;
+      }
+    }
+}
+
+uint global_solver() {
 
   // This should come from the host program.
   const int number_of_blocks = 512; 
@@ -1206,18 +1316,31 @@ void solve_active_fmm_blocks() {
   // true.
   const int number_of_scan_blocks = (number_of_blocks - 1) / 128 + 1;
 
-  const vec3 this_coord_joo = vec3(local_id_x * DEBUG_OFFSET, 0.0, 0.0);
-
   // Available items count.
   uint items_available = number_of_blocks;
 
   // The number of items on current chunk.
   uint number_of_taken_items = 0; 
 
-  // The thread global index.
-  uint global_ind = 0;
+  // Create the local indices.
+  const uint ai = local_id_to_x(); 
+  const uint bi = ai + THREAD_COUNT;
 
-  // Create prefix scan blocks.
+  // Create the local indices.
+  const uint ai_bcf = ai + (ai >> 4); 
+  const uint bi_bcf = bi + (bi >> 4);
+  
+  // Add zeroes to the shared_aux (the conflict free indexes).
+  shared_aux[ai_bcf] = 0;
+  shared_aux[bi_bcf] = 0;
+  shared_prefix_sum[ai_bcf] = 8;
+  shared_prefix_sum[bi_bcf] = 3;
+  // barrier();
+
+  // FMM_Blocks are converted to boolean array.
+  // FMM_Block.band_points_count >  0 :: 1
+  // FMM_Block.band_points_count == 0 :: 0
+  // Perfom prefix sum on boolean array.
   for (int j=0 ; j < number_of_scan_blocks ; j++) {
 
       // Determine the count of items in this iteration.
@@ -1226,313 +1349,98 @@ void solve_active_fmm_blocks() {
       // Decrease the number of available items.
       items_available -= number_of_taken_items;
 
-      create_boolean_array_fmm_blocks(j, number_of_taken_items);
+      // Copy data from global FMM_Block array to
+      // shared_prefix_sum. [{0,1}]
+      copy_block_to_temp(j, number_of_taken_items);
+
+      // Perform the prefix_sum.
+      uint exclusive_part = local_prefix_sum();
+
+      // Add the exclusive part to the shared aux.
+      if (local_id_x == 0) shared_aux[j + (j >> 4)] = exclusive_part; 
+
+      // Copy local prefix sum data to 'temp_prefix_sum' buffer.
+      copy_prefix_sum_to_temp(j);
   }
 
-  const uint ai = local_id_to_x(); 
-  const uint bi = ai + THREAD_COUNT;
+  // Perform the prefix_sum for shared_aux.
+  uint aux_exclusive_part = local_prefix_sum_aux();
 
-  const uint ai_conflict_free = ai + (ai >> 4); 
-  const uint bi_conflict_free = bi + (bi >> 4); 
-
+  // Add the shared_aux to the final result.
   for (int j=0 ; j < number_of_scan_blocks ; j++) {
+    uint value_to_add = shared_aux[j + (j >> 4)]; 
 
-    const uint global_ai_conflict_free = ai_conflict_free + j * SCAN_BLOCK_SIZE;
-    const uint global_bi_conflict_free = bi_conflict_free + j * SCAN_BLOCK_SIZE;
+    // Create the global indices to access the global memory.
+    const uint global_ai = ai + j * (THREAD_COUNT * 2);
+    const uint global_bi = bi + j * (THREAD_COUNT * 2);
 
-    const vec3 this_coord = vec3(global_ai_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
-    const vec3 this_coord2 = vec3(global_bi_conflict_free * DEBUG_OFFSET, 0.0, 0.0);
-
-    initialize_char_array(this_coord);
-
-    // log_number(global_ai_conflict_free, false);
-    // add_end_of_line();
-    log_number(shared_prefix_sum[global_ai_conflict_free], false);
-    add_end_of_line();
-    push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-
-    initialize_char_array(this_coord2);
-
-    // log_number(global_bi_conflict_free, false);
-    // add_end_of_line();
-    log_number(shared_prefix_sum[global_bi_conflict_free], false);
-    add_end_of_line();
-    push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-
-    // Up sweep.
-
-    const int n = THREAD_COUNT*2;
-    int offset = 1;
-    for (int d = n>>1 ; d > 0; d >>= 1) {
-      barrier();
-      if (local_id_x < d) {
-
-          int ai_temp = offset*(int(local_id_x*2)+1)-1; // 0, 2, 4, 6
-          int bi_temp = offset*(int(local_id_x*2)+2)-1; // 1, 3, 5, 7
-
-          ai_temp += (ai_temp >> 4);
-          bi_temp += (bi_temp >> 4);
-
-          ai_temp += j * SCAN_BLOCK_SIZE;
-          bi_temp += j * SCAN_BLOCK_SIZE;
-
-          shared_prefix_sum[bi_temp] += shared_prefix_sum[ai_temp];
-      }
-      offset *= 2;
-    }
-    barrier();
-      
-    // Add the value to shared_aux array. Clear the last item. 
-    if (local_id_x == 0) {
-
-        // Global last index.
-        uint last_index = n-1 + ((n-1) >> 4) + j*SCAN_BLOCK_SIZE;
-
-        // Copy the last prefix sum to the shared_aux. 
-        shared_aux[j + (j>>4)] = shared_prefix_sum[last_index];
-
-        shared_prefix_sum[last_index] = 0;
-    }
-    
-    // Down sweep.
-    for (int d = 1; d < n ; d *=2) {
-      offset >>= 1;
-      barrier();
-      if (local_id_x < d) {
-          int ai_temp = offset*(int(local_id_x*2)+1)-1;
-          int bi_temp = offset*(int(local_id_x*2)+2)-1;
-          ai_temp += (ai_temp >> 4);
-          bi_temp += (bi_temp >> 4);
-          ai_temp += j * SCAN_BLOCK_SIZE;
-          bi_temp += j * SCAN_BLOCK_SIZE;
-          uint t = shared_prefix_sum[ai_temp];
-
-          shared_prefix_sum[ai_temp] = shared_prefix_sum[bi_temp];
-          shared_prefix_sum[bi_temp] += t;
-      }
-    }
-    //barrier();
+    temp_prefix_sum[global_ai] += value_to_add; 
+    temp_prefix_sum[global_bi] += value_to_add; 
   }
 
-  // AUXILIAR
+  // Finally. Update the number of active FMM_Blocks.
 
-  //// Super clever hack to avoid if :).
-  //const uint blah[2] = {0, 0xffffffff};
+  solve_active_fmm_block(number_of_scan_blocks);
 
-  // Create auxiliar prefix sum. TODO!!! Check boundaries when index is 128.
-
-  // Keep the original value if the id is in range. Add 0 otherwise.
-  uint last_index = (THREAD_COUNT * 2 - 1) + ((THREAD_COUNT * 2 - 1) >> 4);
-  uint last_index_ai = last_index + local_id_x * SCAN_BLOCK_SIZE; // (local_id_x + 1) * last_index; 
-  uint last_index_bi = last_index + (local_id_x + THREAD_COUNT) * SCAN_BLOCK_SIZE; // (local_id_x + 1) * last_index; 
-
-  shared_aux[ai_conflict_free] = blah[(uint(local_id_x < number_of_scan_blocks))] & shared_aux[ai_conflict_free];
-  shared_aux[bi_conflict_free] = blah[(uint(local_id_x + THREAD_COUNT < number_of_scan_blocks))] & shared_aux[ai_conflict_free];
-
-  // Aux up sweep
-  const int n = THREAD_COUNT*2;
-  int offset = 1;
-  for (int d = n>>1 ; d > 0; d >>= 1) {
-    barrier();
-    if (local_id_x < d) {
-        int ai = offset*(int(local_id_x*2)+1)-1;
-        int bi = offset*(int(local_id_x*2)+2)-1;
-        ai += (ai >> 4);
-        bi += (bi >> 4);
-
-        shared_aux[bi] += shared_aux[ai];
-    }
-    offset *= 2;
-  }
-
-  // Clear the last item.
-  if (local_id_x == 0) {
-
-    uint last_index = (THREAD_COUNT * 2 - 1) + ((THREAD_COUNT * 2 - 1) >> 4);
-
-    // Copy the compaction count. 
-    stream_compation_count = shared_aux[last_index];
-    shared_aux[last_index] = 0;
-  }
-
-  // Down sweep.
-  for (int d = 1; d < n ; d *=2) {
-    offset >>= 1;
-    barrier();
-    if (local_id_x < d) {
-        int ai = offset*(int(local_id_x*2)+1)-1;
-        int bi = offset*(int(local_id_x*2)+2)-1;
-        ai += (ai >> 4);
-        bi += (bi >> 4);
-        uint t = shared_aux[ai];
-
-        shared_aux[ai] = shared_aux[bi];
-        shared_aux[bi] += t;
-    }
-  }
-
-  barrier();
-
-  // SUM
-  for (int j=1 ; j < number_of_scan_blocks ; j++) {
-    barrier();
-    uint conflict_free_index = j + (j >> 4); 
-    uint value_to_add = shared_aux[conflict_free_index];
-    uint ai = ai_conflict_free + j*SCAN_BLOCK_SIZE;
-    uint bi = bi_conflict_free + j*SCAN_BLOCK_SIZE;
-    shared_prefix_sum[ai] += value_to_add;
-    shared_prefix_sum[bi] += value_to_add;
-
-  }
-  
-  barrier();
-
-  // STREAM COMPACTION.
-
-  uint max_items_conflict_free = 
-      number_of_scan_blocks * (THREAD_COUNT * 2 - 1) + ((number_of_scan_blocks * (THREAD_COUNT * 2 - 1)) >> 4);
-
-  for (int j=0 ; j < number_of_scan_blocks ; j++) {
-
-    uint ai = local_id_x + j * THREAD_COUNT * 2;
-    uint bi = (local_id_x + THREAD_COUNT) + j * THREAD_COUNT * 2;
-
-    uint ai_conflict_free = ai + (ai >> 4);
-    uint bi_conflict_free = bi + (bi >> 4);
-
-
-    FMM_Block a = fmm_block[ai];
-    FMM_Block b = fmm_block[bi];
-
-    // const FMM_Block[2] a_block = {FMM_Block(0, 0), a}; 
-    // const FMM_Block[2] b_block = {FMM_Block(0, 0), b}; 
-
-    bool add_a = (ai_conflict_free < max_items_conflict_free) && (a.band_points_count > 0);
-    bool add_b = (bi_conflict_free < max_items_conflict_free) && (b.band_points_count > 0);
-
-    if (add_a) {
-        uint index_to_add = shared_prefix_sum[ai_conflict_free];
-        shared_stream_compaction[index_to_add] = a;
-    }
-    if (add_b) {
-        uint index_to_add = shared_prefix_sum[bi_conflict_free];
-        shared_stream_compaction[index_to_add] = b;
-    }
-  }
-  barrier();
-
-  for (int j=0 ; j < number_of_scan_blocks ; j++) {
-    uint ai = local_id_x + j * THREAD_COUNT * 2;
-    uint bi = (local_id_x + THREAD_COUNT) + j * THREAD_COUNT * 2;
-
-    if (ai < stream_compation_count) {
-
-        const vec3 this_coord = vec3(ai * (DEBUG_OFFSET + 0.05), 0.0, 0.0) - 3 * vec3(0.0, DEBUG_OFFSET, 0.0) ;
-
-        initialize_char_array(this_coord);
-
-        log_number(shared_stream_compaction[ai].index, false);
-        //log_number(ai, false);
-        add_end_of_line();
-        log_number(shared_stream_compaction[ai].band_points_count, false);
-        //log_number(number_of_scan_blocks, false);
-        add_end_of_line();
-        push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-
-    }
-
-    if (bi < stream_compation_count) {
-
-        const vec3 this_coord2 = vec3(bi * (DEBUG_OFFSET + 0.05), 0.0, 0.0) - 3 * vec3(0.0, DEBUG_OFFSET, 0.0) ;
-
-        initialize_char_array(this_coord2);
-
-        log_number(shared_stream_compaction[bi].index, false);
-        //log_number(bi, false);
-        add_end_of_line();
-        log_number(shared_stream_compaction[bi].band_points_count, false);
-        //log_number(number_of_scan_blocks, false);
-        add_end_of_line();
-        push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-    }
-  }
-
-  // LOG the final result.
-  for (int j=0 ; j < number_of_scan_blocks ; j++) {
-    const vec3 this_coord  = vec3((ai_conflict_free + j*SCAN_BLOCK_SIZE) * DEBUG_OFFSET, 0.0, 0.0);
-    const vec3 this_coord2 = vec3((bi_conflict_free + j*SCAN_BLOCK_SIZE) * DEBUG_OFFSET, 0.0, 0.0);
-
-    initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * 2, 0.0));
-    //log_number(ai_conflict_free + j*SCAN_BLOCK_SIZE, false);
-    //add_end_of_line();
-    log_number(shared_prefix_sum[ai_conflict_free + j*SCAN_BLOCK_SIZE], false);
-    add_end_of_line();
-    push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-
-    initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * 2, 0.0));
-
-    //log_number(bi_conflict_free + j*SCAN_BLOCK_SIZE, false);
-    //add_end_of_line();
-    log_number(shared_prefix_sum[bi_conflict_free + j*SCAN_BLOCK_SIZE], false);
-    add_end_of_line();
-    push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-  }
-
-  //barrier();
-
-  //// // initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET*3, 0.0));
-
-  //// // log_number(local_id_x, false);
-  //// // add_end_of_line();
-  //// // log_number(shared_aux[local_id_x], false);
-  //// // add_end_of_line();
-  //// // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 3, 20);
-
-  //// // initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET*3, 0.0));
-
-  //// // log_number(local_id_x_b, false);
-  //// // add_end_of_line();
-  //// // log_number(shared_aux[local_id_x_b], false);
-  //// // add_end_of_line();
-  //// // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 3, 20);
-  //// 
-  //// for (int j=1 ; j < number_of_scan_blocks ; j++) {
-  ////   barrier();
-  ////   uint value_to_add = shared_aux[j];
-  ////   shared_prefix_sum[local_id_x + j*SCAN_BLOCK_SIZE] += value_to_add;
-  ////   shared_prefix_sum[local_id_x_b +  j*SCAN_BLOCK_SIZE] += value_to_add;
-  //// }
-  //// //barrier();
-
-  //// for (int j=0 ; j < number_of_scan_blocks ; j++) {
-
-  ////   const int global_id_x_even = int(local_id_x + j * SCAN_BLOCK_SIZE);
-  ////   const int global_id_x_b  = int(local_id_x_b + j * SCAN_BLOCK_SIZE);
-
-  ////   const vec3 this_coord = vec3(global_id_x_even * DEBUG_OFFSET, 0.0, 0.0);
-  ////   const vec3 this_coord2 = vec3(global_id_x_b * DEBUG_OFFSET, 0.0, 0.0);
-
-  ////   initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * 4, 0.0));
-
-  ////   log_number(global_id_x_even, false);
-  ////   add_end_of_line();
-  ////   log_number(shared_prefix_sum[global_id_x_even], false);
-  ////   add_end_of_line();
-  ////   push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-
-  ////   initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * 4, 0.0));
-
-  ////   log_number(global_id_x_b, false);
-  ////   add_end_of_line();
-  ////   log_number(shared_prefix_sum[global_id_x_b], false);
-  ////   add_end_of_line();
-  ////   push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-  //// }
+  return 777;
 }
 
 void main() {
 
-  solve_active_fmm_blocks();
+  // Finally add the counter[0] and counter[1] to the output_points[0] adn
+  // output_points[1];
+  //  uint index = atomicAdd(counter[1], 21);
+  if (local_id_to_x() == 0) {
+    counter[0] = 2;
+    counter[1] = 1024000;
+    //output_points[0] = OutputVertex(vec3(7,7,7), 2);
+    //output_points[1] = OutputVertex(vec3(8,8,8), 1024000);
+  }
+  // barrier();
+
+  // solve_active_fmm_blocks();
+  global_solver();
+
+  for (int j=0 ; j < 4 ; j++) {
+
+    uint ai = local_id_to_x();
+    uint bi = local_id_to_x() + THREAD_COUNT;
+
+    uint ai_global = ai + j*(THREAD_COUNT * 2);
+    uint bi_global = bi + THREAD_COUNT + j*(THREAD_COUNT * 2);
+
+    if (ai_global < stream_compation_count) {
+
+        const vec3 this_coord  = vec3((ai + j*THREAD_COUNT * 2) * DEBUG_OFFSET, 0.0, 0.0);
+
+        initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * 2, 0.0));
+        log_number(ai + j*(THREAD_COUNT * 2), false);
+        add_end_of_line();
+        log_number(fmm_block[ai + j*THREAD_COUNT * 2 + ACTIVE_FMM_BLOCKS_OFFSET].index, false);
+        add_end_of_line();
+        push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+
+    }
+    if (bi_global < stream_compation_count) {
+
+        const vec3 this_coord2 = vec3((bi + j*(THREAD_COUNT * 2)) * DEBUG_OFFSET, 0.0, 0.0);
+
+        initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * 2, 0.0));
+
+        log_number(bi + j*THREAD_COUNT * 2, false);
+        add_end_of_line();
+        log_number(fmm_block[bi + j*THREAD_COUNT * 2 + ACTIVE_FMM_BLOCKS_OFFSET].index, false);
+        add_end_of_line();
+        push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+
+    }
+  }
+
+  barrier();
+  if (local_id_to_x() == 0) {
+    output_points[0] = OutputVertex(vec3(7,7,7), counter[0]);
+    output_points[1] = OutputVertex(vec3(8,8,8), counter[1]);
+  }
 
   ////  uint global_index = gl_LocalInvocationID.x      + 64 * block.x +
   ////                      gl_LocalInvocationID.y * 4  + 64 * 4 * block.y +
