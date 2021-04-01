@@ -307,7 +307,12 @@ fn create_buffers(device: &wgpu::Device,
             None)
         );
 
-        let active_block_ids: Vec<u32> = vec![0, 2, 124, 127, 128, 168, 300];
+        //let active_block_ids: Vec<u32> = vec![0, 2, 124, 127, 128, 168, 300];
+        let mut active_block_ids: Vec<u32> = Vec::new();
+
+        for i in 0..512 {
+            active_block_ids.push(i);
+        }
 
         println!("CREATING BLOCKS");
 

@@ -38,11 +38,6 @@ struct AABB {
     vec4 max; 
 };
 
-
-//layout(set = 0, binding = 1) buffer Counter {
-//    uint counter[2];
-//};
-
 layout(set=0, binding=0) uniform camerauniform {
     mat4 u_view_proj;
     vec4 camera_pos;
@@ -109,7 +104,7 @@ shared uint shared_aux[SCAN_BLOCK_SIZE];
 shared uint[SCAN_BLOCK_SIZE] shared_prefix_sum;
 
 //// The counter for active fmm blocks.
-shared uint stream_compation_count;
+shared uint stream_compaction_count;
 
 // TODO: define a buffer for active scan blocks.
 //shared FMM_Block[SCAN_BLOCK_SIZE * SCAN_BLOCK_COUNT] shared_stream_compaction;
@@ -356,7 +351,6 @@ uint update_counter() {
 
 void create_aabb_triangles(AABB aabb, uint r, uint b, uint g) {
 
-    //uint aabb_index = atomicAdd(output_points[1].color_point_size, 24); // = OutputVertex(vec3(7,7,7), counter[0]);
     uint aabb_index = atomicAdd(counter[1], 24);
 
     const vec3 delta = aabb.max.xyz - aabb.min.xyz;
@@ -383,7 +377,6 @@ void create_aabb_triangles(AABB aabb, uint r, uint b, uint g) {
 // TODO rename to triangles.
 void create_output_points(AABB aabb, uint r, uint g, uint b) {
 
-    //uint aabb_index = atomicAdd(output_points[1].color_point_size, 36);
     uint aabb_index = atomicAdd(counter[1], 36);
 
     const vec3 delta = aabb.max.xyz - aabb.min.xyz;
@@ -525,7 +518,6 @@ void bezier_4c(uint n, vec4 c0, vec4 c1, vec4 c2, vec4 c3, uint r, uint g, uint 
 
     if (n < 4) return;
 
-    //uint index = atomicAdd(output_points[0].color_point_size, n);
     uint index = atomicAdd(counter[0], n);
 
     for (int i=0 ; i<n ; i++) {
@@ -559,7 +551,6 @@ void create_array(float array_width, vec3 base_pos, vec3 dest_pos, uint r, uint 
 
     vec3 side_direction = cross(camera_direction, array_direction);   
 
-    //uint index = atomicAdd(output_points[1].color_point_size, 21);
     uint index = atomicAdd(counter[1], 21);
 
     const vec3 p0 = base_pos;
@@ -1246,7 +1237,7 @@ uint local_prefix_sum_aux() {
         uint last_index = (THREAD_COUNT * 2) -1 + ((THREAD_COUNT * 2 - 1) >> 4);
 
         // Copy the last prefix sum to the shared_aux. 
-        stream_compation_count = shared_aux[last_index];
+        stream_compaction_count = shared_aux[last_index];
 
         // Add zero to the last index.
         shared_aux[last_index] = 0;
@@ -1309,7 +1300,7 @@ uint global_solver() {
   uint local_id_x = local_id_to_x();
 
   // Reset the counter for active blocks. 
-  if (local_id_x == 0) stream_compation_count = 0;
+  if (local_id_x == 0) stream_compaction_count = 0;
   
   // Number of data chunks. There must be at least one iteration.
   // neeeded. TODO: check number_of_blocks == 0. Return immediatelly if it
@@ -1407,29 +1398,29 @@ void main() {
     uint bi = local_id_to_x() + THREAD_COUNT;
 
     uint ai_global = ai + j*(THREAD_COUNT * 2);
-    uint bi_global = bi + THREAD_COUNT + j*(THREAD_COUNT * 2);
+    uint bi_global = bi + j*(THREAD_COUNT * 2);
 
-    if (ai_global < stream_compation_count) {
+    if (ai_global < stream_compaction_count) {
 
-        const vec3 this_coord  = vec3((ai + j*THREAD_COUNT * 2) * DEBUG_OFFSET, 0.0, 0.0);
+        const vec3 this_coord  = vec3(ai_global * DEBUG_OFFSET, 0.0, 0.0);
 
         initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * 2, 0.0));
-        log_number(ai + j*(THREAD_COUNT * 2), false);
+        log_number(ai_global, false);
         add_end_of_line();
-        log_number(fmm_block[ai + j*THREAD_COUNT * 2 + ACTIVE_FMM_BLOCKS_OFFSET].index, false);
+        log_number(fmm_block[ai_global + ACTIVE_FMM_BLOCKS_OFFSET].index, false);
         add_end_of_line();
         push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
 
     }
-    if (bi_global < stream_compation_count) {
+    if (bi_global < stream_compaction_count) {
 
-        const vec3 this_coord2 = vec3((bi + j*(THREAD_COUNT * 2)) * DEBUG_OFFSET, 0.0, 0.0);
+        const vec3 this_coord2 = vec3(bi_global * DEBUG_OFFSET, 0.0, 0.0);
 
         initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * 2, 0.0));
 
-        log_number(bi + j*THREAD_COUNT * 2, false);
+        log_number(bi_global, false);
         add_end_of_line();
-        log_number(fmm_block[bi + j*THREAD_COUNT * 2 + ACTIVE_FMM_BLOCKS_OFFSET].index, false);
+        log_number(fmm_block[bi_global + ACTIVE_FMM_BLOCKS_OFFSET].index, false);
         add_end_of_line();
         push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
 
