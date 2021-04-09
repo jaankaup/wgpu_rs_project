@@ -173,6 +173,20 @@ pub struct Triangle {
     pub c: Vector3<f32>,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct Triangle_vvvvnnnn {
+    pub a: Vector4<f32>,
+    pub na: Vector4<f32>,
+    pub b: Vector4<f32>,
+    pub nb: Vector4<f32>,
+    pub c: Vector4<f32>,
+    pub nc: Vector4<f32>,
+}
+
+unsafe impl Pod for Triangle_vvvvnnnn {}
+unsafe impl Zeroable for Triangle_vvvvnnnn {}
+
 impl Triangle {
 
     pub fn closest_point_to_triangle(&self, p: &Vector3<f32>) -> Vector3<f32> {

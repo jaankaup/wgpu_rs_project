@@ -16,3 +16,4 @@ bytemuck = { version = "1.4", features = ["derive"] }
 jaankaup_core = { path = "../jaankaup_core" }
 model_loader = { path = "../model_loader" }
 render_shaders = { path = "../render_shaders" }
+geometry = { path = "../geometry" }

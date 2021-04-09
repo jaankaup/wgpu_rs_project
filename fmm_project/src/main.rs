@@ -1,5 +1,5 @@
 use jaankaup_core::wgpu;
-use render_shaders::Render_vvvc;
+use render_shaders::{Render_vvvc, Render_vvvvnnnn};
 use jaankaup_core::buffer::{buffer_from_data, to_vec};
 use std::collections::HashMap;
 use jaankaup_core::wgpu_system as ws;
@@ -21,6 +21,7 @@ use jaankaup_core::texture::Texture as JTexture;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
 use jaankaup_core::misc::OutputVertex;
+use geometry::aabb::{BBox, Triangle, Triangle_vvvvnnnn};
 use model_loader::load_triangles_from_obj;
 use bytemuck::{Pod, Zeroable};
 
@@ -72,6 +73,11 @@ struct FMM_App {
 //    histogram: Histogram, 
     debug_point_count: u32,
     debug_triangle_draw_count: u32,
+    white_noise_texture: JTexture,
+    fmm_data_generator: FMM_data_generator_debug_pipeline,
+    fmm_data_generator_bind_groups: Vec<wgpu::BindGroup>,
+    render_vvvvnnn_pipeline: Render_vvvvnnnn,
+    render_vvvvnnnn_bind_groups: Vec<wgpu::BindGroup>,
 }
 
 impl FMM_App {
@@ -92,9 +98,20 @@ impl Application for FMM_App {
             Some("fmm depth texture")
         ); 
 
+        let test_texture_data_1d: Vec<[f32 ; 4]> = vec![[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]];
+        let white_noise_texture = JTexture::create_texture_array(
+                &configuration.queue,
+                &configuration.device,
+                &test_texture_data_1d,
+                //wgpu::TextureFormat::R32Float
+                wgpu::TextureFormat::Rgba32Float
+        );
+
+        // let (mc_triangle_data, aabb): (Vec<Triangle>, BBox) = load_triangles_from_obj("../../assets/models/wood.obj").unwrap();
+
         // Initialize camera for fmm application.
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
-        camera.set_movement_sensitivity(0.002);
+        camera.set_movement_sensitivity(0.02);
 
         // Create buffers for fmm alogrithm.
         create_buffers(&configuration.device,
@@ -107,6 +124,10 @@ impl Application for FMM_App {
         // Create render pipelines for debugger.
         let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvc_camera.vert.spv");
         let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvc_camera.frag.spv");
+
+        // Create render pipelines vvvvnnnn.
+        let vertex_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.vert.spv");
+        let fragment_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.frag.spv");
 
         // The point pipeline.
         let render_vvvc_point_pipeline = Render_vvvc::init(
@@ -130,6 +151,16 @@ impl Application for FMM_App {
                     wgpu::PrimitiveTopology::TriangleList
         );
         let render_vvvc_triangle_bind_groups = render_vvvc_triangle_pipeline.create_bind_groups(
+            &configuration.device,
+            &camera.get_camera_uniform(&configuration.device)
+        );
+        let render_vvvvnnn_pipeline = Render_vvvvnnnn::init(
+                &configuration.device,
+                &configuration.sc_desc,
+                &configuration.device.create_shader_module(&vertex_shader_vvvvnnnn),
+                &configuration.device.create_shader_module(&fragment_shader_vvvvnnnn)
+        );
+        let render_vvvvnnnn_bind_groups = render_vvvvnnn_pipeline.create_bind_groups(
             &configuration.device,
             &camera.get_camera_uniform(&configuration.device)
         );
@@ -164,6 +195,23 @@ impl Application for FMM_App {
                         ], 
                     ]
         );
+        let fmm_data_generator = FMM_data_generator_debug_pipeline::init(&configuration.device);
+        let fmm_data_generator_bind_groups =
+                create_bind_groups(
+                    &configuration.device, 
+                    &fmm_data_generator.get_bind_group_layout_entries(),
+                    &vec![
+                        vec![
+                            &camera.get_camera_uniform(&configuration.device).as_entire_binding(),
+                            &buffers.get("prefix_sum_temp").unwrap().as_entire_binding(),
+                            &buffers.get("debug_points_output").unwrap().as_entire_binding(),
+                            &buffers.get("fmm_nodes").unwrap().as_entire_binding(),
+                            &buffers.get("wood").unwrap().as_entire_binding(),
+                            &wgpu::BindingResource::TextureView(&white_noise_texture.view),
+                            //&wgpu::BindingResource::Sampler(&white_noise_texture.sampler),
+                        ], 
+                    ]
+        );
 
         Self {
             depth_texture,
@@ -178,6 +226,11 @@ impl Application for FMM_App {
             //histogram,
             debug_point_count,
             debug_triangle_draw_count,
+            white_noise_texture, 
+            fmm_data_generator,
+            fmm_data_generator_bind_groups,
+            render_vvvvnnn_pipeline,
+            render_vvvvnnnn_bind_groups,
         }
     }
     fn render(&mut self,
@@ -210,6 +263,16 @@ impl Application for FMM_App {
               //3..3000,
               true
          );
+         // draw(&mut encoder,
+         //      &frame,
+         //      &self.depth_texture,
+         //      &self.render_vvvvnnnn_bind_groups,
+         //      &self.render_vvvvnnn_pipeline.get_pipeline(),
+         //      &self.buffers.get("wood").unwrap(),
+         //      //0..300,
+         //      0..2036*3,
+         //      false
+         // );
 
          draw(&mut encoder,
               &frame,
@@ -244,6 +307,13 @@ impl Application for FMM_App {
                     1,
                     1
         ); 
+        self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
+                    &mut encoder,
+                    1,
+                    1,
+                    1
+        ); 
+
 
         queue.submit(Some(encoder.finish()));
 
@@ -346,6 +416,19 @@ fn create_buffers(device: &wgpu::Device,
             &device,
             &test_blocks,
             wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+            None)
+        );
+
+        let (mc_triangle_data, mc_vvvvnnnn, aabb): (Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox) = load_triangles_from_obj("assets/models/wood.obj").unwrap();
+
+        println!("WOOD vertex count = {}", mc_vvvvnnnn.len());
+
+        buffers.insert(
+            "wood".to_string(),
+            buffer_from_data::<Triangle_vvvvnnnn>(
+            &device,
+            &mc_vvvvnnnn,
+            wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
             None)
         );
 }
@@ -479,6 +562,152 @@ impl FMM_debug_pipeline {
         // Create the pipeline.
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("fmm_debug_pipeline"),
+            layout: Some(&pipeline_layout),
+            module: &device.create_shader_module(&comp_module),
+            entry_point: "main",
+        });
+
+
+        Self {
+            layout_entries, 
+            bind_group_layouts, 
+            pipeline,
+        }
+    }
+}
+
+/// Struct for fmm_data_generato development version.
+pub struct FMM_data_generator_debug_pipeline {
+    layout_entries: Vec<Vec<wgpu::BindGroupLayoutEntry>>, 
+    bind_group_layouts: Vec<wgpu::BindGroupLayout>, 
+    pipeline: wgpu::ComputePipeline,
+}
+
+impl FMM_data_generator_debug_pipeline {
+
+    pub fn get_pipeline(&self) -> &wgpu::ComputePipeline {
+        &self.pipeline
+    }
+
+    pub fn get_bind_group_layouts(&self) -> &Vec<wgpu::BindGroupLayout> {
+        &self.bind_group_layouts
+    }
+
+    pub fn get_bind_group_layout_entries(&self) -> &Vec<Vec<wgpu::BindGroupLayoutEntry>> {
+        &self.layout_entries
+    }
+
+    pub fn dispatch(&self, bind_groups: &Vec<wgpu::BindGroup>,
+                    encoder: &mut wgpu::CommandEncoder,
+                    x: u32, y: u32, z: u32) {
+
+        let mut pass = encoder.begin_compute_pass(
+            &wgpu::ComputePassDescriptor { label: None}
+        );
+        pass.set_pipeline(&self.pipeline);
+        for (e, bgs) in bind_groups.iter().enumerate() {
+            pass.set_bind_group(e as u32, &bgs, &[]);
+        }
+        pass.dispatch(x, y, z)
+    }
+
+    pub fn init(device: &wgpu::Device) -> Self {
+
+        let comp_module = wgpu::include_spirv!("../../shaders/spirv/fmm_data_generator.comp.spv");
+
+        // Define all bind grout entries for pipeline and bind groups.
+        let layout_entries = vec![
+                // layout(set=0, binding=0) uniform camerauniform {
+                vec![
+                    // layout(set=0, binding=0) uniform camerauniform {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: wgpu::BufferSize::new(16),
+                            },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 1) buffer Prefix_sums  {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 2) buffer Points_out {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 3) buffer Boundary_data  {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 3,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 4) buffer Triangle_data  {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 4,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None, //wgpu::BufferSize::new(fmm_blocks_size),
+                        },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 5) uniform texture1D z1z2_texture;
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 5,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::StorageTexture {
+                            access: wgpu::StorageTextureAccess::ReadOnly,
+                            format: wgpu::TextureFormat::Rgba32Float,
+                            view_dimension: wgpu::TextureViewDimension::D1,
+                        },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 6) uniform sampler z1z2_texture_sampler;
+                    // wgpu::BindGroupLayoutEntry {
+                    //     binding: 6,
+                    //     visibility: wgpu::ShaderStage::COMPUTE,
+                    //     ty: wgpu::BindingType::Sampler {
+                    //         filtering: true,
+                    //         comparison: false,
+                    //     },
+                    //     count: None,
+                    // },
+                ],
+        ];
+        let bind_group_layouts = create_bind_group_layouts(&device, &layout_entries);
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &bind_group_layouts.iter().collect::<Vec<_>>(),
+            push_constant_ranges: &[],
+        });
+
+        // Create the pipeline.
+        let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("fmm_data_generator_debug_pipeline"),
             layout: Some(&pipeline_layout),
             module: &device.create_shader_module(&comp_module),
             entry_point: "main",

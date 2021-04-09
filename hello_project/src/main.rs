@@ -180,8 +180,8 @@ impl Application for HelloApp {
                                     }], 
                                     vec![&wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
                                          &wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler),
-                                         &wgpu::BindingResource::TextureView(&textures.get("rock").unwrap().view),
-                                         &wgpu::BindingResource::Sampler(&textures.get("rock").unwrap().sampler)]
+                                         &wgpu::BindingResource::TextureView(&white_noise_texture.view),
+                                         &wgpu::BindingResource::Sampler(&white_noise_texture.sampler)]
                                 ]
         );
 

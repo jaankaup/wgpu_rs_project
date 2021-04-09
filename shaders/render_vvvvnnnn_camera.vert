@@ -12,7 +12,7 @@ layout(set=0, binding=0) uniform camerauniform {
 };
 
 void main() {
-    gl_Position = u_view_proj * vec4(2.0 * pos.xyz, 1.0); 
+    gl_Position = u_view_proj * vec4(pos.xyz, 1.0); 
     pos_f = pos;
     nor_f = nor; 
 }

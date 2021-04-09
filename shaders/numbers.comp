@@ -504,6 +504,101 @@ float number1(vec3 pos, vec3 aabb_center, float thickness) {
     return bbox;
 }
 
+// max_n must be greater than zero. TODO: make sure it is atleast 1.
+// void divide_triangle_to_points(vec3 a, vec3 b, vec3 c, max_n: u32) -> Vec<Vector3<f32>> {
+// 
+//     const float epsilon = 0.3;
+// 
+//     vec3 ab = b - a;
+//     vec3 ac = c - a;
+//     vec3 bc = c - b;
+// 
+//     // Length area os ab X ac vector.
+//     float s = 0.5 * ab.cross(ac).length();
+// 
+//     // Number of generated points.
+//     uint n = min(max_n, (s/epsilon).sqrt().ceil());
+// 
+//     // Scaled triangle directions.
+//     const vec3 s1 = 1.0 / (float(n) * ab;
+//     const vec3 s2 = 1.0 / (float(n) * bc;
+//     const vec3 s3 = 1.0 / (float(n) * ac;
+// 
+//     // Move along the triangle side. (1) 
+//     vec3 ps = 1.0/3.0 * (a + (a + s1) + (a + s3));
+// 
+//     // Store generated point.
+//     // points.push(ps.clone());
+// 
+//     uint i = 2;
+// 
+//     //                                                  
+//     //          a                                           
+//     //  s1      |\      s3                                  
+//     //  |       | \      \                                    
+//     //  |       |  \      \                                   
+//     //  V       |   \      V                                  
+//     //          |    \                                        
+//     //          |      \                                       
+//     //          |       \                                      
+//     //          |  (1)   \                                     
+//     //          |         \                                    
+//     //          |          \                                   
+//     //          |           \                                  
+//     //          |            \                                 
+//     //          |  (2a) (3a)  \                                 
+//     //          |              \                                 
+//     //          |               \                                 
+//     //          |                \                                 
+//     //          |                 \                                 
+//     //          |  (2b) (3b) (3b2) \                                 
+//     //          |                   \                                 
+//     //          |                    \                                 
+//     //          |                     \                                 
+//     //          |  (2c) (3c) (3c2)(3c3)\                                 
+//     //          |                       \                                 
+//     //          |                        \                                 
+//     //          |                         \                                 
+//     //          |  (2d) (3d) (3d2)(3d3)(3d4)\                                 
+//     //          |                            \                                 
+//     //          |                             \                                 
+//     //          |                              \                                 
+//     //          b-------------------------------c                  
+//     //                                                      
+//     //  s2 -->                                                    
+//     //                                                      
+//     //                                                      
+// 
+//     while (i <= n) {
+// 
+//         // Create a new point in s1 direction. (2)
+//         ps = ps + s1;
+// 
+//         // Store generated point.
+//         // points.push(ps.clone());
+// 
+//         // Create a copy of the generated point.
+//         vec3 p = ps;
+// 
+//         uint j = 2;
+// 
+//         while (j <= i) {
+//             // Move to the s2 direction and store generated point. (3)
+//             p = p + s2;
+//             //points.push(p.clone());
+//             j += 1;
+//         }
+//         i += 1;
+//     }
+// 
+//     println!("Points");
+//     for p in points.iter() {
+//         println!("Vector {{ x: {}, y: {}, z: {} }}", p.x, p.y, p.z);
+//     }
+// 
+//     points
+// }
+
 void main() {
 
   uint global_index = gl_GlobalInvocationID.x;

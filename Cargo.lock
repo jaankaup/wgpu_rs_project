@@ -546,6 +546,7 @@ name = "fmm_project"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "geometry",
  "jaankaup_core",
  "model_loader",
  "render_shaders",

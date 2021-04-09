@@ -10,7 +10,7 @@ layout(set=0, binding=0) uniform camerauniform {
     vec4 camera_pos;
 };
 
-const vec3 light_pos = vec3(3.0, 48.0, 3.0);
+const vec3 light_pos = vec3(3.0, 18.0, 3.0);
 const vec3 light_color = vec3(1.0, 1.0, 1.0);
 const vec3 material_spec_color = vec3(1.0, 1.0, 1.0);
 const float material_shininess = 70.0;
