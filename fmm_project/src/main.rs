@@ -1,3 +1,5 @@
+use rand::prelude::*;
+pub use winit::event::VirtualKeyCode as Key;
 use jaankaup_core::wgpu;
 use render_shaders::{Render_vvvc, Render_vvvvnnnn};
 use jaankaup_core::buffer::{buffer_from_data, to_vec};
@@ -78,6 +80,7 @@ struct FMM_App {
     fmm_data_generator_bind_groups: Vec<wgpu::BindGroup>,
     render_vvvvnnn_pipeline: Render_vvvvnnnn,
     render_vvvvnnnn_bind_groups: Vec<wgpu::BindGroup>,
+    show_mesh: bool,
 }
 
 impl FMM_App {
@@ -98,11 +101,29 @@ impl Application for FMM_App {
             Some("fmm depth texture")
         ); 
 
+        // Create white noise [0,1] to texture. This is used for sampling triangles.
+
         let test_texture_data_1d: Vec<[f32 ; 4]> = vec![[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]];
+        let mut white_noise: Vec<[f32 ; 4]> = Vec::new();
+
+        let mut rng = thread_rng();
+        for _i in 0..1024 {
+            let mut cont = true;
+            while cont {
+                let w0 = rng.gen();
+                let w1 = rng.gen();
+                let w2 = rng.gen();
+                let w3 = rng.gen();
+                if w0 + w1 <= 1.0 {
+                    cont = false;
+                    white_noise.push([w0, w1, w2, w3]);
+                }
+            }
+        }
         let white_noise_texture = JTexture::create_texture_array(
                 &configuration.queue,
                 &configuration.device,
-                &test_texture_data_1d,
+                &white_noise,
                 //wgpu::TextureFormat::R32Float
                 wgpu::TextureFormat::Rgba32Float
         );
@@ -208,10 +229,12 @@ impl Application for FMM_App {
                             &buffers.get("fmm_nodes").unwrap().as_entire_binding(),
                             &buffers.get("wood").unwrap().as_entire_binding(),
                             &wgpu::BindingResource::TextureView(&white_noise_texture.view),
+                            &buffers.get("fmm_data_gen_params").unwrap().as_entire_binding(),
                             //&wgpu::BindingResource::Sampler(&white_noise_texture.sampler),
                         ], 
                     ]
         );
+        let show_mesh = false;
 
         Self {
             depth_texture,
@@ -231,6 +254,7 @@ impl Application for FMM_App {
             fmm_data_generator_bind_groups,
             render_vvvvnnn_pipeline,
             render_vvvvnnnn_bind_groups,
+            show_mesh,
         }
     }
     fn render(&mut self,
@@ -252,37 +276,46 @@ impl Application for FMM_App {
              &wgpu::CommandEncoderDescriptor {
                  label: Some("Render Encoder"),
          });
+         let mut clear = true;
+         if self.show_mesh {
+            draw(&mut encoder,
+                 &frame,
+                 &self.depth_texture,
+                 &self.render_vvvvnnnn_bind_groups,
+                 &self.render_vvvvnnn_pipeline.get_pipeline(),
+                 &self.buffers.get("wood").unwrap(),
+                 //0..300,
+                 0..2036*3,
+                 clear
+            );
+            clear = false;
+         }
+         if self.debug_point_count > 0 {
+            draw(&mut encoder,
+                 &frame,
+                 &self.depth_texture,
+                 &self.render_vvvc_point_bind_groups,
+                 &self.render_vvvc_point_pipeline.get_pipeline(),
+                 &self.buffers.get("debug_points_output").unwrap(),
+                 2..self.debug_point_count,
+                 //3..3000,
+                 clear
+            );
+            clear = false;
+         }
 
-         draw(&mut encoder,
-              &frame,
-              &self.depth_texture,
-              &self.render_vvvc_point_bind_groups,
-              &self.render_vvvc_point_pipeline.get_pipeline(),
-              &self.buffers.get("debug_points_output").unwrap(),
-              2..self.debug_point_count,
-              //3..3000,
-              true
-         );
-         // draw(&mut encoder,
-         //      &frame,
-         //      &self.depth_texture,
-         //      &self.render_vvvvnnnn_bind_groups,
-         //      &self.render_vvvvnnn_pipeline.get_pipeline(),
-         //      &self.buffers.get("wood").unwrap(),
-         //      //0..300,
-         //      0..2036*3,
-         //      false
-         // );
 
-         draw(&mut encoder,
-              &frame,
-              &self.depth_texture,
-              &self.render_vvvc_triangle_bind_groups,
-              &self.render_vvvc_triangle_pipeline.get_pipeline(),
-              &self.buffers.get("debug_points_output").unwrap(),
-              DEBUG_BUFFER_SIZE..self.debug_triangle_draw_count,
-              false
-         );
+         if self.debug_triangle_draw_count > DEBUG_BUFFER_SIZE {
+            draw(&mut encoder,
+                 &frame,
+                 &self.depth_texture,
+                 &self.render_vvvc_triangle_bind_groups,
+                 &self.render_vvvc_triangle_pipeline.get_pipeline(),
+                 &self.buffers.get("debug_points_output").unwrap(),
+                 DEBUG_BUFFER_SIZE..self.debug_triangle_draw_count,
+                 clear
+            );
+         }
          queue.submit(Some(encoder.finish()));
     }
 
@@ -299,6 +332,10 @@ impl Application for FMM_App {
 
         //self.histogram.set_values_cpu_version(&queue, &vec![0, DEBUG_BUFFER_OFFSET]);
 
+        // Get the keyboard state (camera movement).
+        let space_pressed = input.key_state(&Key::Space);
+        if !space_pressed.is_none() {self.show_mesh = !self.show_mesh; }
+
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("FMM update encoder.") });
         
         self.fmm_debug_pipeline.dispatch(&self.fmm_debug_bind_groups,
@@ -313,7 +350,6 @@ impl Application for FMM_App {
                     1,
                     1
         ); 
-
 
         queue.submit(Some(encoder.finish()));
 
@@ -422,6 +458,7 @@ fn create_buffers(device: &wgpu::Device,
         let (mc_triangle_data, mc_vvvvnnnn, aabb): (Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox) = load_triangles_from_obj("assets/models/wood.obj").unwrap();
 
         println!("WOOD vertex count = {}", mc_vvvvnnnn.len());
+        println!("WOOD vertex count (vvvv) = {}", mc_triangle_data.len());
 
         buffers.insert(
             "wood".to_string(),
@@ -429,6 +466,15 @@ fn create_buffers(device: &wgpu::Device,
             &device,
             &mc_vvvvnnnn,
             wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+            None)
+        );
+
+        buffers.insert(
+            "fmm_data_gen_params".to_string(),
+            buffer_from_data::<[u32; 4]>(
+            &device,
+            &[[2036, 0, 0, 0]],
+            wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
             None)
         );
 }
@@ -683,6 +729,17 @@ impl FMM_data_generator_debug_pipeline {
                             format: wgpu::TextureFormat::Rgba32Float,
                             view_dimension: wgpu::TextureViewDimension::D1,
                         },
+                        count: None,
+                    },
+                    //layout(set=0, binding=6) uniform Triangle_count {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 6,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: wgpu::BufferSize::new(16),
+                            },
                         count: None,
                     },
                     // layout(set = 0, binding = 6) uniform sampler z1z2_texture_sampler;

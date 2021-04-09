@@ -17,7 +17,6 @@ edition = "2018"
 #wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", rev="55d3aef00d1a4aac42abd4cab821fe626a5d213b" }
 wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", rev="67eb3cc4d1c2ccd6aa18ee8dc3dd2b93b1858287" }
 
-#wgpu-core = "0.6.5"
 winit = { version = "0.24.0", features = ["web-sys"] }
 #futures = "0.3"
 async-executor = "1.0"

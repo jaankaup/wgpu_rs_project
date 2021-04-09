@@ -41,9 +41,9 @@ pub fn load_triangles_from_obj(file_name: &'static str) -> Option<(Vec<Triangle>
                     vec_b.w = 1.0;
                     vec_c.w = 1.0;
 
-                    let mut vec_na = Vector4::<f32>::new(normal_a.x as f32, normal_a.y as f32, normal_a.z as f32, 0.0); 
-                    let mut vec_nb = Vector4::<f32>::new(normal_b.x as f32, normal_b.y as f32, normal_b.z as f32, 0.0); 
-                    let mut vec_nc = Vector4::<f32>::new(normal_c.x as f32, normal_c.y as f32, normal_c.z as f32, 0.0); 
+                    let vec_na = Vector4::<f32>::new(normal_a.x as f32, normal_a.y as f32, normal_a.z as f32, 0.0); 
+                    let vec_nb = Vector4::<f32>::new(normal_b.x as f32, normal_b.y as f32, normal_b.z as f32, 0.0); 
+                    let vec_nc = Vector4::<f32>::new(normal_c.x as f32, normal_c.y as f32, normal_c.z as f32, 0.0); 
 
                     aabb.expand(&Vector3::<f32>::new(vec_a.x, vec_a.y, vec_a.z));
                     aabb.expand(&Vector3::<f32>::new(vec_b.x, vec_b.y, vec_b.z));

@@ -13,6 +13,7 @@ pub mod render_pipelines;
 pub mod noise3d; 
 pub mod compute; 
 pub use wgpu;
+//pub use rand;
 
 #[cfg(test)]
 mod tests {

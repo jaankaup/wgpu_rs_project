@@ -549,6 +549,7 @@ dependencies = [
  "geometry",
  "jaankaup_core",
  "model_loader",
+ "rand",
  "render_shaders",
  "winit",
 ]
