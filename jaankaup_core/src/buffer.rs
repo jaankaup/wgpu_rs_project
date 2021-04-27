@@ -43,6 +43,7 @@ pub fn to_vec<T: Convert2Vec>(
     // TODO: check if buffer can be read without staging_buffer.
     //       buffer.contains(...)
     // TODO: Check if buffer has MAP_READ => ignore staging buffer. Otherwise use staging buffer.
+    log::info!("Creating staging buffer");
     let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: None,
         size: copy_size, 
@@ -50,9 +51,12 @@ pub fn to_vec<T: Convert2Vec>(
         mapped_at_creation: false,
     });
     
+    log::info!("Creating encoder");
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
     
+    log::info!("Copy buffer to buffer");
     encoder.copy_buffer_to_buffer(buffer, 0, &staging_buffer, 0, copy_size);
+    log::info!("Submit");
     queue.submit(Some(encoder.finish()));
 
     let res: Vec<T>;
@@ -68,14 +72,23 @@ pub fn to_vec<T: Convert2Vec>(
 
     #[cfg(target_arch = "wasm32")]
     {
-        let spawner = async_executor::LocalExecutor::new();
-        spawner.run(buffer_future);
+        //log::info!("Creating spawner");
+        //let spawner = async_executor::LocalExecutor::new();
+        //log::info!("Execute buffer_future");
+        //spawner.run(buffer_future);
+        wasm_bindgen_futures::spawn_local(async move {
+            log::info!("yeeeaaaah");
+            if let Ok(()) = buffer_future.await { log::info!("Buffer future solved") }
+        });
     }
 
+    log::info!("Get buffer_slice");
     let data = buffer_slice.get_mapped_range();
+    log::info!("Converting data");
     res = Convert2Vec::convert(&data);
     
     drop(data);
+    log::info!("Unmap buffer");
     staging_buffer.unmap();
     
     res

@@ -107,19 +107,41 @@ impl Application for FMM_App {
         let mut white_noise: Vec<[f32 ; 4]> = Vec::new();
 
         let mut rng = thread_rng();
-        for _i in 0..1024 {
+        for _i in 0..8192 {
             let mut cont = true;
             while cont {
                 let w0 = rng.gen();
                 let w1 = rng.gen();
-                let w2 = rng.gen();
-                let w3 = rng.gen();
                 if w0 + w1 <= 1.0 {
                     cont = false;
+                    let w2 = rng.gen();
+                    let w3 = rng.gen();
                     white_noise.push([w0, w1, w2, w3]);
                 }
             }
         }
+        // w0 = 0.0
+        // w1 = 1.0
+        ////for i in 1..25  { 
+        ////println!("0 .. {}", i*128);
+        // for j in 0..8096 {
+        //     //let mut cont = true;
+        //     //let w0 = rng.get(); //j as f32/1024.0;
+        //     //let w1 = 1.0 - w0;
+        //     //let w2 = rng.gen();
+        //     //let w3 = rng.gen();
+        //     //white_noise.push([w0, w1, w2, w3]);
+        //     while cont {
+        //         let w0 = rng.gen();
+        //         let w1 = rng.gen();
+        //         let w2 = rng.gen();
+        //         let w3 = rng.gen();
+        //         if w0 + w1 <= 1.0 {
+        //             cont = false;
+        //             white_noise.push([w0, w1, w2, w3]);
+        //         }
+        //     }
+        // }
         let white_noise_texture = JTexture::create_texture_array(
                 &configuration.queue,
                 &configuration.device,
@@ -127,8 +149,6 @@ impl Application for FMM_App {
                 //wgpu::TextureFormat::R32Float
                 wgpu::TextureFormat::Rgba32Float
         );
-
-        // let (mc_triangle_data, aabb): (Vec<Triangle>, BBox) = load_triangles_from_obj("../../assets/models/wood.obj").unwrap();
 
         // Initialize camera for fmm application.
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
@@ -403,6 +423,8 @@ fn create_buffers(device: &wgpu::Device,
         let number_of_blocks = block_dimension[0] * block_dimension[1] * block_dimension[2]; 
         let number_of_nodes = number_of_blocks * local_dimension[0] * local_dimension[1] * local_dimension[2]; 
 
+        println!("Number of FMM_Nodes == {}", number_of_nodes);
+
         // layout(set = 0, binding = 4) buffer FMM_Nodes {
         buffers.insert(
             "fmm_nodes".to_string(),
@@ -432,7 +454,7 @@ fn create_buffers(device: &wgpu::Device,
                 //if k == 1 || (j == 1 || i == 0) { 
                 if active_block_ids.contains(&index_counter) {
                     test_blocks.push(FMM_Block{ index: index_counter, band_points_count: 3});  
-                    println!("{}", index_counter);
+                    // println!("{}", index_counter);
                 }
                 else {
                     test_blocks.push(FMM_Block{ index: index_counter, band_points_count: 0});  
@@ -459,6 +481,7 @@ fn create_buffers(device: &wgpu::Device,
 
         println!("WOOD vertex count = {}", mc_vvvvnnnn.len());
         println!("WOOD vertex count (vvvv) = {}", mc_triangle_data.len());
+        println!("WOOD aabb = {:?}", aabb);
 
         buffers.insert(
             "wood".to_string(),

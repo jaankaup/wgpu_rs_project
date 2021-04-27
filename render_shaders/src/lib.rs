@@ -106,6 +106,7 @@ impl Render_vvvvnnnn {
                 cull_mode: Some(wgpu::Face::Back),
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
+                clamp_depth: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
@@ -122,7 +123,7 @@ impl Render_vvvvnnnn {
                     slope_scale: 0.0,
                     clamp: 0.0,
                 },
-                clamp_depth: false,
+                //clamp_depth: false,
             }),
             multisample: wgpu::MultisampleState {
                 count: 1,
@@ -255,6 +256,7 @@ impl Render_vvvc {
                 cull_mode: Some(wgpu::Face::Back),
                 polygon_mode: wgpu::PolygonMode::Fill, //Point,
                 conservative: false,
+                clamp_depth: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
@@ -271,7 +273,7 @@ impl Render_vvvc {
                     slope_scale: 0.0,
                     clamp: 0.0,
                 },
-                clamp_depth: false,
+                //clamp_depth: false,
             }),
             multisample: wgpu::MultisampleState {
                 count: 1,

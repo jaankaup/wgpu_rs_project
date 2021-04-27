@@ -18,7 +18,7 @@ unsafe impl bytemuck::Pod for BBox4 {}
 
 /// A struct for aabb.
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct BBox {
     pub min: Vector3<f32>,
     pub max: Vector3<f32>,

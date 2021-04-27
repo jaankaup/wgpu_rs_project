@@ -222,8 +222,9 @@ pub struct TestLayoutEntry {
 impl TestLayoutEntry {
     pub fn init(device: &wgpu::Device,
                 sc_desc: &wgpu::SwapChainDescriptor,               
-                vs_module: &wgpu::ShaderModule,
-                fs_module: &wgpu::ShaderModule,
+                wgsl_module: &wgpu::ShaderModule,
+                // vs_module: &wgpu::ShaderModule,
+                // fs_module: &wgpu::ShaderModule,
                 ) -> Self {
 
         // Define all bind grout entries for pipeline and bind groups.
@@ -312,8 +313,8 @@ impl TestLayoutEntry {
             label: None,
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &vs_module,
-                entry_point: "main",
+                module: &wgsl_module,
+                entry_point: "vs_main",
                 buffers: &[
                     wgpu::VertexBufferLayout {
                         array_stride: stride,
@@ -328,6 +329,7 @@ impl TestLayoutEntry {
                 cull_mode: Some(wgpu::Face::Front),
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
+                clamp_depth: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
@@ -344,7 +346,6 @@ impl TestLayoutEntry {
                     slope_scale: 0.0,
                     clamp: 0.0,
                 },
-                clamp_depth: false,
             }),
             multisample: wgpu::MultisampleState {
                 count: 1,
@@ -352,23 +353,22 @@ impl TestLayoutEntry {
                 alpha_to_coverage_enabled: false,
             },
             fragment: Some(wgpu::FragmentState {
-                module: &fs_module,
-                entry_point: "main",
+                module: &wgsl_module,
+                entry_point: "fs_main",
                 targets: &[wgpu::ColorTargetState {
                     format: sc_desc.format,
-                    blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                                dst_factor: wgpu::BlendFactor::OneMinusDstAlpha,
-                                operation: wgpu::BlendOperation::Max, 
-                            },
-                            alpha: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::SrcAlpha,
-                                dst_factor: wgpu::BlendFactor::One,
-                                operation: wgpu::BlendOperation::Add, 
-                            },
-                        }
-                    ),
+                    blend: None, //Some(wgpu::BlendState {
+                           //     color: wgpu::BlendComponent {
+                           //          src_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                           //          dst_factor: wgpu::BlendFactor::OneMinusDstAlpha,
+                           //          operation: wgpu::BlendOperation::Max, 
+                           //     },
+                           //     alpha: wgpu::BlendComponent {
+                           //          src_factor: wgpu::BlendFactor::SrcAlpha,
+                           //          dst_factor: wgpu::BlendFactor::One,
+                           //          operation: wgpu::BlendOperation::Add, 
+                           //     },
+                           // }),
                     // alpha_blend: wgpu::BlendState::REPLACE,
                     // color_blend: wgpu::BlendState::REPLACE,
                     write_mask: wgpu::ColorWrite::COLOR,

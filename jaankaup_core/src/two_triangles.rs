@@ -183,6 +183,7 @@ impl TwoTriangles {
                 cull_mode: Some(wgpu::Face::Back),
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
+                clamp_depth: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
@@ -199,7 +200,7 @@ impl TwoTriangles {
                     slope_scale: 0.0,
                     clamp: 0.0,
                 },
-                clamp_depth: false,
+                //clamp_depth: false,
             }),
             multisample: wgpu::MultisampleState {
                 count: 1,
