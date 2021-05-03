@@ -1,3 +1,4 @@
+use byteorder::{BigEndian, ReadBytesExt};
 use std::borrow::Cow;
 use jaankaup_core::wgpu;
 use std::collections::HashMap;
@@ -8,9 +9,10 @@ use jaankaup_core::wgpu_system::{
         Application,
         BasicLoop
 };
+//use glsl_to_spirv;
 use jaankaup_core::buffer::*;
 use jaankaup_core::texture::Texture as JTexture;
-//use jaankaup_core::two_triangles::*;
+use jaankaup_core::two_triangles::*;
 use jaankaup_core::mc::*;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
@@ -179,11 +181,11 @@ impl Application for HelloApp {
                                 &configuration.device, 
                                 &t.layout_entries,
                                 &vec![
-                                    vec![&wgpu::BindingResource::Buffer {
+                                    vec![&wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                                             buffer: &camera.get_camera_uniform(&configuration.device),
                                             offset: 0,
                                             size: None,
-                                    }], 
+                                    })], 
                                     vec![&wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
                                          &wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler),
                                          &wgpu::BindingResource::TextureView(&textures.get("rock").unwrap().view),
@@ -198,11 +200,11 @@ impl Application for HelloApp {
                                      &configuration.device, 
                                      &t.layout_entries,
                                      &vec![
-                                         vec![&wgpu::BindingResource::Buffer {
+                                         vec![&wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                                                  buffer: &camera.get_camera_uniform(&configuration.device),
                                                  offset: 0,
                                                  size: None,
-                                         }], 
+                                         })], 
                                          vec![&wgpu::BindingResource::TextureView(&textures.get("slime").unwrap().view),
                                               &wgpu::BindingResource::Sampler(&textures.get("slime").unwrap().sampler),
                                               &wgpu::BindingResource::TextureView(&textures.get("slime2").unwrap().view),
@@ -212,19 +214,31 @@ impl Application for HelloApp {
 
         println!("log  == {}", log_number);
         log_number = 5;
-        println!("Trying to initialize mc.");
-        //let joopajoo = configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv"));
-        //let joopajoo = configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv"));
-        println!("Trying to initialize mc2.");
+
         // The environment (mountains marching cubes).
+        let mut yhhyy = wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv");
+        yhhyy.flags = wgpu::ShaderFlags::empty();
         let mc = MarchingCubes::init(
             &configuration.device,
+            &configuration.device.create_shader_module(&yhhyy),
+            //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor { 
+            //    label: Some("nojaa"), 
+            //    source: wgpu::util::make_spirv(&include_bytes!("../../shaders/mc_test.comp")[..]),
+            //    flags: wgpu::ShaderFlags::VALIDATION, //empty(),
+            //}),
             //&configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv")),
-            &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-                label: Some("marching_cubes_test"),
-                source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/mc_test.wgsl"))),
-                flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
-            }),
+            //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            //    label: Some("marching_cubes_test"),
+            //    source: wgpu::ShaderSource::SpirV(Cow::Borrowed(ahhaa)),
+            //    //source: wgpu::ShaderSource::SpirV(Cow::Borrowed(wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv"))),
+            //    flags: wgpu::ShaderFlags::VALIDATION,
+            //    //flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+            //}),
+            //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            //    label: Some("marching_cubes_test"),
+            //    source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/mc_test.wgsl"))),
+            //    flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+            //}),
             false
         );
         println!("log  == {}", log_number);
@@ -261,11 +275,19 @@ impl Application for HelloApp {
         // Add create bind groups to the mc_params.
         mc_params.bind_groups = Some(mc_bind_groups); 
         
+        let mut slime_spirv = wgpu::include_spirv!("../../shaders/spirv/mc_test_slime_noise3d_texture.comp.spv");
+        slime_spirv.flags = wgpu::ShaderFlags::empty();
+
         // The slime marching cubes.
         let mc_slime = MarchingCubes::init(
             &configuration.device,
-            &configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test_slime_noise3d_texture.comp.spv")),
-            //&configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test_slime.comp.spv")),
+            //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            //    label: Some("marching_cubes_silme_noide3d_test"),
+            //    source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/mc_test_slime_noise3d_texture.wgsl"))),
+            //    flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+            //}),
+            //&configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test_slime_noise3d_texture.comp.spv")),
+            &configuration.device.create_shader_module(&slime_spirv),
             true
         );
 
@@ -321,11 +343,17 @@ impl Application for HelloApp {
         
         println!("log  == {}", log_number);
         log_number = 3;
-        let shader_comp_3d_tex = wgpu::include_spirv!("../../shaders/spirv/data3d_test.comp.spv");
+        let mut shader_comp_3d_tex = wgpu::include_spirv!("../../shaders/spirv/data3d_test.comp.spv");
+        shader_comp_3d_tex.flags = wgpu::ShaderFlags::empty();
                                    
         let texture3_d = Custom3DTexture::init(
                 &configuration.device,
-                &configuration.device.create_shader_module(&shader_comp_3d_tex)
+                &configuration.device.create_shader_module(&shader_comp_3d_tex),
+                //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+                //    label: Some("texture3_d"),
+                //    source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/data3d_test.wgsl"))),
+                //    flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                //}),
         );
 
         // Create uniform buffer uvec3 for number of invocations.
@@ -352,26 +380,26 @@ impl Application for HelloApp {
                     &configuration.device, 
                     &texture3_d.layout_entries,
                     &vec![
-                        vec![&wgpu::BindingResource::Buffer {
+                        vec![&wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                                 buffer: &buffers.get("slime_invocations").unwrap(),
                                 offset: 0,
                                 size: None,
-                        }, 
-                        &wgpu::BindingResource::Buffer {
+                        }), 
+                        &wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                                 buffer: &buffers.get("slime_dimensions").unwrap(),
                                 offset: 0,
                                 size: None,
-                        }, 
-                        &wgpu::BindingResource::Buffer {
+                        }), 
+                        &wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                                 buffer: &buffers.get("future_usage1_noise3d").unwrap(),
                                 offset: 0,
                                 size: None,
-                        }, 
-                        &wgpu::BindingResource::Buffer {
+                        }), 
+                        &wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                                 buffer: &buffers.get("3dnoise_slime").unwrap(),
                                 offset: 0,
                                 size: None,
-                        }]
+                        })]
                     ]
         );
         log::info!("Create mountain and first slime");
@@ -409,57 +437,12 @@ impl Application for HelloApp {
         configuration.queue.submit(Some(encoder.finish()));
 
         log::info!("Submitted");
-        // TODO. Figure out how to do this with wasm.
-        //let mut k: Vec<u32>;
-        //let mut k_slime: Vec<u32>;
-
-        //#[cfg(target_arch = "wasm32")] {
-        //let spawner = Spawner::new();
-        //let k = spawner.spawn_local2(async {
-        //    to_vec::<u32>(&configuration.device,
-        //                  &configuration.queue,
-        //                  &mc_params.counter_buffer,
-        //                  0 as wgpu::BufferAddress,
-        //                  4 as wgpu::BufferAddress)
-        //};
-        //}
-        //log::info!("Mc counter == {}", k[0]);
-        //}
-        // wasm_bindgen_futures::spawn_local(async move {
-        //     k =  to_vec::<u32>(&configuration.device,
-        //                 &configuration.queue,
-        //                 &mc_params.counter_buffer,
-        //                 0 as wgpu::BufferAddress,
-        //                 4 as wgpu::BufferAddress).await;
-        //     log::info!("Mc counter == {}", k[0]);
-        // });
-
-        //let k = pollster::block_on(to_vec::<u32>(&configuration.device,
-        //                                      &configuration.queue,
-        //                                      &mc_params.counter_buffer,
-        //                                      0 as wgpu::BufferAddress,
-        //                                      4 as wgpu::BufferAddress));
-        //#[cfg(not(target_arch = "wasm32"))]
         let k = to_vec::<u32>(&configuration.device,
                               &configuration.queue,
                               &mc_params.counter_buffer,
                               //&configuration.spawner,
                               0 as wgpu::BufferAddress,
                               4 as wgpu::BufferAddress);
-        //#[cfg(not(target_arch = "wasm32"))]
-        log::info!("Mc counter == {}", k[0]);
-
-        //#[cfg(target_arch = "wasm32")]
-        //wasm_bindgen_futures::spawn_local(async move {
-        //    k_slime =  to_vec::<u32>(&configuration.device,
-        //                        &configuration.queue,
-        //                        &mc_params_slime.counter_buffer,
-        //                        0 as wgpu::BufferAddress,
-        //                        4 as wgpu::BufferAddress).await;
-        //    log::info!("Mc counter_slime == {}", k_slime[0]);
-        //});
-
-        //#[cfg(not(target_arch = "wasm32"))]
         let k_slime = to_vec::<u32>(&configuration.device,
                                     &configuration.queue,
                                     &mc_params_slime.counter_buffer,
@@ -470,16 +453,6 @@ impl Application for HelloApp {
         //#[cfg(not(target_arch = "wasm32"))]
         log::info!("Mc counter_slime == {}", k_slime[0]);
 
-        // let k2 =  pollster::block_on(to_vec::<f32>(&configuration.device,
-        //                                       &configuration.queue,
-        //                                       &buffers.get("mc_output").unwrap(),
-        //                                       0 as wgpu::BufferAddress,
-        //                                       (k[0] * 8 * std::mem::size_of::<f32>() as u32) as wgpu::BufferAddress));
-        // log::info!("k2.len() == {}", k2.len());
-        // for i in 0..k[0] * 8 {
-        //     if i % 4 == 0 { println!(""); } 
-        //     print!("{} ", k2[i as usize]);
-        // }
 
         log::info!("Application data initialized.");
 
@@ -494,8 +467,8 @@ impl Application for HelloApp {
             test_layout: t,
             bind: t_bindgroups,
             bind_slime: t_slime_bindgroups,
-            draw_count_mc: 1000, //k[0],
-            draw_count_mc_slime: 1000, //k_slime[0],
+            draw_count_mc: k[0],
+            draw_count_mc_slime: k_slime[0],
             mc_params_slime: mc_params_slime,
             slime_texture3d_bindgroups: slime_texture3d_bindgroups,
             custom_3d: texture3_d,
@@ -581,7 +554,7 @@ impl Application for HelloApp {
                     64 * 6 * 64,
                     1,
                     1
-        ); 
+        );
         
         // Create slime.
         self.mc_params_slime.reset_counter(&queue);
@@ -604,7 +577,6 @@ impl Application for HelloApp {
 
         queue.submit(Some(encoder.finish()));
 
-        //#[cfg(not(target_arch = "wasm32"))]
         let k_slime =  to_vec::<u32>(&device,
                                      &queue,
                                      &self.mc_params_slime.counter_buffer,

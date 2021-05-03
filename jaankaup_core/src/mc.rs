@@ -155,40 +155,40 @@ impl MarchingCubes {
         // Create bindings. Group 0.
         let mc_param_buffer = wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::Buffer {
+                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                     buffer: params.get_uniform_buffer(),
                     offset: 0,
                     size: None,
-                },
+                }),
         };
 
         let mc_counter_buffer = wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::Buffer {
+                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                     buffer: &params.counter_buffer,    
                     offset: 0,
                     size: None,
-                },
+                }),
         };
 
         // Create bindings. Group 1.
         let mc_output_buffer = wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::Buffer {
+                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                     buffer: &output_buffer,    
                     offset: 0,
                     size: None,
-                },
+                }),
         };
 
         let mc_texture_buffer = if let Some(tex3d) = texture_3d.as_ref() {
                 Some(wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Buffer {
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                         buffer: tex3d,    
                         offset: 0,
                         size: None,
-                    },
+                    }),
                 })
             }
             else {

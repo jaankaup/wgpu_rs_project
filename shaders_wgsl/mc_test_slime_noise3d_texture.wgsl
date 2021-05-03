@@ -1,8 +1,7 @@
 [[block]]
 struct Counter {
     // counter: u32;
-    // counter: atomic<i32>;
-    counter: [[stride(4)]] array<atomic<u32>>;
+    counter: [[stride(4)]] array<u32, 1>;
     // counter: [[stride(4)]] u32;
 };
 
@@ -540,64 +539,46 @@ fn main([[builtin(local_invocation_id)]] local_id: vec3<u32>,
         [[builtin(local_invocation_index)]] local_index: u32,
         [[builtin(global_invocation_id)]] global_id: vec3<u32>) {
 
+    let joopajoo = global_id.x; // + vec3<u32>(2u,2u,3u);
+    //let joopajoo = vec3<u32>(1,1,2);
+    //let joopajoo = vec3<u32>(1,1,2) + vec3<u32>(2,2,3);
 
-    let pos_x: u32 = 33u;
-    let pos_y: u32 = global_id.y;
-    let pos_z: u32 = global_id.z;
+    // Get the base cube position from thread ids. 
+    // let pos_x: u32 = 33u;
+    // let pos_y: u32 = global_id.y;
+    // let pos_z: u32 = global_id.z;
 
     // Create and scale cube base position.
-    let position = vec3<f32>(f32(global_id.x), f32(global_id.y), f32(global_id.z)) * mc_uniform.cube_length + mc_uniform.base_position.xyz;
+    //let position = vec3<f32>(pos_x, pos_y, pos_z) * mc_uniform.cube_length + mc_uniform.base_position.xyz;
 
     // Create cube corner coordinates. 
-    let p0 = position;
-    let p3 = position + vec3<f32>(0.0                      , mc_uniform.cube_length   , 0.0);
-    let p2 = position + vec3<f32>(mc_uniform.cube_length   , mc_uniform.cube_length   , 0.0);
-    let p1 = position + vec3<f32>(mc_uniform.cube_length   , 0.0                      , 0.0);
-    let p4 = position + vec3<f32>(0.0                      , 0.0                      , mc_uniform.cube_length);
-    let p7 = position + vec3<f32>(0.0                      , mc_uniform.cube_length   , mc_uniform.cube_length);
-    let p6 = position + vec3<f32>(mc_uniform.cube_length   , mc_uniform.cube_length   , mc_uniform.cube_length);
-    let p5 = position + vec3<f32>(mc_uniform.cube_length   , 0.0                      , mc_uniform.cube_length);
-
-    // Cube corner positions and density values.
-    cube.vertices[0] = vec4<f32>(p0, calculate_density(p0));
-    cube.vertices[1] = vec4<f32>(p1, calculate_density(p1));
-    cube.vertices[2] = vec4<f32>(p2, calculate_density(p2));
-    cube.vertices[3] = vec4<f32>(p3, calculate_density(p3));
-    cube.vertices[4] = vec4<f32>(p4, calculate_density(p4));
-    cube.vertices[5] = vec4<f32>(p5, calculate_density(p5));
-    cube.vertices[6] = vec4<f32>(p6, calculate_density(p6));
-    cube.vertices[7] = vec4<f32>(p7, calculate_density(p7));
-    
-    // Calculate the cube case number.
-    let cube_case = calculate_case();
-      
-    // This cube doesn't create any triangles.
-    if (cube_case == 0u || cube_case == 255u) { return; }
-
-    // Calculate normals for cube corners.
-    cube.normals[0] = vec4<f32>(calculate_normal(p0), 0.0);
-    cube.normals[1] = vec4<f32>(calculate_normal(p1), 0.0);
-    cube.normals[2] = vec4<f32>(calculate_normal(p2), 0.0);
-    cube.normals[3] = vec4<f32>(calculate_normal(p3), 0.0);
-    cube.normals[4] = vec4<f32>(calculate_normal(p4), 0.0);
-    cube.normals[5] = vec4<f32>(calculate_normal(p5), 0.0);
-    cube.normals[6] = vec4<f32>(calculate_normal(p6), 0.0);
-    cube.normals[7] = vec4<f32>(calculate_normal(p7), 0.0);
-
-    let OFFSET: u32 = 5u;
-
-    // // Create triangles and save them to destination array (mc_out[]).
-    for (var i: u32 = 0u ; i<5u ; i = i+1u) {
-
-        let base_index: u32 = triTable[cube_case * OFFSET + i];
-
-        if (base_index != 16777215u) { 
-
-            //let hohhoo: ptr<storage, atomic<u32> = &counter.counter[0]; 
-            // let index = atomicAdd(hohhoo, 3);
-            // createVertex(i32((base_index & 0xff0000) >> 16), i32(index));
-            // createVertex(i32((base_index & 0xff00) >> 8)   , i32(index+1));
-            // createVertex(i32( base_index & 0xff),            i32(index+2));
-        }
-    }
+//++    vec3 p0 = position;
+//++    vec3 p3 = position + vec3(0.0           , cube_length   , 0.0);
+//++    vec3 p2 = position + vec3(cube_length   , cube_length   , 0.0);
+//++    vec3 p1 = position + vec3(cube_length   , 0.0           , 0.0);
+//++    vec3 p4 = position + vec3(0.0           , 0.0           , cube_length);
+//++    vec3 p7 = position + vec3(0.0           , cube_length   , cube_length);
+//++    vec3 p6 = position + vec3(cube_length   , cube_length   , cube_length);
+//++    vec3 p5 = position + vec3(cube_length   , 0.0           , cube_length);
+//++
+//++    // Create the cube.
+//++    Cube cube;
+//++
+//++    // Cube corner positions and density values.
+//++    cube.vertices[0] = vec4(p0, calculate_density(p0));
+//++    cube.vertices[1] = vec4(p1, calculate_density(p1));
+//++    cube.vertices[2] = vec4(p2, calculate_density(p2));
+//++    cube.vertices[3] = vec4(p3, calculate_density(p3));
+//++    cube.vertices[4] = vec4(p4, calculate_density(p4));
+//++    cube.vertices[5] = vec4(p5, calculate_density(p5));
+//++    cube.vertices[6] = vec4(p6, calculate_density(p6));
+//++    cube.vertices[7] = vec4(p7, calculate_density(p7));
+//++
+//++    // Calculate the cube case number.
+//++    uint cube_case = calculate_case(cube, isovalue);
+//++  
+//++    // This cube doesn't create any triangles.
+//++    if (cube_case == 0 || cube_case == 255) return;
+//++    //const cube_ptr: ptr<private, Cube> = &cube;
+//++    //const verts: array<vec4<f32>, 8> = cube.vertices;
 }
