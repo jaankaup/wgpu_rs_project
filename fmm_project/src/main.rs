@@ -79,7 +79,7 @@ struct FMM_App {
     white_noise_texture: JTexture,
     fmm_data_generator: FMM_data_generator_debug_pipeline,
     fmm_data_generator_bind_groups: Vec<wgpu::BindGroup>,
-    render_vvvvnnn_pipeline: Render_vvvvnnnn,
+    render_vvvvnnnn_pipeline: Render_vvvvnnnn,
     render_vvvvnnnn_bind_groups: Vec<wgpu::BindGroup>,
     show_mesh: bool,
 }
@@ -164,8 +164,8 @@ impl Application for FMM_App {
         );
 
         // Create render pipelines for debugger.
-        let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvc_camera.vert.spv");
-        let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvc_camera.frag.spv");
+        // let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvc_camera.vert.spv");
+        // let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvc_camera.frag.spv");
 
         // Create render pipelines vvvvnnnn.
         //let vertex_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.vert.spv");
@@ -177,8 +177,13 @@ impl Application for FMM_App {
         let render_vvvc_point_pipeline = Render_vvvc::init(
                     &configuration.device,
                     &configuration.sc_desc,
-                    &configuration.device.create_shader_module(&vertex_shader_src),
-                    &configuration.device.create_shader_module(&fragment_shader_src),
+                    &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+                        label: Some("renderer_v3c1_module1"),
+                        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v3c1.wgsl"))),
+                        flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                    }),
+                    // &configuration.device.create_shader_module(&vertex_shader_src),
+                    // &configuration.device.create_shader_module(&fragment_shader_src),
                     wgpu::PrimitiveTopology::PointList
         );
         let render_vvvc_point_bind_groups = render_vvvc_point_pipeline.create_bind_groups(
@@ -190,26 +195,31 @@ impl Application for FMM_App {
         let render_vvvc_triangle_pipeline = Render_vvvc::init(
                     &configuration.device,
                     &configuration.sc_desc,
-                    &configuration.device.create_shader_module(&vertex_shader_src),
-                    &configuration.device.create_shader_module(&fragment_shader_src),
+                    &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+                        label: Some("renderer_v3c1_module2"),
+                        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v3c1.wgsl"))),
+                        flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                    }),
+                    // &configuration.device.create_shader_module(&vertex_shader_src),
+                    // &configuration.device.create_shader_module(&fragment_shader_src),
                     wgpu::PrimitiveTopology::TriangleList
         );
         let render_vvvc_triangle_bind_groups = render_vvvc_triangle_pipeline.create_bind_groups(
             &configuration.device,
             &camera.get_camera_uniform(&configuration.device)
         );
-        let render_vvvvnnn_pipeline = Render_vvvvnnnn::init(
+        let render_vvvvnnnn_pipeline = Render_vvvvnnnn::init(
                 &configuration.device,
                 &configuration.sc_desc,
                 &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
                     label: Some("renderer_v4n4_module"),
-                    source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v4n4.wgsl"))),
+                    source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v4n4_plain.wgsl"))),
                     flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
                 })
                 // &configuration.device.create_shader_module(&vertex_shader_vvvvnnnn),
                 // &configuration.device.create_shader_module(&fragment_shader_vvvvnnnn)
         );
-        let render_vvvvnnnn_bind_groups = render_vvvvnnn_pipeline.create_bind_groups(
+        let render_vvvvnnnn_bind_groups = render_vvvvnnnn_pipeline.create_bind_groups(
             &configuration.device,
             &camera.get_camera_uniform(&configuration.device)
         );
@@ -280,7 +290,7 @@ impl Application for FMM_App {
             white_noise_texture, 
             fmm_data_generator,
             fmm_data_generator_bind_groups,
-            render_vvvvnnn_pipeline,
+            render_vvvvnnnn_pipeline,
             render_vvvvnnnn_bind_groups,
             show_mesh,
         }
@@ -310,7 +320,7 @@ impl Application for FMM_App {
                  &frame,
                  &self.depth_texture,
                  &self.render_vvvvnnnn_bind_groups,
-                 &self.render_vvvvnnn_pipeline.get_pipeline(),
+                 &self.render_vvvvnnnn_pipeline.get_pipeline(),
                  &self.buffers.get("wood").unwrap(),
                  //0..300,
                  0..2036*3,
@@ -565,7 +575,10 @@ impl FMM_debug_pipeline {
 
     pub fn init(device: &wgpu::Device) -> Self {
 
-        let comp_module = wgpu::include_spirv!("../../shaders/spirv/fmm.comp.spv");
+        let mut comp_module = wgpu::include_spirv!("../../shaders/spirv/fmm.comp.spv");
+
+        // GLSL, validation disabled.
+        comp_module.flags = wgpu::ShaderFlags::empty();
 
         // Define all bind grout entries for pipeline and bind groups.
         let layout_entries = vec![
@@ -690,7 +703,10 @@ impl FMM_data_generator_debug_pipeline {
 
     pub fn init(device: &wgpu::Device) -> Self {
 
-        let comp_module = wgpu::include_spirv!("../../shaders/spirv/fmm_data_generator.comp.spv");
+        let mut comp_module = wgpu::include_spirv!("../../shaders/spirv/fmm_data_generator.comp.spv");
+
+        // GLSL, validation disabled.
+        comp_module.flags = wgpu::ShaderFlags::empty();
 
         // Define all bind grout entries for pipeline and bind groups.
         let layout_entries = vec![

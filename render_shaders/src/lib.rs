@@ -92,7 +92,7 @@ impl Render_vvvvnnnn {
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &wgsl_module,
-                entry_point: "main",
+                entry_point: "vs_main",
                 buffers: &[
                     wgpu::VertexBufferLayout {
                         array_stride: stride,
@@ -133,7 +133,7 @@ impl Render_vvvvnnnn {
             },
             fragment: Some(wgpu::FragmentState {
                 module: &wgsl_module,
-                entry_point: "main",
+                entry_point: "fs_main",
                 targets: &[sc_desc.format.into()] // &[wgpu::ColorTargetState {
                 //   format: sc_desc.format,
                 //   alpha_blend: wgpu::BlendState::REPLACE,
@@ -192,8 +192,9 @@ impl Render_vvvc {
 
     pub fn init(device: &wgpu::Device,
                 sc_desc: &wgpu::SwapChainDescriptor,               
-                vs_module: &wgpu::ShaderModule,
-                fs_module: &wgpu::ShaderModule,
+                wgsl_module: &wgpu::ShaderModule,
+                //vs_module: &wgpu::ShaderModule,
+                //fs_module: &wgpu::ShaderModule,
                 topology: wgpu::PrimitiveTopology,
                 ) -> Self {
 
@@ -241,8 +242,8 @@ impl Render_vvvc {
             label: Some("vvvc point"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &vs_module,
-                entry_point: "main",
+                module: &wgsl_module,
+                entry_point: "vs_main",
                 buffers: &[
                     wgpu::VertexBufferLayout {
                         array_stride: stride,
@@ -282,8 +283,8 @@ impl Render_vvvc {
                 alpha_to_coverage_enabled: false,
             },
             fragment: Some(wgpu::FragmentState {
-                module: &fs_module,
-                entry_point: "main",
+                module: &wgsl_module,
+                entry_point: "fs_main",
                 targets: &[sc_desc.format.into()] // &[wgpu::ColorTargetState {
                 //   format: sc_desc.format,
                 //   alpha_blend: wgpu::BlendState::REPLACE,
