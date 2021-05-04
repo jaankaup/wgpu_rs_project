@@ -20,13 +20,13 @@ Marching cubes creates ~500 000 triangles on each frame.
 
 ![hello_project](/pics/slime.png "The slime ocean.")
 
-## Fast marching method
+## Fast marching method (Under constrution. Do not compile)
 
 This example is under contruction. Now the Belloch parallel prefix sum is
 implemented and working. This is used for the global scan (find the blocks
 where there are atleast one band point).
 
-## Debug shaders
+## Debug shaders (Under construction. Do not compile)
 
 A logger for GPU state visualization. This is also under construction. gl_Pointsize is not available on wgsl. An instanced version must be developed. 
 A custom fonts where implemented using compute shader and bezier curves.
