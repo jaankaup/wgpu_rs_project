@@ -25,3 +25,12 @@ Marching cubes creates ~500 000 triangles on each frame.
 This example is under contruction. Now the Belloch parallel prefix sum is
 implemented and working. This is used for the global scan (find the blocks
 where there are atleast one band point).
+
+## Debug shaders
+
+A logger for GPU state visualization. This is also under construction. gl_Pointsize is not available on wgsl. An instanced version must be developed. 
+A custom fonts where implemented using compute shader and bezier curves.
+
+![prefix sum](/pics/belloch_prefix_scan1.png "A screenshot of belloch prefix sum log visualization.")
+![prefix sum2](/pics/belloch_prefix_scan2.png "Another screenshot of belloch prefix sum log visualization.")
+![memory_model](/pics/memory_model.png "A visualization of memory model on GPU.")
