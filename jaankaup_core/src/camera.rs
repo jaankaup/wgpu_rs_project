@@ -137,7 +137,7 @@ impl Camera {
         assert!(aspect_width > 0.0, "Width must be > 0.");
 
         Self {
-            pos: (1.0, 4.0, 1.0).into(),
+            pos: (3.0, 4.0, 1.0).into(),
             view: Vector3::new(0.0, 0.0, -1.0).normalize(),
             up: cgmath::Vector3::unit_y(),
             aspect: aspect_width / aspect_height as f32,

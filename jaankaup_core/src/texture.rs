@@ -145,7 +145,7 @@ impl Texture {
             usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::COPY_DST,
         });
 
-        log::info!("Writing texture.");
+        // log::info!("Writing texture.");
         queue.write_texture(
             wgpu::ImageCopyTexture {
                 texture: &texture,
@@ -165,7 +165,7 @@ impl Texture {
             texture_extent,
             //wgpu::Extent3d::default(), //texture_extent,
         );
-        log::info!("Writing texture, OK.");
+        // log::info!("Writing texture, OK.");
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor {
             label: None,

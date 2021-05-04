@@ -1,4 +1,4 @@
-use byteorder::{BigEndian, ReadBytesExt};
+//use byteorder::{BigEndian, ReadBytesExt};
 use std::borrow::Cow;
 use jaankaup_core::wgpu;
 use std::collections::HashMap;
@@ -132,17 +132,9 @@ impl Application for HelloApp {
         textures.insert("slime2".to_string(), slime2); 
 
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
-        log::info!("Aspect ratio == {} / {}", configuration.size.width as f32, configuration.size.height as f32);
 
-        //let _ = camera.get_camera_uniform(&configuration.device);
-        // let _ = camera.get_ray_camera_uniform(&configuration.device);
-
-        let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.vert.spv");
-        let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.frag.spv");
-
-        let mut log_number: u32 = 0;
-        println!("log  == {}", log_number);
-        log_number = 1;
+        // let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.vert.spv");
+        // let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.frag.spv");
 
         // Render pipeline...
         let t = TestLayoutEntry::init(
@@ -156,27 +148,8 @@ impl Application for HelloApp {
 //                    &configuration.device.create_shader_module(&vertex_shader_src),
 //                    &configuration.device.create_shader_module(&fragment_shader_src)
         );
-        println!("log  == {}", log_number);
-        log_number = 2;
-        // Check the correspondence of resources and the pipeline interface.
-        //check_correspondence(
-        //    &t.layout_entries,
-        //    &vec![
-        //        vec![wgpu::BindingResource::Buffer {
-        //            buffer: &camera.get_camera_uniform(&configuration.device),
-        //            offset: 0,
-        //            size: None,
-        //        }], 
-        //        vec![wgpu::BindingResource::TextureView(&textures.get("grass").unwrap().view),
-        //             wgpu::BindingResource::Sampler(&textures.get("grass").unwrap().sampler),
-        //             wgpu::BindingResource::TextureView(&textures.get("rock").unwrap().view),
-        //             wgpu::BindingResource::Sampler(&textures.get("rock").unwrap().sampler)
-        //        ]
-        //    ]
-        //);
+
         // Create bind groups for basic render pipeline and grass/rock textures. 
-        println!("log  == {}", log_number);
-        log_number = 3;
         let t_bindgroups = create_bind_groups(
                                 &configuration.device, 
                                 &t.layout_entries,
@@ -193,8 +166,6 @@ impl Application for HelloApp {
                                 ]
         );
 
-        println!("log  == {}", log_number);
-        log_number = 4;
         // Create bind groups for basic render pipeline and slime/slime2 textures. 
         let t_slime_bindgroups = create_bind_groups(
                                      &configuration.device, 
@@ -212,15 +183,14 @@ impl Application for HelloApp {
                                      ]
         );
 
-        println!("log  == {}", log_number);
-        log_number = 5;
 
-        // The environment (mountains marching cubes).
-        let mut yhhyy = wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv");
-        yhhyy.flags = wgpu::ShaderFlags::empty();
+        // The environment (mountains marching cubes). We need to disable shader validation because atomic counter are not supported yet.
+        let mut mc_mountain = wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv");
+        mc_mountain.flags = wgpu::ShaderFlags::empty();
+
         let mc = MarchingCubes::init(
             &configuration.device,
-            &configuration.device.create_shader_module(&yhhyy),
+            &configuration.device.create_shader_module(&mc_mountain),
             //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor { 
             //    label: Some("nojaa"), 
             //    source: wgpu::util::make_spirv(&include_bytes!("../../shaders/mc_test.comp")[..]),
@@ -241,21 +211,17 @@ impl Application for HelloApp {
             //}),
             false
         );
-        println!("log  == {}", log_number);
 
         // Create output buffer for "mountains", the output of mc.
         buffers.insert(
             "mc_output".to_string(),
             buffer_from_data::<f32>(
             &configuration.device,
-            // gl_Position     |    point_pos
             &vec![0 as f32 ; 128*64*64*24],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
         );
 
-        println!("log  == {}", log_number);
-        log_number = 6;
         // Create parameters for "mountain" marching cubes.
         let mut mc_params = McParams::init(
                 &configuration.device, 
@@ -275,6 +241,7 @@ impl Application for HelloApp {
         // Add create bind groups to the mc_params.
         mc_params.bind_groups = Some(mc_bind_groups); 
         
+        // GLSL, validation disabled.
         let mut slime_spirv = wgpu::include_spirv!("../../shaders/spirv/mc_test_slime_noise3d_texture.comp.spv");
         slime_spirv.flags = wgpu::ShaderFlags::empty();
 
@@ -341,8 +308,7 @@ impl Application for HelloApp {
 
         // Create nouse 3d "texture".
         
-        println!("log  == {}", log_number);
-        log_number = 3;
+        // GLSL, validation disabled.
         let mut shader_comp_3d_tex = wgpu::include_spirv!("../../shaders/spirv/data3d_test.comp.spv");
         shader_comp_3d_tex.flags = wgpu::ShaderFlags::empty();
                                    
@@ -405,9 +371,8 @@ impl Application for HelloApp {
         log::info!("Create mountain and first slime");
 
         // Perform both mountain and slime marching cubes.
-        let mut encoder = configuration.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Juuu") });
+        let mut encoder = configuration.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Compute encoder. Initial.") });
 
-        log::info!("First dispacth");
         mc.dispatch(&mc_params.bind_groups.as_ref().unwrap(),
                     &mut encoder,
                     64,
@@ -415,8 +380,6 @@ impl Application for HelloApp {
                     64
         ); 
 
-
-        log::info!("Second dispacth, noise");
         texture3_d.dispatch(&slime_texture3d_bindgroups,
                     &mut encoder,
                     64 * 6 * 64,
@@ -431,16 +394,12 @@ impl Application for HelloApp {
                     6,
                     64
         );
-        println!("log  == {}", log_number);
-        log_number = 4;
 
         configuration.queue.submit(Some(encoder.finish()));
 
-        log::info!("Submitted");
         let k = to_vec::<u32>(&configuration.device,
                               &configuration.queue,
                               &mc_params.counter_buffer,
-                              //&configuration.spawner,
                               0 as wgpu::BufferAddress,
                               4 as wgpu::BufferAddress);
         let k_slime = to_vec::<u32>(&configuration.device,
@@ -448,11 +407,6 @@ impl Application for HelloApp {
                                     &mc_params_slime.counter_buffer,
                                     0 as wgpu::BufferAddress,
                                     4 as wgpu::BufferAddress);
-        //println!("k_slime == {}", k_slime[0]);
-
-        //#[cfg(not(target_arch = "wasm32"))]
-        log::info!("Mc counter_slime == {}", k_slime[0]);
-
 
         log::info!("Application data initialized.");
 
@@ -498,7 +452,7 @@ impl Application for HelloApp {
                 label: Some("Render Encoder"),
         });
 
-        println!("drawing....");
+        // The mountain.
         draw(&mut encoder,
              &frame,
              &self.depth_texture,
@@ -509,7 +463,7 @@ impl Application for HelloApp {
              true
         );
 
-        println!("drawing2....");
+        // The slime.
         draw(&mut encoder,
              &frame,
              &self.depth_texture,
@@ -519,9 +473,6 @@ impl Application for HelloApp {
              0..self.draw_count_mc_slime, 
              false
         );
-        println!("finished drawing....");
-
-        // self.two_triangles.draw(&mut encoder, &frame, &self.depth_texture, &self.two_triangles_bind_group, true);
 
         queue.submit(Some(encoder.finish()));
     }
@@ -537,18 +488,18 @@ impl Application for HelloApp {
 
     fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, input: &InputCache) {
 
-        //let val1 = 0.15 * (((input.get_time() / 5000000) as f32) * 0.005).sin();
-        let val2 = ((input.get_time() / 5000000) as f32) * 0.0015;
+        let val = ((input.get_time() / 5000000) as f32) * 0.0015;
 
 
         queue.write_buffer(
             &self.buffers.get("future_usage1_noise3d").unwrap(),
             0,
-            bytemuck::cast_slice(&vec![val2, 0.0, 0.0, 0.0])
+            bytemuck::cast_slice(&vec![val, 0.0, 0.0, 0.0])
         );
 
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Juuu") });
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Compute encoder (noise/slime).") });
 
+        // Create a new density scalar field for marching cubes slime.
         self.custom_3d.dispatch(&self.slime_texture3d_bindgroups,
                     &mut encoder,
                     64 * 6 * 64,
@@ -566,9 +517,7 @@ impl Application for HelloApp {
             &Some(0.0),
         ); 
 
-
         self.mc_slime.dispatch(&self.mc_params_slime.bind_groups.as_ref().unwrap(),
-        //self.mc_slime.dispatch(&self.slime_texture3d_bindgroups,
                     &mut encoder,
                     64,
                     6,
@@ -584,7 +533,6 @@ impl Application for HelloApp {
                                      4 as wgpu::BufferAddress);
 
         self.draw_count_mc_slime = k_slime[0];
-        println!("draw_count_mc_slime new == {}", k_slime[0]);
     }
 }
 

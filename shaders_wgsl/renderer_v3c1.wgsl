@@ -1,7 +1,9 @@
+// Not complete!
+
 struct VertexOutput {
     [[builtin(position)]] my_pos: vec4<f32>;
-    [[location(0)]] pos: vec4<f32>;
-    [[location(1)]] nor: vec4<f32>;
+    [[location(0)]] pos: vec3<f32>;
+    [[location(1)]] col: u32; // flat? Point_size: nope.
 };
 
 [[block]]
@@ -13,6 +15,14 @@ struct Camera {
 [[group(0), binding(0)]]
 var<uniform> camerauniform: Camera;
 
+fn decode_color(c: u32) -> vec4<f32> {
+  let a: f32 = f32((c & 0xff) / 255.0;
+  let b: f32 = f32((c & 0xff00) >> 8) / 255.0;
+  let g: f32 = f32((c & 0xff0000) >> 16) / 255.0;
+  let r: f32 = f32((c & 0xff000000) >> 24) / 255.0;
+  return vec4<f32>(r,g,b,a);
+}
+
 [[stage(vertex)]]
 fn vs_main([[location(0)]] pos: vec4<f32>, [[location(1)]] nor: vec4<f32>) -> VertexOutput {
     var out: VertexOutput;
@@ -22,30 +32,7 @@ fn vs_main([[location(0)]] pos: vec4<f32>, [[location(1)]] nor: vec4<f32>) -> Ve
     return out;
 }
 
-// Textures.
-
-[[group(1), binding(0)]]
-var t_diffuse1: texture_2d<f32>;
-
-[[group(1), binding(1)]]
-var s_diffuse1: sampler;
-
-[[group(1), binding(2)]]
-var t_diffuse2: texture_2d<f32>;
-
-[[group(1), binding(3)]]
-var s_diffuse2: sampler;
-
-// Ligth/material properties.
-let light_pos: vec3<f32> = vec3<f32>(3.0, 48.0, 3.0);
-let light_color: vec3<f32> = vec3<f32>(0.5, 1.0, 0.5);
-let material_spec_color: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
-let material_shininess: f32 = 205.0;
-let ambient_coeffience: f32 = 0.15;
-let attentuation_factor: f32 = 0.009;
-
 [[stage(fragment)]]
-
 fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
 
     var light_dir: vec3<f32> = normalize(light_pos - in.pos.xyz);

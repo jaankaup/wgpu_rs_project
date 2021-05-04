@@ -42,8 +42,9 @@ impl Render_vvvvnnnn {
 
     pub fn init(device: &wgpu::Device,
                 sc_desc: &wgpu::SwapChainDescriptor,               
-                vs_module: &wgpu::ShaderModule,
-                fs_module: &wgpu::ShaderModule,
+                wgsl_module: &wgpu::ShaderModule,
+                //vs_module: &wgpu::ShaderModule,
+                //fs_module: &wgpu::ShaderModule,
                 ) -> Self {
 
         // Camera uniform.
@@ -90,7 +91,7 @@ impl Render_vvvvnnnn {
             label: None,
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &vs_module,
+                module: &wgsl_module,
                 entry_point: "main",
                 buffers: &[
                     wgpu::VertexBufferLayout {
@@ -131,7 +132,7 @@ impl Render_vvvvnnnn {
                 alpha_to_coverage_enabled: false,
             },
             fragment: Some(wgpu::FragmentState {
-                module: &fs_module,
+                module: &wgsl_module,
                 entry_point: "main",
                 targets: &[sc_desc.format.into()] // &[wgpu::ColorTargetState {
                 //   format: sc_desc.format,

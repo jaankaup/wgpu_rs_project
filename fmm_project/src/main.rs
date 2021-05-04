@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use rand::prelude::*;
 pub use winit::event::VirtualKeyCode as Key;
 use jaankaup_core::wgpu;
@@ -167,8 +168,10 @@ impl Application for FMM_App {
         let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvc_camera.frag.spv");
 
         // Create render pipelines vvvvnnnn.
-        let vertex_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.vert.spv");
-        let fragment_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.frag.spv");
+        //let vertex_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.vert.spv");
+        //let fragment_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.frag.spv");
+        // let vertex_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.vert.spv");
+        // let fragment_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.frag.spv");
 
         // The point pipeline.
         let render_vvvc_point_pipeline = Render_vvvc::init(
@@ -198,8 +201,13 @@ impl Application for FMM_App {
         let render_vvvvnnn_pipeline = Render_vvvvnnnn::init(
                 &configuration.device,
                 &configuration.sc_desc,
-                &configuration.device.create_shader_module(&vertex_shader_vvvvnnnn),
-                &configuration.device.create_shader_module(&fragment_shader_vvvvnnnn)
+                &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+                    label: Some("renderer_v4n4_module"),
+                    source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v4n4.wgsl"))),
+                    flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                })
+                // &configuration.device.create_shader_module(&vertex_shader_vvvvnnnn),
+                // &configuration.device.create_shader_module(&fragment_shader_vvvvnnnn)
         );
         let render_vvvvnnnn_bind_groups = render_vvvvnnn_pipeline.create_bind_groups(
             &configuration.device,

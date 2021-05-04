@@ -163,7 +163,6 @@ pub fn create_bind_groups(device: &wgpu::Device,
                           bindings: &Vec<Vec<&wgpu::BindingResource>>)
                         -> Vec<wgpu::BindGroup> {
 
-    println!("YEAH1");
     // The created bindgroups.
     let mut result: Vec<wgpu::BindGroup> = Vec::new();
 
@@ -198,7 +197,6 @@ pub fn create_bind_groups(device: &wgpu::Device,
             }
         } // j
     } // i
-    println!("YEAH2");
     result
 }
 
