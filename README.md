@@ -13,5 +13,7 @@ You can compile and run the project as follows
 
 $ cargo run --example hello_project 
 
-On each frame, the density values of "slime" is computed and marching cubes is run to create triangle a new triangle mesh of slime.
+On each frame, the density values of "slime" is computed and marching cubes is executed to produce a new triangle mesh.
 Marching cubes creates ~500 000 triangles on each frame.
+
+![hello_project](/pics/slime.png "The slime ocean.")
