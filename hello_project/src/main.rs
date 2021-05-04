@@ -31,7 +31,7 @@ impl WGPUFeatures for MyFeatures {
 
 // State for this application.
 struct HelloApp {
-    //textures: HashMap<String, JTexture>, 
+    textures: HashMap<String, JTexture>, 
     buffers: HashMap<String, wgpu::Buffer>,
     //two_triangles: TwoTriangles,
     //two_triangles_bind_group: wgpu::BindGroup,
@@ -109,22 +109,22 @@ impl Application for HelloApp {
         //     &configuration.device,
         //     &grass_texture
         // );
-        buffers.insert(
-            "two".to_string(),
-            buffer_from_data::<f32>(
-            &configuration.device,
-            // gl_Position     |    point_pos
-            &[-1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
-               1.0, -1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
-               1.0,  1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0,
-               1.0,  1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0,
-              -1.0,  1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0,
-              -1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
-            ],
-            wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC,
-            None
-            )
-        );
+        // buffers.insert(
+        //     "two".to_string(),
+        //     buffer_from_data::<f32>(
+        //     &configuration.device,
+        //     // gl_Position     |    point_pos
+        //     &[-1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+        //        1.0, -1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
+        //        1.0,  1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0,
+        //        1.0,  1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0,
+        //       -1.0,  1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0,
+        //       -1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+        //     ],
+        //     wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC,
+        //     None
+        //     )
+        // );
 
         textures.insert("grass".to_string(), grass_texture); 
         textures.insert("rock".to_string(), rock_texture); 
@@ -397,11 +397,14 @@ impl Application for HelloApp {
 
         configuration.queue.submit(Some(encoder.finish()));
 
+        // The number of mountain vertices (from marching cubes).
         let k = to_vec::<u32>(&configuration.device,
                               &configuration.queue,
                               &mc_params.counter_buffer,
                               0 as wgpu::BufferAddress,
                               4 as wgpu::BufferAddress);
+
+        // The number of initial slime vertices (from marching cubes).
         let k_slime = to_vec::<u32>(&configuration.device,
                                     &configuration.queue,
                                     &mc_params_slime.counter_buffer,
@@ -411,7 +414,7 @@ impl Application for HelloApp {
         log::info!("Application data initialized.");
 
         HelloApp {
-            //textures: textures,
+            textures: textures,
             buffers: buffers,
             //two_triangles: two_triangles,
             //two_triangles_bind_group: bind_group,
