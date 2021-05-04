@@ -1,5 +1,5 @@
 use crate::buffer::{to_vec, buffer_from_data};
-use crate::wgpu_system::*;
+//use crate::wgpu_system::*;
 /// Information about the invocation counts and data dimensions sizes.
 /// TODO: add items_per_thread?
 pub struct CompDimensions {
@@ -41,7 +41,7 @@ impl Histogram {
     /// Create histogram with given capacity and default value.
     pub fn init(device: &wgpu::Device, initial_values: &Vec<u32>) -> Self {
 
-        assert!(initial_values.len() > 0, format!("{} > 0", initial_values.len()));
+        assert!(initial_values.len() > 0, "{}", format!("{} > 0", initial_values.len()));
 
         //let data = vec!(initial_value ; capacity as usize);
         //println!("{:?}", initial_values);
@@ -96,7 +96,7 @@ impl Histogram {
     pub fn set_values_cpu_version(&self, queue: &wgpu::Queue, value: &Vec<u32>)
     {
         // Make sure the updated values are the same size as old values.
-        assert!(value.len() == self.data.len(), format!("{} > {}", self.data.len(), value.len()));
+        assert!(value.len() == self.data.len(), "{}", format!("{} > {}", self.data.len(), value.len()));
 
         queue.write_buffer(
             &self.histogram,

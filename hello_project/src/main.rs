@@ -12,7 +12,7 @@ use jaankaup_core::wgpu_system::{
 //use glsl_to_spirv;
 use jaankaup_core::buffer::*;
 use jaankaup_core::texture::Texture as JTexture;
-use jaankaup_core::two_triangles::*;
+//use jaankaup_core::two_triangles::*;
 use jaankaup_core::mc::*;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
@@ -20,7 +20,7 @@ use jaankaup_core::render_pipelines::{
     draw,
     create_bind_groups,
     TestLayoutEntry,
-    check_correspondence,
+    // check_correspondence,
 };
 use jaankaup_core::noise3d::*;
 

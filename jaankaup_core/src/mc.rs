@@ -26,7 +26,7 @@ impl McParams {
 
     /// Create an instance of McParams.
     pub fn init(device: &wgpu::Device, base_position: &cgmath::Vector4<f32>, isovalue: f32, cube_length: f32) -> Self {
-        assert!(cube_length > 0.0, format!("cube_length ==  {} > 0.0", cube_length));
+        assert!(cube_length > 0.0, "{}", format!("cube_length ==  {} > 0.0", cube_length));
 
         println!("Initializing mc.");
         let uniform = McUniform {
@@ -36,20 +36,6 @@ impl McParams {
                 future_usage1: 0.0,
                 future_usage2: 0.0,
         }; 
-        println!("ehe1.");
-        let ehe =  buffer_from_data::<McUniform>(
-                &device,
-                &[uniform],
-                wgpu::BufferUsage::COPY_DST |wgpu::BufferUsage::UNIFORM,
-                None);
-        println!("ehe2.");
-        println!("oho1.");
-        let oho = buffer_from_data::<u32>(
-                &device,
-                &[0 as u32],
-                wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST |wgpu::BufferUsage::COPY_SRC,
-                None);
-        println!("oho2.");
 
         Self {
             params: uniform,
@@ -100,7 +86,7 @@ impl McParams {
             self.params.isovalue = iso;
         }
         if let Some(length) = *cube_length {
-            assert!(length > 0.0, format!("length ==  {} > 0.0", length));
+            assert!(length > 0.0, "{}", format!("length ==  {} > 0.0", length));
             self.params.cube_length = length;
         }
         if let Some(f) = *future1 {

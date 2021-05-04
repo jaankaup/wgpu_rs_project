@@ -1,6 +1,5 @@
 [workspace]
 
-
 members = [
     "jaankaup_core",
     "hello_project",
@@ -10,7 +9,6 @@ members = [
     "geometry",
     "debug_shaders",
     "render_shaders",
-    "fonts",
 ]
 
 [profile.dev]

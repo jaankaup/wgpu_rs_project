@@ -561,10 +561,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
-name = "fonts"
-version = "0.1.0"
-
-[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2243,7 +2239,7 @@ dependencies = [
 [[package]]
 name = "wgpu"
 version = "0.8.0"
-source = "git+https://github.com/gfx-rs/wgpu-rs#ef2fa77536855e0b7ebdfb0df0eb879d9b7d3a1b"
+source = "git+https://github.com/gfx-rs/wgpu-rs?rev=69be1ff88a073b3a7f9470044834e75c22f7b4ad#69be1ff88a073b3a7f9470044834e75c22f7b4ad"
 dependencies = [
  "arrayvec 0.5.2",
  "js-sys",

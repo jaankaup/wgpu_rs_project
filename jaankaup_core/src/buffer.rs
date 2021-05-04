@@ -62,34 +62,31 @@ pub fn to_vec<T: Convert2Vec>(
     let res: Vec<T>;
     
     let buffer_slice = staging_buffer.slice(..);
-    let buffer_future = buffer_slice.map_async(wgpu::MapMode::Read);
+    let _buffer_future = buffer_slice.map_async(wgpu::MapMode::Read);
     device.poll(wgpu::Maintain::Wait);
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        pollster::block_on(buffer_future); 
-    }
+    // #[cfg(not(target_arch = "wasm32"))]
+    // {
+    //     pollster::block_on(buffer_future); 
+    // }
 
     // Not working.
-    #[cfg(target_arch = "wasm32")]
-    {
-        //log::info!("Creating spawner");
-        //let spawner = async_executor::LocalExecutor::new();
-        //log::info!("Execute buffer_future");
-        //spawner.run(buffer_future);
-        wasm_bindgen_futures::spawn_local(async move {
-            //log::info!("yeeeaaaah");
-            if let Ok(()) = buffer_future.await { log::info!("Buffer future solved") }
-        });
-    }
+    // #[cfg(target_arch = "wasm32")]
+    // {
+    //     //log::info!("Creating spawner");
+    //     //let spawner = async_executor::LocalExecutor::new();
+    //     //log::info!("Execute buffer_future");
+    //     //spawner.run(buffer_future);
+    //     wasm_bindgen_futures::spawn_local(async move {
+    //         //log::info!("yeeeaaaah");
+    //         if let Ok(()) = buffer_future.await { log::info!("Buffer future solved") }
+    //     });
+    // }
 
-    //log::info!("Get buffer_slice");
     let data = buffer_slice.get_mapped_range();
-    //log::info!("Converting data");
     res = Convert2Vec::convert(&data);
     
     drop(data);
-    //log::info!("Unmap buffer");
     staging_buffer.unmap();
     
     res
