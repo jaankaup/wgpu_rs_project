@@ -594,8 +594,8 @@ fn main([[builtin(local_invocation_id)]] local_id: vec3<u32>,
         if (base_index != 16777215u) { 
 
      	    // Not supported?
-            //let hohhoo : ptr<storage, atomic<u32> = &counter.counter[0]; 
-            // let index = atomicAdd(hohhoo, 3);
+            //let ptr_to_counter : ptr<storage, atomic<u32> = &counter.counter[0]; 
+            // let index = atomicAdd(ptr_to_counter, 3);
 
 	    // Create the triangle vertices and normals.
             // createVertex(i32((base_index & 0xff0000) >> 16), i32(index));
