@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use jaankaup_core::wgpu;
 use rand::prelude::*;
 use cgmath::{prelude::*,Vector3,Vector4};
@@ -140,8 +141,13 @@ impl Application for Debug_App {
         let render_pipeline = Render_vvvvnnnn::init(
                     &configuration.device,
                     &configuration.sc_desc,
-                    &configuration.device.create_shader_module(&vertex_shader_src),
-                    &configuration.device.create_shader_module(&fragment_shader_src)
+                    &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+                        label: Some("renderer_v3c1"),
+                        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v3c1.wgsl"))),
+                        flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                    }),
+                    //&configuration.device.create_shader_module(&vertex_shader_src),
+                    //&configuration.device.create_shader_module(&fragment_shader_src)
         );
         let render_bind_groups = render_pipeline.create_bind_groups(
             &configuration.device,
@@ -154,8 +160,13 @@ impl Application for Debug_App {
         let render_vvvc_pipeline = Render_vvvc::init(
                     &configuration.device,
                     &configuration.sc_desc,
-                    &configuration.device.create_shader_module(&vertex_shader_src),
-                    &configuration.device.create_shader_module(&fragment_shader_src),
+                    &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+                        label: Some("renderer_v3c1"),
+                        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v3c1.wgsl"))),
+                        flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                    }),
+                    //&configuration.device.create_shader_module(&vertex_shader_src),
+                    //&configuration.device.create_shader_module(&fragment_shader_src),
                     wgpu::PrimitiveTopology::PointList
         );
         let render_vvvc_bind_groups = render_vvvc_pipeline.create_bind_groups(
@@ -166,8 +177,13 @@ impl Application for Debug_App {
         let render_vvvc_line_pipeline = Render_vvvc::init(
                     &configuration.device,
                     &configuration.sc_desc,
-                    &configuration.device.create_shader_module(&vertex_shader_src),
-                    &configuration.device.create_shader_module(&fragment_shader_src),
+                    &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+                        label: Some("renderer_v3c1"),
+                        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v3c1.wgsl"))),
+                        flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                    }),
+                    // &configuration.device.create_shader_module(&vertex_shader_src),
+                    // &configuration.device.create_shader_module(&fragment_shader_src),
                     wgpu::PrimitiveTopology::LineList
         );
         let render_vvvc_line_bind_groups = render_vvvc_pipeline.create_bind_groups(
@@ -178,8 +194,13 @@ impl Application for Debug_App {
         let render_vvvc_triangle_pipeline = Render_vvvc::init(
                     &configuration.device,
                     &configuration.sc_desc,
-                    &configuration.device.create_shader_module(&vertex_shader_src),
-                    &configuration.device.create_shader_module(&fragment_shader_src),
+                    &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+                        label: Some("renderer_v3c1"),
+                        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v3c1.wgsl"))),
+                        flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                    }),
+                    // &configuration.device.create_shader_module(&vertex_shader_src),
+                    // &configuration.device.create_shader_module(&fragment_shader_src),
                     wgpu::PrimitiveTopology::TriangleList
         );
         let render_vvvc_triangle_bind_groups = render_vvvc_pipeline.create_bind_groups(

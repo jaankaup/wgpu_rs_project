@@ -39,11 +39,8 @@ pub fn to_vec<T: Convert2Vec>(
     copy_size: wgpu::BufferAddress,
     ) -> Vec<T> {
 
-    // Create an auxilary buffer for copying the data. Do we actually need this.
-    // TODO: check if buffer can be read without staging_buffer.
-    //       buffer.contains(...)
-    // TODO: Check if buffer has MAP_READ => ignore staging buffer. Otherwise use staging buffer.
     //log::info!("Creating staging buffer");
+    // TODO: Recycle staging buffers.
     let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: None,
         size: copy_size, 
@@ -51,12 +48,12 @@ pub fn to_vec<T: Convert2Vec>(
         mapped_at_creation: false,
     });
     
-    //log::info!("Creating encoder");
+    // log::info!("Creating encoder");
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
     
-    //log::info!("Copy buffer to buffer");
+    // log::info!("Copy buffer to buffer");
     encoder.copy_buffer_to_buffer(buffer, 0, &staging_buffer, 0, copy_size);
-    //log::info!("Submit");
+    // log::info!("Submit");
     queue.submit(Some(encoder.finish()));
 
     let res: Vec<T>;

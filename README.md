@@ -7,10 +7,22 @@ wgsl. The shaders are now implemented using GLSL because it seems that wgsl
 doesn't yet support atomic types and operations. Finally (some day) the
 projects are going to run on web browser.
 
-There are now only one "finished" test project using the engine. 
+This project is part of my master's thesis (parallel FMM). The code is now a
+mess, and some day I will probably refactor and reogranize my code.
+
+There are now only one "finished" test project using the engine.
+
+The textures aren't mine. They are some random free textures downloaded from
+the net. TODO: replace the old textures with new ones, and provide the download
+links for those textures.
+
+wood.obj is a slightly modivied version of
+https://3dhaupt.com/wooden-watch-tower/. This is a test mesh for fast marching
+method algorithm.
 
 ## Marching cubes slime project (test project)
 
+The fist test scene a made. Just to get something on the screen.
 You can compile and run the project as follows
 
 $ cargo run --example hello_project 

@@ -190,7 +190,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
     {
         SimpleLogger::new()
         .with_level(LevelFilter::Off)
-        //.with_module_level("jaankaup", LevelFilter::Info)
+        .with_module_level("jaankaup", LevelFilter::Info)
         .with_module_level("hello_project", LevelFilter::Info)
         //.with_module_level("wgpu", LevelFilter::Info)
         .init()
