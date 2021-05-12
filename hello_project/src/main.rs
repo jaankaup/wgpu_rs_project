@@ -328,7 +328,7 @@ impl Application for HelloApp {
             "slime_invocations".to_string(),
             buffer_from_data::<u32>(
             &configuration.device,
-            &vec![64,6,64],
+            &vec![64,2,64],
             wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE,
             None)
         );
@@ -337,7 +337,8 @@ impl Application for HelloApp {
             "slime_dimensions".to_string(),
             buffer_from_data::<u32>(
             &configuration.device,
-            &vec![256,24,256],
+            &vec![256,8,256],
+            //&vec![256,24,256],
             wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE,
             None)
         );
@@ -506,7 +507,7 @@ impl Application for HelloApp {
         // Create a new density scalar field for marching cubes slime.
         self.custom_3d.dispatch(&self.slime_texture3d_bindgroups,
                     &mut encoder,
-                    64 * 6 * 64,
+                    64 * 2 * 64,
                     1,
                     1
         );

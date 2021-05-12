@@ -311,11 +311,13 @@ const uint[1280] triTable = {
 // 256 x 24 256
 float get_density_value(int pos_x, int pos_y, int pos_z) {
     if (pos_x < 0 || pos_x > 255 ||
-        pos_y < 0 || pos_y > 23  ||
+        //pos_y < 0 || pos_y > 23  ||
+        pos_y < 0 || pos_y > 8  ||
         pos_z < 0 || pos_z > 255) {
         return 10.0;
     }
-    int index = pos_x + pos_y * 256 + pos_z * 256 * 24;
+    //int index = pos_x + pos_y * 256 + pos_z * 256 * 24;
+    int index = pos_x + pos_y * 256 + pos_z * 256 * 8;
     return noise_texture[index];
 }
 
