@@ -385,7 +385,7 @@ float fbm(vec2 x) {
 }
 
 
-float fbm(vec3 x) {
+float fbm3(vec3 x) {
 	float v = 0.0;
 	float a = 0.5;
 	vec3 shift = vec3(100);
@@ -400,14 +400,15 @@ float fbm(vec3 x) {
 float calculate_density(vec3 v)
 {
     float noise_a = fbm(v.z * 1.2);
-    float noise_d = fbm(v.yy * 0.2);
+    float noise_d = fbm(v.yz * 0.2);
+    //float noise_e = fbm(v);
     float noise_b = noise(v.zyx * 1.1);
-    float noise_c = noise((v.x + 5.0) * 1.1);
-    float heko = abs(6*fbm(v*0.4)); // + 10.0 * noise + 14.0 * noise2;
+    float noise_c = noise((v.xyz + 5.0) * 1.1);
+    float heko = abs(6*fbm3(v*0.4)); // + 10.0 * noise + 14.0 * noise2;
     //return v.y - 3.0 +  4 * noise;
     //float ball = pow(v.x - 2.1, 2.0) + pow(v.y - 2.2, 2.0) + pow(v.z - 1.5, 2.0) - 2.5;
-    float something = 1.5 * noise_a - 2.45 * noise_b - 4.5 * sin(v.z * 0.2);
-    return v.y + 0.62 * something - 0.1 * heko - 2.5 * noise_c + 5.0 * noise_d;
+    float something = 1.5 * noise_a - 2.0 * noise_b - 1.5 * sin(v.z * 0.2);
+    return v.y - 1.62 * something - 1.5 * heko + 0.5 * noise_c + 1.5 * noise_d;
     //return v.y - 0.5 + 0.5 * sin(v.x*3);
     //return v.y + cos(10.0 * v.y);
 }

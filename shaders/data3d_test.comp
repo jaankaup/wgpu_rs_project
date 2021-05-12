@@ -774,7 +774,7 @@ float fbm2(vec2 x) {
 }
 
 
-float fbm2(vec3 x) {
+float fbm3(vec3 x) {
 	float v = 0.0;
 	float a = 0.5;
 	vec3 shift = vec3(100);
@@ -828,20 +828,29 @@ void main() {
   
   const uvec3 coordinate3D = index1D_to_index3D();
  
-  const float fx = float(coordinate3D.x) * 0.1;
-  const float fy = float(coordinate3D.y) * 0.1;
-  const float fz = float(coordinate3D.z) * 0.1;
+  const float fx = float(coordinate3D.x) * 0.06;
+  const float fy = float(coordinate3D.y) * 0.06;
+  const float fz = float(coordinate3D.z) * 0.06;
  
   //float for_future_usage1 = 0.3;
+
+  const float noise_velocity = 0.4;
+  const float wave_height_factor = 0.2;
       
   //float cperlin_noise = cnoise(vec4(fx, fy, fz, 1.0));
-  float noise_a = noise(vec3(1.5 + future_usage1.x) + vec3(fz, fy, fx)); //v.zyx);
+  // float noise_a = noise(vec3(future_usage1*noise_velocity) + noise_velocity*vec3(fz, fy, fx)); //v.zyx);
+  // float noise_b = fbm3(vec3(noise_velocity*future_usage1) + vec3(fz, fy, fx));
+  float noise_c = cnoise(vec4(vec3(fz, fy, fx) + noise_velocity*future_usage1.x, 1.0));
+  //noise_velocity*future_usage1.x));
   //float noise_b = noise(5.0*v.zyx + 3.0);
-  float result_value = fy - 1.9 - 0.2 * cos(3.0 * future_usage1.x + fy) + 0.1 * sin(1.5 * fz + noise_a * 0.5) + 0.3 * noise_a;
+  //float result_value = fy - 1.9 - 0.2 * cos(3.0 * future_usage1.x + fy) + 0.1 * sin(1.5 * fz + noise_a * 0.5) + 0.3 * noise_a;
+  //float result_value = fy - 5.9 - 3.1 * cos(future_usage1.x * 0.1 + (fx + fy)*0.5) + 3.05 * sin(future_usage1.x * 0.1 + noise_a.x) + noise_a;
+  //float result_value = fy - 0.5 - wave_height_factor * noise_a +  1.1 * noise_b;
+  //float result_value = fy - 3.0 - wave_height_factor * noise_c; // - 0.5*noise_a;
+  float result_value = fy - 0.25 - wave_height_factor * noise_c; // - 0.5*noise_a;
  
- 
-  temp_values[local_index] = result_value;
-  barrier();
+  // temp_values[local_index] = result_value;
+  // barrier();
 
-  noise_output[index] = temp_values[local_index];
+  noise_output[index] = result_value; // temp_values[local_index];
 }

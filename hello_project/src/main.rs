@@ -80,7 +80,8 @@ impl HelloApp {
             &configuration.device,
             &configuration.sc_desc,
             1,
-            &include_bytes!("../../assets/textures/slime2.png")[..],
+            //&include_bytes!("../../assets/textures/slime2.png")[..],
+            &include_bytes!("../../assets/textures/xXqQP0.png")[..],
             None);
         log::info!("Textures created OK.");
         (grass_texture, rock_texture, slime_texture, slime_texture2)
@@ -514,7 +515,7 @@ impl Application for HelloApp {
         self.mc_params_slime.reset_counter(&queue);
         self.mc_params_slime.update_params(
             &queue,
-            &None,
+            &Some(cgmath::Vector4::<f32>::new(0.0,0.5,0.0,1.0)),
             &Some(0.0),
             &None,
             &Some(0.0),
@@ -523,7 +524,7 @@ impl Application for HelloApp {
         self.mc_slime.dispatch(&self.mc_params_slime.bind_groups.as_ref().unwrap(),
                     &mut encoder,
                     64,
-                    6,
+                    2,
                     64
         );
 
