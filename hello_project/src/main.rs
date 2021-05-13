@@ -264,7 +264,7 @@ impl Application for HelloApp {
             "mc_output_slime".to_string(),
             buffer_from_data::<f32>(
             &configuration.device,
-            &vec![0 as f32 ; 128*64*64*24],
+            &vec![0 as f32 ; 128*128*64*24],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
         );
@@ -272,7 +272,7 @@ impl Application for HelloApp {
         // Create parameters for "slime" marching cubes.
         let mut mc_params_slime = McParams::init(
                 &configuration.device, 
-                &cgmath::Vector4::<f32>::new(0.0, 1.0, 0.0, 1.0),
+                &cgmath::Vector4::<f32>::new(0.0,0.5,0.0,1.0),
                 0.0,
                 0.05
         );
@@ -282,7 +282,8 @@ impl Application for HelloApp {
             "3dnoise_slime".to_string(),
             buffer_from_data::<f32>(
             &configuration.device,
-            &vec![0 as f32 ; 64*6*64*16*4],
+            //&vec![0 as f32 ; 64*2*64*16*4],
+            &vec![0 as f32 ; 256*8*256],
             wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
             None)
         );
@@ -384,7 +385,7 @@ impl Application for HelloApp {
 
         texture3_d.dispatch(&slime_texture3d_bindgroups,
                     &mut encoder,
-                    64 * 6 * 64,
+                    64 * 2 * 64,
                     1,
                     1
         ); 
@@ -393,7 +394,7 @@ impl Application for HelloApp {
         mc_slime.dispatch(&mc_params_slime.bind_groups.as_ref().unwrap(),
                     &mut encoder,
                     64,
-                    6,
+                    2,
                     64
         );
 
@@ -519,8 +520,13 @@ impl Application for HelloApp {
             &Some(cgmath::Vector4::<f32>::new(0.0,0.5,0.0,1.0)),
             &Some(0.0),
             &None,
-            &Some(0.0),
+            &Some(0.05),
         ); 
+        //let mut mc_params_slime = McParams::init(
+        //        &configuration.device, 
+        //        cgmath::Vector4::<f32>::new(0.0,0.5,0.0,1.0),
+        //        0.0,
+        //        0.05
 
         self.mc_slime.dispatch(&self.mc_params_slime.bind_groups.as_ref().unwrap(),
                     &mut encoder,
@@ -531,13 +537,14 @@ impl Application for HelloApp {
 
         queue.submit(Some(encoder.finish()));
 
-        let k_slime =  to_vec::<u32>(&device,
-                                     &queue,
-                                     &self.mc_params_slime.counter_buffer,
-                                     0 as wgpu::BufferAddress,
-                                     4 as wgpu::BufferAddress);
+        let k_slime = to_vec::<u32>(&device,
+                                    &queue,
+                                    &self.mc_params_slime.counter_buffer,
+                                    0 as wgpu::BufferAddress,
+                                    4 as wgpu::BufferAddress);
 
         self.draw_count_mc_slime = k_slime[0];
+        // log::info!("k_slime[0] == {}", k_slime[0]);
     }
 }
 

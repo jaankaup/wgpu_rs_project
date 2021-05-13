@@ -24,7 +24,6 @@ layout(set = 0, binding = 0) uniform McParams {
 layout(set = 0, binding = 1) buffer McCounter {
     uint counter;
 };
-
  
 // The output array.
 layout(set = 1, binding = 0) writeonly buffer McOutput {
@@ -308,17 +307,32 @@ const uint[1280] triTable = {
     16777215 ,16777215 ,16777215 ,16777215 ,16777215 
 };
 
-// 256 x 24 256
+const int MAX_DENSITY_ARRAY_SIZE = 255 + 255 * 256 + 255 * 256 * 8;
+
+// Density values.
+shared float[216] density_values;
+
+// Work group base index.
+shared uint work_group_base_index;
+
+// The work group density value base index.
+shared ivec3 work_group_global_coord;
+
 float get_density_value(int pos_x, int pos_y, int pos_z) {
-    if (pos_x < 0 || pos_x > 255 ||
-        //pos_y < 0 || pos_y > 23  ||
-        pos_y < 0 || pos_y > 8  ||
-        pos_z < 0 || pos_z > 255) {
-        return 10.0;
-    }
-    //int index = pos_x + pos_y * 256 + pos_z * 256 * 24;
-    int index = pos_x + pos_y * 256 + pos_z * 256 * 8;
-    return noise_texture[index];
+
+    // const float default_density = 10.0;
+    // uint(index == 0 | index >  
+    // const bool is_inside_context =  
+
+    //if (pos_x < 0 || pos_x > 255 ||
+    //    pos_y < 0 || pos_y > 7  ||
+    //    pos_z < 0 || pos_z > 255) {
+    //    return 10.0;
+    //}
+    int index = pos_x + pos_y * 6 + pos_z * 6 * 6;
+    //const int index = pos_x + pos_y * 256 + pos_z * 256 * 8;
+    //return noise_texture[index];
+    return density_values[index];
 }
 
 uint calculate_case(in Cube cube, float isovalue)
@@ -339,18 +353,19 @@ uint calculate_case(in Cube cube, float isovalue)
 
 vec3 calculate_normal(ivec3 pos)
 {
-  int pos_x = pos.x;
-  int pos_y = pos.y;
-  int pos_z = pos.z;
+  // int pos_x = pos.x;
+  // int pos_y = pos.y;
+  // int pos_z = pos.z;
   vec3 grad;
-  float right = get_density_value(pos_x + 1, pos_y, pos_z);
-  float left = get_density_value(pos_x - 1, pos_y, pos_z);
-  float up = get_density_value(pos_x, pos_y + 1, pos_z);
-  float down = get_density_value(pos_x, pos_y - 1, pos_z);
-  float z_minus = get_density_value(pos_x, pos_y, pos_z + 1);
-  float z = get_density_value(pos_x, pos_y, pos_z - 1);
+  float right = get_density_value(pos.x + 1, pos.y, pos.z);
+  float left = get_density_value(pos.x - 1, pos.y, pos.z);
+  float up = get_density_value(pos.x, pos.y + 1, pos.z);
+  float down = get_density_value(pos.x, pos.y - 1, pos.z);
+  float z_minus = get_density_value(pos.x, pos.y, pos.z + 1);
+  float z = get_density_value(pos.x, pos.y, pos.z - 1);
   grad.x = right - left;
   grad.y = up - down;
+  //grad.z = z_minus - z;
   grad.z = z - z_minus;
   return normalize(grad); // TODO: check if is this necessery
 }
@@ -440,13 +455,63 @@ void createVertex(uint edgeValue,
 
 }
 
+// From local index to 6x6x6 coordinate space. 
+ivec3 index1D_to_index3D(uint ind) {
+	uint index = ind;
+	uint wh = 6 * 6;
+	uint z = index / wh;
+	index -= z * wh;
+	uint y = index / 6;
+	index -= y * 6;
+	uint x = index;
+	return ivec3(int(x), int(y), int(z));	
+}
 
 void main() {
 
     // Get the base cube position from thread ids. 
-    uint pos_x = gl_GlobalInvocationID.x;
-    uint pos_y = gl_GlobalInvocationID.y;
-    uint pos_z = gl_GlobalInvocationID.z;
+    const int pos_x = int(gl_GlobalInvocationID.x);
+    const int pos_y = int(gl_GlobalInvocationID.y);
+    const int pos_z = int(gl_GlobalInvocationID.z);
+
+    const uint local_ind = gl_LocalInvocationIndex;
+
+    // Get the work group base array index (density value array).
+    if (local_ind == 0) {
+        // work_group_base_index == pos_x + pos_y * 256 + pos_z * 256 * 8;
+        work_group_global_coord = ivec3(pos_x, pos_y, pos_z);
+    }
+
+    barrier();
+
+    const float default_density_value = 10.0;
+
+    ivec3 local_6x6 = index1D_to_index3D(local_ind);
+
+    for (int b=0; b<6 ; b++) {
+
+        ivec3 density_coord = work_group_global_coord + ivec3(local_6x6.xy, b) - ivec3(1,1,1);
+
+        // bool outside = density_coord.x < 0 || density_coord.x > 255 ||
+        //                density_coord.y < 0 || density_coord.y > 7  ||
+        //                density_coord.z < 0 || density_coord.z > 255);
+        if (density_coord.x < 0 || density_coord.x > 255 ||
+            density_coord.y < 0 || density_coord.y > 7  ||
+            density_coord.z < 0 || density_coord.z > 255) {
+            density_values[local_6x6.x + local_6x6.y * 6 + b*6*6] = 10.0;
+        }
+        else {
+            const int index = density_coord.x + density_coord.y * 256 + density_coord.z * 256 * 8;
+            density_values[local_6x6.x + local_6x6.y * 6 + b*6*6] = noise_texture[index];
+        }
+    }
+
+    barrier();
+
+    // Local coordinates. We need these for accessing shared density values.
+    const int local_pos_x = int(gl_LocalInvocationID.x) + 1;
+    const int local_pos_y = int(gl_LocalInvocationID.y) + 1;
+    const int local_pos_z = int(gl_LocalInvocationID.z) + 1;
 
     // Create and scale cube base position.
     vec3 position = vec3(pos_x, pos_y, pos_z) * cube_length + base_position.xyz;
@@ -461,19 +526,28 @@ void main() {
     vec3 p6 = position + vec3(cube_length   , cube_length   , cube_length);
     vec3 p7 = position + vec3(0.0           , cube_length   , cube_length);
 
-    ivec3 p_index0 = ivec3(pos_x, pos_y, pos_z);
-    ivec3 p_index1 = ivec3(pos_x + 1, pos_y, pos_z);
-    ivec3 p_index2 = ivec3(pos_x + 1, pos_y + 1, pos_z);
-    ivec3 p_index3 = ivec3(pos_x, pos_y + 1, pos_z);
-    ivec3 p_index4 = ivec3(pos_x, pos_y, pos_z + 1);
-    ivec3 p_index5 = ivec3(pos_x + 1, pos_y, pos_z + 1);
-    ivec3 p_index6 = ivec3(pos_x + 1, pos_y + 1, pos_z + 1);
-    ivec3 p_index7 = ivec3(pos_x, pos_y + 1, pos_z + 1);
+    ivec3 p_index0 = ivec3(local_pos_x,     local_pos_y,     local_pos_z);
+    ivec3 p_index1 = ivec3(local_pos_x + 1, local_pos_y,     local_pos_z);
+    ivec3 p_index2 = ivec3(local_pos_x + 1, local_pos_y + 1, local_pos_z);
+    ivec3 p_index3 = ivec3(local_pos_x,     local_pos_y + 1, local_pos_z);
+    ivec3 p_index4 = ivec3(local_pos_x,     local_pos_y,     local_pos_z + 1);
+    ivec3 p_index5 = ivec3(local_pos_x + 1, local_pos_y,     local_pos_z + 1);
+    ivec3 p_index6 = ivec3(local_pos_x + 1, local_pos_y + 1, local_pos_z + 1);
+    ivec3 p_index7 = ivec3(local_pos_x,     local_pos_y + 1, local_pos_z + 1);
 
     // Create the cube.
     Cube cube;
 
     // Cube corner positions and density values.
+    //++ cube.vertices[0] = vec4(p0, get_density_value(p_index0.x, p_index0.y, p_index0.z));
+    //++ cube.vertices[1] = vec4(p1, get_density_value(p_index1.x, p_index1.y, p_index1.z));
+    //++ cube.vertices[2] = vec4(p2, get_density_value(p_index2.x, p_index2.y, p_index2.z));
+    //++ cube.vertices[3] = vec4(p3, get_density_value(p_index3.x, p_index3.y, p_index3.z));
+    //++ cube.vertices[4] = vec4(p4, get_density_value(p_index4.x, p_index4.y, p_index4.z));
+    //++ cube.vertices[5] = vec4(p5, get_density_value(p_index5.x, p_index5.y, p_index5.z));
+    //++ cube.vertices[6] = vec4(p6, get_density_value(p_index6.x, p_index6.y, p_index6.z));
+    //++ cube.vertices[7] = vec4(p7, get_density_value(p_index7.x, p_index7.y, p_index7.z));
+
     cube.vertices[0] = vec4(p0, get_density_value(p_index0.x, p_index0.y, p_index0.z));
     cube.vertices[1] = vec4(p1, get_density_value(p_index1.x, p_index1.y, p_index1.z));
     cube.vertices[2] = vec4(p2, get_density_value(p_index2.x, p_index2.y, p_index2.z));
