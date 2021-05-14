@@ -310,13 +310,13 @@ const uint[1280] triTable = {
 const int MAX_DENSITY_ARRAY_SIZE = 255 + 255 * 256 + 255 * 256 * 8;
 
 // Density values.
-shared float[216] density_values;
+shared float[343] density_values;
 
 // Work group base index.
 shared uint work_group_base_index;
 
 // The work group density value base index.
-shared ivec3 work_group_global_coord;
+// shared ivec3 work_group_global_coord;
 
 float get_density_value(int pos_x, int pos_y, int pos_z) {
 
@@ -324,12 +324,10 @@ float get_density_value(int pos_x, int pos_y, int pos_z) {
     // uint(index == 0 | index >  
     // const bool is_inside_context =  
 
-    //if (pos_x < 0 || pos_x > 255 ||
-    //    pos_y < 0 || pos_y > 7  ||
-    //    pos_z < 0 || pos_z > 255) {
+    //if (pos_x > 5 || pos_y > 5 || pos_z > 5) {
     //    return 10.0;
     //}
-    int index = pos_x + pos_y * 6 + pos_z * 6 * 6;
+    int index = pos_x + pos_y * 7 + pos_z * 7 * 7;
     //const int index = pos_x + pos_y * 256 + pos_z * 256 * 8;
     //return noise_texture[index];
     return density_values[index];
@@ -364,9 +362,10 @@ vec3 calculate_normal(ivec3 pos)
   float z_minus = get_density_value(pos.x, pos.y, pos.z + 1);
   float z = get_density_value(pos.x, pos.y, pos.z - 1);
   grad.x = right - left;
+  //grad.x = left - right;
   grad.y = up - down;
-  //grad.z = z_minus - z;
-  grad.z = z - z_minus;
+  grad.z = z_minus - z;
+  //grad.z = z - z_minus;
   return normalize(grad); // TODO: check if is this necessery
 }
 
@@ -458,11 +457,11 @@ void createVertex(uint edgeValue,
 // From local index to 6x6x6 coordinate space. 
 ivec3 index1D_to_index3D(uint ind) {
 	uint index = ind;
-	uint wh = 6 * 6;
+	uint wh = 7 * 7;
 	uint z = index / wh;
 	index -= z * wh;
-	uint y = index / 6;
-	index -= y * 6;
+	uint y = index / 7;
+	index -= y * 7;
 	uint x = index;
 	return ivec3(int(x), int(y), int(z));	
 }
@@ -477,32 +476,34 @@ void main() {
     const uint local_ind = gl_LocalInvocationIndex;
 
     // Get the work group base array index (density value array).
-    if (local_ind == 0) {
-        // work_group_base_index == pos_x + pos_y * 256 + pos_z * 256 * 8;
-        work_group_global_coord = ivec3(pos_x, pos_y, pos_z);
-    }
+    // if (local_ind == 0) {
+    //     // work_group_base_index == pos_x + pos_y * 256 + pos_z * 256 * 8;
+    //     work_group_global_coord = ivec3(int(gl_WorkGroupID.x) * 4, int(gl_WorkGroupID.y) * 4, int(gl_WorkGroupID.z) * 4); //   ivec3(pos_x, pos_y, pos_z);
+    // }
 
-    barrier();
+    // barrier();
 
+    ivec3 work_group_global_coord = ivec3(int(gl_WorkGroupID.x) * 4, int(gl_WorkGroupID.y) * 4, int(gl_WorkGroupID.z) * 4); //   ivec3(pos_x, pos_y, pos_z);
     const float default_density_value = 10.0;
 
-    ivec3 local_6x6 = index1D_to_index3D(local_ind);
+    ivec3 local_7x7 = index1D_to_index3D(local_ind);
 
-    for (int b=0; b<6 ; b++) {
-
-        ivec3 density_coord = work_group_global_coord + ivec3(local_6x6.xy, b) - ivec3(1,1,1);
+    for (int b=0; b<7 ; b++) {
+        if (local_ind > 48) continue;
+        ivec3 density_coord = work_group_global_coord + ivec3(local_7x7.xy, b) - ivec3(1,1,1);
 
         // bool outside = density_coord.x < 0 || density_coord.x > 255 ||
         //                density_coord.y < 0 || density_coord.y > 7  ||
         //                density_coord.z < 0 || density_coord.z > 255);
         if (density_coord.x < 0 || density_coord.x > 255 ||
-            density_coord.y < 0 || density_coord.y > 7  ||
+            density_coord.y < 0 || density_coord.y > 11  ||
+            //density_coord.y < 0 || density_coord.y > 7  ||
             density_coord.z < 0 || density_coord.z > 255) {
-            density_values[local_6x6.x + local_6x6.y * 6 + b*6*6] = 10.0;
+            density_values[local_7x7.x + local_7x7.y * 7 + b*7*7] = 10.0;
         }
         else {
-            const int index = density_coord.x + density_coord.y * 256 + density_coord.z * 256 * 8;
-            density_values[local_6x6.x + local_6x6.y * 6 + b*6*6] = noise_texture[index];
+            const int index = density_coord.x + density_coord.y * 256 + density_coord.z * 256 * 12;
+            density_values[local_7x7.x + local_7x7.y * 7 + b*7*7] = noise_texture[index];
         }
     }
 
