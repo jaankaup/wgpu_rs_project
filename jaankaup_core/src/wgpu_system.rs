@@ -124,15 +124,21 @@ impl Loop for BasicLoop {
                 &mut input,
                 &spawner);
 
-        //*control_flow = ControlFlow::Poll;
-        *control_flow = ControlFlow::Wait; // Why? Is this necessery?
+        *control_flow = ControlFlow::Poll;
+        //*control_flow = ControlFlow::Wait; // Why? Is this necessery?
 
         match event {
 
             // Events except RedrawRequested are reported.
             //Event::MainEventsCleared => {
+            Event::MainEventsCleared => {
+                //log::info!("MainEventsCleared....");
+                //application.render(&device, &mut queue, &mut swap_chain, &surface, &sc_desc);
+                //application.update(&device, &queue, &input);
+                window.request_redraw();
+            }
             Event::RedrawEventsCleared => {
-                // log::info!("MainEventsCleared....");
+                //log::info!("RedrawEventsCleared....");
                 input.pre_update();
                 application.update(&device, &queue, &input);
                 #[cfg(not(target_arch = "wasm32"))]
@@ -142,7 +148,7 @@ impl Loop for BasicLoop {
                 }
 
                 //#[cfg(target_arch = "wasm32")]
-                window.request_redraw();
+                //window.request_redraw();
                 let close_application = input.key_state(&Key::Q);
                 if !close_application.is_none() {
                     *control_flow = ControlFlow::Exit;
@@ -170,6 +176,7 @@ impl Loop for BasicLoop {
                 application.input(&queue, &input);
             }
             Event::RedrawRequested(_) => {
+                //log::info!("RedrawRequested");
                 application.render(&device, &mut queue, &mut swap_chain, &surface, &sc_desc);
             }
             _ => { } // Any other events

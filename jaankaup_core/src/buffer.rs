@@ -59,13 +59,13 @@ pub fn to_vec<T: Convert2Vec>(
     let res: Vec<T>;
     
     let buffer_slice = staging_buffer.slice(..);
-    let _buffer_future = buffer_slice.map_async(wgpu::MapMode::Read);
+    let buffer_future = buffer_slice.map_async(wgpu::MapMode::Read);
     device.poll(wgpu::Maintain::Wait);
 
-    // #[cfg(not(target_arch = "wasm32"))]
-    // {
-    //     pollster::block_on(buffer_future); 
-    // }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        pollster::block_on(buffer_future).unwrap(); 
+    }
 
     // Not working.
     // #[cfg(target_arch = "wasm32")]
