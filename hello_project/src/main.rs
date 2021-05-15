@@ -220,7 +220,7 @@ impl Application for HelloApp {
             "mc_output".to_string(),
             buffer_from_data::<f32>(
             &configuration.device,
-            &vec![0 as f32 ; 128*64*64*24],
+            &vec![0 as f32 ; 128*128*64*24],
             wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
             None)
         );

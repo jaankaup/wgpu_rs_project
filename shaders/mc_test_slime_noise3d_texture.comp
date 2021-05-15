@@ -495,10 +495,10 @@ void main() {
         // bool outside = density_coord.x < 0 || density_coord.x > 255 ||
         //                density_coord.y < 0 || density_coord.y > 7  ||
         //                density_coord.z < 0 || density_coord.z > 255);
-        if (density_coord.x < 0 || density_coord.x > 255 ||
-            density_coord.y < 0 || density_coord.y > 11  ||
-            //density_coord.y < 0 || density_coord.y > 7  ||
-            density_coord.z < 0 || density_coord.z > 255) {
+        if (density_coord.x <= 0 || density_coord.x > 255 ||
+            density_coord.y <= 0 || density_coord.y > 11  ||
+            //density_coord.y <= 0 || density_coord.y > 7  ||
+            density_coord.z <= 0 || density_coord.z > 255) {
             density_values[local_7x7.x + local_7x7.y * 7 + b*7*7] = 10.0;
         }
         else {
