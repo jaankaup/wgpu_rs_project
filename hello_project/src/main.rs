@@ -502,14 +502,13 @@ impl Application for HelloApp {
 
         let val = ((input.get_time() / 5000000) as f32) * 0.0015;
 
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Compute encoder (noise/slime).") });
 
         queue.write_buffer(
             &self.buffers.get("future_usage1_noise3d").unwrap(),
             0,
             bytemuck::cast_slice(&vec![val, 0.0, 0.0, 0.0])
         );
-
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Compute encoder (noise/slime).") });
 
         // Create a new density scalar field for marching cubes slime.
         self.custom_3d.dispatch(&self.slime_texture3d_bindgroups,

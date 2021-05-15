@@ -125,22 +125,19 @@ impl Loop for BasicLoop {
                 &spawner);
 
         *control_flow = ControlFlow::Poll;
-        //*control_flow = ControlFlow::Wait; // Why? Is this necessery?
+        //*control_flow = ControlFlow::Wait;
 
         match event {
 
-            // Events except RedrawRequested are reported.
             //Event::MainEventsCleared => {
             Event::MainEventsCleared => {
                 //log::info!("MainEventsCleared....");
-                //application.render(&device, &mut queue, &mut swap_chain, &surface, &sc_desc);
-                //application.update(&device, &queue, &input);
                 window.request_redraw();
             }
             Event::RedrawEventsCleared => {
                 //log::info!("RedrawEventsCleared....");
-                input.pre_update();
-                application.update(&device, &queue, &input);
+                //input.pre_update();
+                //application.update(&device, &queue, &input);
                 #[cfg(not(target_arch = "wasm32"))]
                 {
                     //pool.run_until_stalled();
@@ -160,7 +157,6 @@ impl Loop for BasicLoop {
 
                 match event {
                     WindowEvent::Resized(new_size) => {
-                        // TODO: change the size and and modify the sc_desc and create new swap_chain.
                         size = new_size;
                         sc_desc.width = new_size.width;
                         sc_desc.height = new_size.height;
@@ -173,10 +169,12 @@ impl Loop for BasicLoop {
                     }
                     _ => {}
                 }
-                application.input(&queue, &input);
+                //application.input(&queue, &input);
             }
             Event::RedrawRequested(_) => {
-                //log::info!("RedrawRequested");
+                input.pre_update();
+                application.input(&queue, &input);
+                application.update(&device, &queue, &input);
                 application.render(&device, &mut queue, &mut swap_chain, &surface, &sc_desc);
             }
             _ => { } // Any other events
