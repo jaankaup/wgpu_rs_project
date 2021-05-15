@@ -133,6 +133,8 @@ impl Application for HelloApp {
         textures.insert("slime2".to_string(), slime2); 
 
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
+        camera.set_rotation_sensitivity(0.2);
+        //camera.set_movement_sensitivity(0.0001);
 
         // let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.vert.spv");
         // let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.frag.spv");
@@ -458,6 +460,8 @@ impl Application for HelloApp {
                 swap_chain.get_current_frame().expect("Failed to acquire next swap chain texture").output
             },
         };
+        
+        // log::info!("drawing {}", self.draw_count_mc_slime);
 
         let mut encoder = device.create_command_encoder(
             &wgpu::CommandEncoderDescriptor {
@@ -502,13 +506,15 @@ impl Application for HelloApp {
 
         let val = ((input.get_time() / 5000000) as f32) * 0.0015;
 
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Compute encoder (noise/slime).") });
+        //log::info!("val == {}", val);
 
         queue.write_buffer(
             &self.buffers.get("future_usage1_noise3d").unwrap(),
             0,
             bytemuck::cast_slice(&vec![val, 0.0, 0.0, 0.0])
         );
+
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Compute encoder (noise/slime).") });
 
         // Create a new density scalar field for marching cubes slime.
         self.custom_3d.dispatch(&self.slime_texture3d_bindgroups,
@@ -551,7 +557,7 @@ impl Application for HelloApp {
                                     4 as wgpu::BufferAddress);
 
         self.draw_count_mc_slime = k_slime[0];
-        // log::info!("k_slime[0] == {}", k_slime[0]);
+        //log::info!("k_slime[0] == {}", k_slime[0]);
     }
 }
 

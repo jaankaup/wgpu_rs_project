@@ -132,6 +132,9 @@ impl Loop for BasicLoop {
             //Event::MainEventsCleared => {
             Event::MainEventsCleared => {
                 //log::info!("MainEventsCleared....");
+                input.pre_update();
+                application.input(&queue, &input);
+                application.update(&device, &queue, &input);
                 window.request_redraw();
             }
             Event::RedrawEventsCleared => {
@@ -172,9 +175,6 @@ impl Loop for BasicLoop {
                 //application.input(&queue, &input);
             }
             Event::RedrawRequested(_) => {
-                input.pre_update();
-                application.input(&queue, &input);
-                application.update(&device, &queue, &input);
                 application.render(&device, &mut queue, &mut swap_chain, &surface, &sc_desc);
             }
             _ => { } // Any other events
