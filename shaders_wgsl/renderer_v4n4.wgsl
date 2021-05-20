@@ -48,7 +48,7 @@ fn rgb2hsv(c: vec3<f32>) -> vec3<f32> {
 
 // Ligth/material properties.
 let light_pos: vec3<f32> = vec3<f32>(3.0, 48.0, 3.0);
-let light_color: vec3<f32> = vec3<f32>(0.2, 0.6, 0.2);
+let light_color: vec3<f32> = vec3<f32>(0.6, 0.2, 0.2);
 let material_spec_color: vec3<f32> = vec3<f32>(0.1, 0.5, 0.1);
 let material_shininess: f32 = 205.0;
 let ambient_coeffience: f32 = 0.15;
@@ -93,7 +93,7 @@ fn fs_main(in: VertexOutput, [[builtin(position)]] frag_pos: vec4<f32>) -> [[loc
     var final_color: vec4<f32> = vec4<f32>(ambient_component + attentuation * (diffuse_component + specular_component) , 1.0);
     var dist_to_frag: f32 = distance(camerauniform.camera_pos.xyz, in.pos.xyz);
     var blah: f32 = 1.0 / (1.0 + 0.0005 * pow(dist_to_frag,2.0));
-    return vec4<f32>(mix(vec3<f32>(0.0, 1.0, 0.0), final_color.xyz, vec3<f32>(blah)), 1.0);
+    return vec4<f32>(mix(vec3<f32>(1.0, 0.0, 0.0), final_color.xyz, vec3<f32>(blah)), 1.0);
     // return vec4<f32>(rgb2hsv(final_color.xyz), 1.0);
     // return final_color;
 }

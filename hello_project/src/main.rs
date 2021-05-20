@@ -73,7 +73,8 @@ impl HelloApp {
             &configuration.device,
             &configuration.sc_desc,
             1,
-            &include_bytes!("../../assets/textures/slime.png")[..],
+            &include_bytes!("../../assets/textures/lava.png")[..],
+            //&include_bytes!("../../assets/textures/slime.png")[..],
             None);
         let slime_texture2 = JTexture::create_from_bytes(
             &configuration.queue,
@@ -81,7 +82,8 @@ impl HelloApp {
             &configuration.sc_desc,
             1,
             //&include_bytes!("../../assets/textures/slime2.png")[..],
-            &include_bytes!("../../assets/textures/xXqQP0.png")[..],
+            //&include_bytes!("../../assets/textures/xXqQP0.png")[..],
+            &include_bytes!("../../assets/textures/luava.png")[..],
             None);
         log::info!("Textures created OK.");
         (grass_texture, rock_texture, slime_texture, slime_texture2)
