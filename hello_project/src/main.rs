@@ -496,7 +496,7 @@ impl Application for HelloApp {
     }
 
     fn input(&mut self, queue: &wgpu::Queue, input_cache: &InputCache) {
-        self.camera.update_from_input(&queue, &input_cache);
+        // self.camera.update_from_input(&queue, &input_cache);
     }
 
     fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, _new_size: winit::dpi::PhysicalSize<u32>) {
@@ -517,6 +517,8 @@ impl Application for HelloApp {
         );
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Compute encoder (noise/slime).") });
+
+        self.camera.update_from_input(&queue, &input);
 
         // Create a new density scalar field for marching cubes slime.
         self.custom_3d.dispatch(&self.slime_texture3d_bindgroups,

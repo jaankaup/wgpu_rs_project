@@ -180,6 +180,9 @@ pub struct InputCache {
 
     /// The timer instance.
     timer: instant::Instant,
+
+    /// Mouse move event happened.
+    mouse_moved: bool,
 }
 
 impl InputCache {
@@ -200,6 +203,7 @@ impl InputCache {
             time_now: 0,
             time_delta: 0,
             timer: timer,
+            mouse_moved: false,
         }
     }
 
@@ -215,12 +219,16 @@ impl InputCache {
 
     /// Get the difference between the current and previous mouse position.
     pub fn get_mouse_delta(&self) -> PhysicalPosition::<f64> {
-        self.mouse_delta
+        // println!("get_mouse_delta :: self.mouse_moved == {:?}", self.mouse_moved);
+        if self.mouse_moved { self.mouse_delta }
+        else { PhysicalPosition::<f64>::new(0.0, 0.0) }
     }
 
     /// This should be called before the actual update to ensure the all events takes effect even
     /// winit doesn't produce any events.
     pub fn pre_update(&mut self) {
+        
+        self.mouse_moved = false;
 
         // Update timer.
         let now = self.timer.elapsed().as_nanos();
@@ -316,9 +324,15 @@ impl InputCache {
     }
     /// Update the state of mouse movement.
     fn track_cursor_movement(&mut self, new_pos: PhysicalPosition<f64>) {
+        self.mouse_moved = true;
+        //println!("mouse_moved = {:?}", self.mouse_moved);
         match self.mouse_position.pos {
-            None => { self.mouse_position.pos = Some(new_pos); }
+            None => { self.mouse_position.pos = Some(new_pos);
+                      //self.mouse_delta = PhysicalPosition::<f64>::new(0.0, 0.0);
+                    }
             Some(old_position) => {
+                //let temp_delta = PhysicalPosition::<f64>::new(new_pos.x - old_position.x , new_pos.y - old_position.y);
+                //println!("temp_delta == {:?}", temp_delta);
                 self.mouse_delta = PhysicalPosition::<f64>::new(new_pos.x - old_position.x , new_pos.y - old_position.y);
                 self.mouse_position.pos = Some(new_pos);
             }
