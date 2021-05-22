@@ -288,8 +288,8 @@ impl Application for HelloApp {
             buffer_from_data::<f32>(
             &configuration.device,
             //&vec![0 as f32 ; 64*2*64*16*4],
-            //&vec![0 as f32 ; 256*8*256],
-            &vec![0 as f32 ; 256*12*256],
+            &vec![0 as f32 ; 256*8*256],
+            //&vec![0 as f32 ; 256*12*256],
             wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
             None)
         );
@@ -335,8 +335,8 @@ impl Application for HelloApp {
             "slime_invocations".to_string(),
             buffer_from_data::<u32>(
             &configuration.device,
-            &vec![64,3,64],
-            //&vec![64,2,64],
+            //&vec![64,3,64],
+            &vec![64,2,64],
             wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE,
             None)
         );
@@ -345,8 +345,8 @@ impl Application for HelloApp {
             "slime_dimensions".to_string(),
             buffer_from_data::<u32>(
             &configuration.device,
-            //&vec![256,8,256],
-            &vec![256,12,256],
+            &vec![256,8,256],
+            //&vec![256,12,256],
             //&vec![256,24,256],
             wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE,
             None)
@@ -393,8 +393,8 @@ impl Application for HelloApp {
 
         texture3_d.dispatch(&slime_texture3d_bindgroups,
                     &mut encoder,
-                    //64 * 2 * 64,
-                    64 * 3 * 64,
+                    64 * 2 * 64,
+                    //64 * 3 * 64,
                     1,
                     1
         ); 
@@ -403,8 +403,8 @@ impl Application for HelloApp {
         mc_slime.dispatch(&mc_params_slime.bind_groups.as_ref().unwrap(),
                     &mut encoder,
                     64,
-                    //2,
-                    3,
+                    2,
+                    //3,
                     64
         );
 
@@ -523,8 +523,8 @@ impl Application for HelloApp {
         // Create a new density scalar field for marching cubes slime.
         self.custom_3d.dispatch(&self.slime_texture3d_bindgroups,
                     &mut encoder,
-                    //64 * 2 * 64,
-                    64 * 3 * 64,
+                    64 * 2 * 64,
+                    //64 * 3 * 64,
                     1,
                     1
         );
@@ -547,8 +547,8 @@ impl Application for HelloApp {
         self.mc_slime.dispatch(&self.mc_params_slime.bind_groups.as_ref().unwrap(),
                     &mut encoder,
                     64,
-                    //2,
-                    3,
+                    2,
+                    //3,
                     64
         );
 
