@@ -46,6 +46,15 @@ fn rgb2hsv(c: vec3<f32>) -> vec3<f32> {
     return vec3<f32>(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
 }
 
+fn hsv2rgb(c: vec3<f32>) -> vec3<f32>  {
+    //vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    let K: vec4<f32> = vec4<f32>(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    //vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    let p: vec3<f32> = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, vec3<f32>(0.0), vec3<f32>(1.0)), c.yyy);
+    //return vec3<f32>(1.0, 2.0, 3.0);
+}
+
 // Ligth/material properties.
 let light_pos: vec3<f32> = vec3<f32>(3.0, 48.0, 3.0);
 let light_color: vec3<f32> = vec3<f32>(0.6, 0.2, 0.2);
@@ -91,9 +100,17 @@ fn fs_main(in: VertexOutput, [[builtin(position)]] frag_pos: vec4<f32>) -> [[loc
     var attentuation: f32 = 1.0 / (1.0 + attentuation_factor * pow(distance_to_light,2.0));
     
     var final_color: vec4<f32> = vec4<f32>(ambient_component + attentuation * (diffuse_component + specular_component) , 1.0);
+
+    var the_color: vec3<f32> = rgb2hsv(final_color.xyz);
+
     var dist_to_frag: f32 = distance(camerauniform.camera_pos.xyz, in.pos.xyz);
     var blah: f32 = 1.0 / (1.0 + 0.0005 * pow(dist_to_frag,2.0));
-    return vec4<f32>(mix(vec3<f32>(1.0, 0.0, 0.0), final_color.xyz, vec3<f32>(blah)), 1.0);
+
+    the_color = the_color + vec3<f32>(0.0, 0.2, 0.0);
+    var the_color2: vec3<f32> = hsv2rgb(the_color);
+
+    return vec4<f32>(mix(vec3<f32>(0.5, 0.0, 0.0), the_color2, vec3<f32>(blah)), 1.0);
+    //return vec4<f32>(mix(vec3<f32>(1.0, 0.0, 0.0), final_color.xyz, vec3<f32>(blah)), 1.0);
     // return vec4<f32>(rgb2hsv(final_color.xyz), 1.0);
     // return final_color;
 }

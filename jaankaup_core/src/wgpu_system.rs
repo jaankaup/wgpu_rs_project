@@ -131,9 +131,13 @@ impl Loop for BasicLoop {
 
             Event::NewEvents(start_cause) => {
                 match start_cause {
+                    Init => {}
                     _ => {}
                 }
+            }
 
+            Event::LoopDestroyed => {
+                // TODO: call clean up code. 
             }
 
             //Event::MainEventsCleared => {
