@@ -409,6 +409,7 @@ impl Application for HelloApp {
         );
 
         configuration.queue.submit(Some(encoder.finish()));
+        log::info!("Dispatch finished.");
 
         // The number of mountain vertices (from marching cubes).
         let k = to_vec::<u32>(&configuration.device,
@@ -463,8 +464,6 @@ impl Application for HelloApp {
             },
         };
         
-        // log::info!("drawing {}", self.draw_count_mc_slime);
-
         let mut encoder = device.create_command_encoder(
             &wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),

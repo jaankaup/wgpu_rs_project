@@ -1560,21 +1560,19 @@ void main() {
   //   sample_triangle(v6, v7, v8, 0);
   // }
   // //barrier();
-  if (local_id_to_x() == 0) {
-    output_points[0] = OutputVertex(vec3(7,7,7), counter[0]);
-    output_points[1] = OutputVertex(vec3(8,8,8), counter[1]);
-  }
 
-  ////  uint global_index = gl_LocalInvocationID.x      + 64 * block.x +
-  ////                      gl_LocalInvocationID.y * 4  + 64 * 4 * block.y +
-  ////                      gl_LocalInvocationID.z * 16 + 64 * 4 * 4 * block.z;
+  uvec3 block = gl_WorkGroupID;
+
+  uint global_index = gl_LocalInvocationID.x      + 64 * block.x +
+                      gl_LocalInvocationID.y * 4  + 64 * 4 * block.y +
+                      gl_LocalInvocationID.z * 16 + 64 * 4 * 4 * block.z;
 
   ////  uint local_index = local_id_to_x();
   ////  //uint work_index = gl_WorkGroupID.x;
 
   ////  //uint active_index = gl_WorkGroupID.x;
 
-  ////  uvec3 this_coord = gl_LocalInvocationID + work_x_index_to_uvec3(active_index) * 4; // * 4; //index1D_to_index3D_custom(); 
+  //// uvec3 this_coord = gl_LocalInvocationID + work_x_index_to_uvec3(active_index) * 4; // * 4; //index1D_to_index3D_custom(); 
   ////   	
   ////  // Check if block is active.
   ////  if (!(gl_WorkGroupID == uvec3(0, 0, 0) || gl_WorkGroupID == uvec3(1, 0, 0))) return;
@@ -1584,13 +1582,13 @@ void main() {
 
   ////  //uvec3 this_coord_global = index1D_to_index3D(); 
 
-  ////  //uvec3 this_coord = gl_LocalInvocationID + gl_WorkGroupID * 4; //index1D_to_index3D_custom(); 
+  uvec3 this_coord = gl_LocalInvocationID + gl_WorkGroupID * 4; //index1D_to_index3D_custom(); 
 
-  ////  initialize_char_array(vec3(this_coord.x + 0.25, this_coord.y + 0.5, this_coord.z + 0.5));
+  initialize_char_array(vec3(this_coord.x + 0.25, this_coord.y + 0.5, this_coord.z + 0.5));
 
-  ////  // Log global index.
-  ////  log_float(global_index, 7);
-  ////  add_end_of_line();
+  // Log global index.
+  log_float(global_index, 7);
+  add_end_of_line();
 
   ////  // log_float(global_index, 7);
   ////  // add_end_of_line();
@@ -1615,13 +1613,13 @@ void main() {
   ////  uint work_color_x = gl_WorkGroupID.y * gl_WorkGroupID.z * 16; 
   ////  uint work_color_y = 255 - (gl_WorkGroupID.x * gl_WorkGroupID.z * 16); 
 
-  ////  AABB aabb = create_char_sequency_points(255, 125, 125);
-  ////  AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-  ////  create_output_points(aabb,
-  ////                    gl_WorkGroupID.x % 2 == 0 ? 50 : 200,
-  ////                    gl_WorkGroupID.y % 2 == 0 ? 10 : 100,
-  ////                    gl_WorkGroupID.z % 2 == 0 ? 50 : 200
-  ////                    );
+  AABB aabb = create_char_sequency_points(255, 125, 125);
+  AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+  create_output_points(aabb,
+                    gl_WorkGroupID.x % 2 == 0 ? 50 : 200,
+                    gl_WorkGroupID.y % 2 == 0 ? 10 : 100,
+                    gl_WorkGroupID.z % 2 == 0 ? 50 : 200
+                    );
   ////  // create_aabb_triangles_r(traslated,
   ////  //                   255,
   ////  //                   0,
@@ -1692,5 +1690,10 @@ void main() {
   ////                            0.1
   ////    );
   ////  }
+  barrier();
+  if (local_id_to_x() == 0) {
+    output_points[0] = OutputVertex(vec3(7,7,7), counter[0]);
+    output_points[1] = OutputVertex(vec3(8,8,8), counter[1]);
+  }
 
 }

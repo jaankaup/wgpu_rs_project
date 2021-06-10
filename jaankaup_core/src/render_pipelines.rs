@@ -226,6 +226,7 @@ impl TestLayoutEntry {
                 ) -> Self {
 
         // Define all bind grout entries for pipeline and bind groups.
+        log::info!("TestLayoutEntry::init");
         let layout_entries = vec![
                 // Set 0
                 vec![wgpu::BindGroupLayoutEntry {
@@ -373,6 +374,7 @@ impl TestLayoutEntry {
                 }],
             }),
         });
+        log::info!("TestLayoutEntry::init == OK");
 
         Self {
             layout_entries: layout_entries,

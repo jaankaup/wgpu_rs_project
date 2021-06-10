@@ -452,17 +452,53 @@ pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
 /// Initializes wgpu-rs basic components, application and starts the loop. wasm version.
 #[cfg(target_arch = "wasm32")]
 pub fn run_loop<A: Application, L: Loop, F: WGPUFeatures>() {
+    use wasm_bindgen::{prelude::*, JsCast};
 
-    wasm_bindgen_futures::spawn_local(async move {
-        log::info!("Setting up wgpu-rs.");
-        let configuration = setup::<F>("jihuu").await.unwrap();
-        log::info!("Configurating application.");
-        let app = A::init(&configuration); 
-        log::info!("Creating the application.");
-        let lo = L::init();
-        log::info!("Run the application.");
-        lo.run(app, configuration);
-    });
+//    wasm_bindgen_futures::spawn_local(async move {
+//        log::info!("Setting up wgpu-rs.");
+//        let configuration = setup::<F>("jihuu").await.unwrap();
+
+        wasm_bindgen_futures::spawn_local(async move {
+
+            log::info!("Setting up wgpu-rs.");
+            let configuration = setup::<F>("jihuu").await.unwrap();
+
+            log::info!("Configurating application.");
+            let app = A::init(&configuration); 
+
+            log::info!("Creating the application.");
+            let lo = L::init();
+
+            ////let setup = setup::<E>(&title).await;
+            let start_closure = Closure::once_into_js(move || lo.run(app, configuration));
+
+            // make sure to handle JS exceptions thrown inside start.
+            // Otherwise wasm_bindgen_futures Queue would break and never handle any tasks again.
+            // This is required, because winit uses JS exception for control flow to escape from `run`.
+            if let Err(error) = call_catch(&start_closure) {
+                let is_control_flow_exception = error.dyn_ref::<js_sys::Error>().map_or(false, |e| {
+                        e.message().includes("Using exceptions for control flow", 0)
+                        });
+
+                if !is_control_flow_exception {
+                    web_sys::console::error_1(&error);
+                }
+            }
+
+            #[wasm_bindgen]
+            extern "C" {
+                #[wasm_bindgen(catch, js_namespace = Function, js_name = "prototype.call.call")]
+                fn call_catch(this: &JsValue) -> Result<(), JsValue>;
+            }
+        });
+
+//        log::info!("Configurating application.");
+//        let app = A::init(&configuration); 
+//        log::info!("Creating the application.");
+//        let lo = L::init();
+//        log::info!("Run the application.");
+//
+//        lo.run(app, configuration);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

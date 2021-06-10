@@ -382,12 +382,12 @@ impl Application for FMM_App {
                     1,
                     1
         ); 
-        self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
-                    &mut encoder,
-                    1,
-                    1,
-                    1
-        ); 
+        // self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
+        //             &mut encoder,
+        //             1,
+        //             1,
+        //             1
+        // ); 
 
         queue.submit(Some(encoder.finish()));
 

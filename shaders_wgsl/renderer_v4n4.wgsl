@@ -13,15 +13,6 @@ struct Camera {
 [[group(0), binding(0)]]
 var<uniform> camerauniform: Camera;
 
-[[stage(vertex)]]
-fn vs_main([[location(0)]] pos: vec4<f32>, [[location(1)]] nor: vec4<f32>) -> VertexOutput {
-    var out: VertexOutput;
-    out.my_pos = camerauniform.u_view_proj * pos;
-    out.pos = pos;
-    out.nor = nor;
-    return out;
-}
-
 // Textures.
 
 [[group(1), binding(0)]]
@@ -35,6 +26,16 @@ var t_diffuse2: texture_2d<f32>;
 
 [[group(1), binding(3)]]
 var s_diffuse2: sampler;
+
+[[stage(vertex)]]
+fn vs_main([[location(0)]] pos: vec4<f32>, [[location(1)]] nor: vec4<f32>) -> VertexOutput {
+    var out: VertexOutput;
+    out.my_pos = camerauniform.u_view_proj * pos;
+    out.pos = pos;
+    out.nor = nor;
+    return out;
+}
+
 
 fn rgb2hsv(c: vec3<f32>) -> vec3<f32> {
     let K = vec4<f32>(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);

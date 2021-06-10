@@ -56,5 +56,5 @@ enum tag {
 2. For each sub-domain that contains band points, load all cell points to shared memory.
    Load the ghost zone data (the overlapping neighbor data) to shared memory.
 3. On each sub-domain, find the smallest band cell using reduction and change its tag to known.
-4. Change the surrounding neighbor cells from far to band and perform fmm on them (scan/compaction first?).
+4. Update the surrounding neighbor cells from far to band and perform fmm on them (scan/compaction first?).
 5. Synchronize ghost domain data.
