@@ -73,7 +73,7 @@ struct FMM_App {
     render_vvvc_triangle_bind_groups: Vec<wgpu::BindGroup>,
     fmm_debug_pipeline: FMM_debug_pipeline,
     fmm_debug_bind_groups: Vec<wgpu::BindGroup>,
-//    histogram: Histogram, 
+    histogram: Histogram, 
     debug_point_count: u32,
     debug_triangle_draw_count: u32,
     white_noise_texture: JTexture,
@@ -229,7 +229,7 @@ impl Application for FMM_App {
         let mut debug_triangle_draw_count = DEBUG_BUFFER_SIZE;
 
         // Create histogram for fmm debug.
-        //let mut histogram = Histogram::init(&configuration.device, &vec![0, DEBUG_BUFFER_OFFSET]); 
+        let mut histogram = Histogram::init(&configuration.device, &vec![0, 2]); 
 
         // let block_dimension_size = (BLOCK_DIMENSIONS[0] * BLOCK_DIMENSIONS[1] * BLOCK_DIMENSIONS[2] + 
         //                            ((BLOCK_DIMENSIONS[0] * BLOCK_DIMENSIONS[1] * BLOCK_DIMENSIONS[2]) >> 4)) 
@@ -252,6 +252,7 @@ impl Application for FMM_App {
                             &buffers.get("debug_points_output").unwrap().as_entire_binding(),
                             &buffers.get("fmm_nodes").unwrap().as_entire_binding(),
                             &buffers.get("fmm_blocks").unwrap().as_entire_binding(),
+                            &histogram.get_histogram().as_entire_binding(),
                         ], 
                     ]
         );
@@ -269,6 +270,7 @@ impl Application for FMM_App {
                             &buffers.get("wood").unwrap().as_entire_binding(),
                             &wgpu::BindingResource::TextureView(&white_noise_texture.view),
                             &buffers.get("fmm_data_gen_params").unwrap().as_entire_binding(),
+                            &histogram.get_histogram().as_entire_binding(),
                             //&wgpu::BindingResource::Sampler(&white_noise_texture.sampler),
                         ], 
                     ]
@@ -285,7 +287,7 @@ impl Application for FMM_App {
             render_vvvc_triangle_bind_groups,
             fmm_debug_pipeline,
             fmm_debug_bind_groups,
-            //histogram,
+            histogram,
             debug_point_count,
             debug_triangle_draw_count,
             white_noise_texture, 
@@ -336,7 +338,8 @@ impl Application for FMM_App {
                  &self.render_vvvc_point_bind_groups,
                  &self.render_vvvc_point_pipeline.get_pipeline(),
                  &self.buffers.get("debug_points_output").unwrap(),
-                 2..self.debug_point_count,
+                 0..self.debug_point_count,
+                 //2..self.debug_point_count,
                  //3..3000,
                  clear
             );
@@ -369,7 +372,8 @@ impl Application for FMM_App {
 
     fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, input: &InputCache) {
 
-        //self.histogram.set_values_cpu_version(&queue, &vec![0, DEBUG_BUFFER_OFFSET]);
+        // Reset counters.
+        // self.histogram.set_values_cpu_version(&queue, &vec![0, 2]);
 
         // Get the keyboard state (camera movement).
         let space_pressed = input.key_state(&Key::Space);
@@ -392,15 +396,11 @@ impl Application for FMM_App {
 
         queue.submit(Some(encoder.finish()));
 
-        let histogram = to_vec::<OutputVertex>(&device,
-                                   &queue,
-                                   &self.buffers.get("debug_points_output").unwrap(),
-                                   0 as wgpu::BufferAddress,
-                                   (std::mem::size_of::<OutputVertex>() * 2) as wgpu::BufferAddress);
+        // Get the counter values.
+        let histogram = self.histogram.get_values(device, queue);
 
-
-        self.debug_point_count = histogram[0].color_point_size;
-        self.debug_triangle_draw_count = histogram[1].color_point_size;
+        self.debug_point_count = histogram[0];
+        self.debug_triangle_draw_count = histogram[1];
     }
 }
 
@@ -637,6 +637,17 @@ impl FMM_debug_pipeline {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
                             min_binding_size: None, //wgpu::BufferSize::new(fmm_blocks_size),
+                        },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 5) buffer Counters {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 5,
+                        visibility: wgpu::ShaderStage::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
                         },
                         count: None,
                     },

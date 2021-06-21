@@ -77,7 +77,10 @@ pub trait WGPUFeatures: Sized + 'static {
         wgpu::Features::empty()
     }
     fn required_limits() -> wgpu::Limits {
-        wgpu::Limits::default()
+        let mut limits = wgpu::Limits::default();
+        //limits.max_storage_buffers_per_pipeline_layout = 8;
+        limits.max_storage_buffers_per_shader_stage = 8;
+        limits
     }
 }
 
