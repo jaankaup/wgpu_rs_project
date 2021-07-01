@@ -31,8 +31,8 @@ impl WGPUFeatures for MyFeatures {
         wgpu::Features::empty()
     }
     fn required_features() -> wgpu::Features {
-        //wgpu::Features::SPIRV_SHADER_PASSTHROUGH
-        wgpu::Features::ALL_NATIVE
+        wgpu::Features::SPIRV_SHADER_PASSTHROUGH
+        //wgpu::Features::ALL_NATIVE
     }
     fn required_limits() -> wgpu::Limits {
         let mut limits = wgpu::Limits::default();

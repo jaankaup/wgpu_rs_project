@@ -133,12 +133,12 @@ impl Loop for BasicLoop {
 
         match event {
 
-            Event::NewEvents(start_cause) => {
-                match start_cause {
-                    Init => {}
-                    _ => {}
-                }
-            }
+            // Event::NewEvents(start_cause) => {
+            //     match start_cause {
+            //         Init => {}
+            //         _ => {}
+            //     }
+            // }
 
             Event::LoopDestroyed => {
                 // TODO: call clean up code. 
@@ -212,7 +212,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
         .with_level(LevelFilter::Off)
         .with_module_level("jaankaup", LevelFilter::Info)
         .with_module_level("hello_project", LevelFilter::Info)
-        .with_module_level("wgpu", LevelFilter::Info)
+        //.with_module_level("wgpu", LevelFilter::Info)
         .init()
         .unwrap();
     }

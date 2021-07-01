@@ -11,7 +11,7 @@ name = "fmm_project"
 path = "src/main.rs"
 
 [dependencies]
-winit = { version = "0.24.0", features = ["web-sys"] }
+winit = { version = "0.24", features = ["web-sys"] }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 bytemuck = { version = "1.4", features = ["derive"] }
 jaankaup_core = { path = "../jaankaup_core" }

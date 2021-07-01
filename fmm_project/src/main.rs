@@ -39,6 +39,18 @@ static BLOCK_DIMENSIONS: [u32; 3] = [8, 8, 8];
 // Redefine needed features for this application.
 struct FMM_Features {}
 impl WGPUFeatures for FMM_Features {
+    fn optional_features() -> wgpu::Features {
+        wgpu::Features::empty()
+    }
+    fn required_features() -> wgpu::Features {
+        wgpu::Features::SPIRV_SHADER_PASSTHROUGH
+        //wgpu::Features::ALL_NATIVE
+    }
+    fn required_limits() -> wgpu::Limits {
+        let mut limits = wgpu::Limits::default();
+        limits.max_storage_buffers_per_shader_stage = 8;
+        limits
+    }
 }
 
 #[repr(C)]
@@ -181,7 +193,7 @@ impl Application for FMM_App {
                     &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
                         label: Some("renderer_v3c1_module1"),
                         source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v3c1.wgsl"))),
-                        flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                        //flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
                     }),
                     // &configuration.device.create_shader_module(&vertex_shader_src),
                     // &configuration.device.create_shader_module(&fragment_shader_src),
@@ -199,7 +211,7 @@ impl Application for FMM_App {
                     &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
                         label: Some("renderer_v3c1_module2"),
                         source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v3c1.wgsl"))),
-                        flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                        //flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
                     }),
                     // &configuration.device.create_shader_module(&vertex_shader_src),
                     // &configuration.device.create_shader_module(&fragment_shader_src),
@@ -215,7 +227,7 @@ impl Application for FMM_App {
                 &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
                     label: Some("renderer_v4n4_module"),
                     source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v4n4_plain.wgsl"))),
-                    flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                    //flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
                 })
                 // &configuration.device.create_shader_module(&vertex_shader_vvvvnnnn),
                 // &configuration.device.create_shader_module(&fragment_shader_vvvvnnnn)
@@ -425,7 +437,7 @@ fn create_buffers(device: &wgpu::Device,
             &device,
             &vec![0 as u32; block_dimension_size as usize],
             //&vec![0; block_dimension_size_bkf * 4 as usize],
-            wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             None)
         );
 
@@ -435,7 +447,7 @@ fn create_buffers(device: &wgpu::Device,
             buffer_from_data::<OutputVertex>(
             &device,
             &vec![OutputVertex { pos: [0.0, 0.0, 0.0], color_point_size: 0 } ; (1024000*2) as usize],
-            wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+            wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             None)
         );
 
@@ -450,7 +462,7 @@ fn create_buffers(device: &wgpu::Device,
             buffer_from_data::<FMM_Node>(
             &device,
             &vec![FMM_Node {value: 0.0, tag: 0} ; number_of_nodes as usize],
-            wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             None)
         );
 
@@ -492,7 +504,7 @@ fn create_buffers(device: &wgpu::Device,
             buffer_from_data::<FMM_Block>(
             &device,
             &test_blocks,
-            wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             None)
         );
 
@@ -507,7 +519,7 @@ fn create_buffers(device: &wgpu::Device,
             buffer_from_data::<Triangle_vvvvnnnn>(
             &device,
             &mc_vvvvnnnn,
-            wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             None)
         );
 
@@ -516,7 +528,7 @@ fn create_buffers(device: &wgpu::Device,
             buffer_from_data::<[u32; 4]>(
             &device,
             &[[2036, 0, 0, 0]],
-            wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+            wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             None)
         );
 }
@@ -534,7 +546,7 @@ fn create_buffers(device: &wgpu::Device,
 //             buffer_from_data::<f32>(
 //             &device,
 //             &vec![0 as f32 ; dimension[0] as usize * dimension[1] as usize * dimension[2] as usize],
-//             wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+//             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
 //             None)
 //         );
 // }
@@ -576,10 +588,10 @@ impl FMM_debug_pipeline {
 
     pub fn init(device: &wgpu::Device) -> Self {
 
-        let mut comp_module = wgpu::include_spirv!("../../shaders/spirv/fmm.comp.spv");
+        let mut comp_module = wgpu::include_spirv_raw!("../../shaders/spirv/fmm.comp.spv");
 
         // GLSL, validation disabled.
-        comp_module.flags = wgpu::ShaderFlags::empty();
+        //comp_module.flags = wgpu::ShaderFlags::empty();
 
         // Define all bind grout entries for pipeline and bind groups.
         let layout_entries = vec![
@@ -588,7 +600,7 @@ impl FMM_debug_pipeline {
                     // layout(set=0, binding=0) uniform camerauniform {
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -599,7 +611,7 @@ impl FMM_debug_pipeline {
                     // layout(set = 0, binding = 1) buffer Prefix_sums  {
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -610,7 +622,7 @@ impl FMM_debug_pipeline {
                     // layout(set = 0, binding = 2) buffer Points_out {
                     wgpu::BindGroupLayoutEntry {
                         binding: 2,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -621,7 +633,7 @@ impl FMM_debug_pipeline {
                     // layout(set = 0, binding = 3) buffer FMM_Nodes {
                     wgpu::BindGroupLayoutEntry {
                         binding: 3,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -632,7 +644,7 @@ impl FMM_debug_pipeline {
                     // layout(set = 0, binding = 4) buffer FMM_Blocks {
                     wgpu::BindGroupLayoutEntry {
                         binding: 4,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -643,7 +655,7 @@ impl FMM_debug_pipeline {
                     // layout(set = 0, binding = 5) buffer Counters {
                     wgpu::BindGroupLayoutEntry {
                         binding: 5,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -665,7 +677,7 @@ impl FMM_debug_pipeline {
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("fmm_debug_pipeline"),
             layout: Some(&pipeline_layout),
-            module: &device.create_shader_module(&comp_module),
+            module: unsafe { &device.create_shader_module_spirv(&comp_module) },
             entry_point: "main",
         });
 
@@ -715,10 +727,10 @@ impl FMM_data_generator_debug_pipeline {
 
     pub fn init(device: &wgpu::Device) -> Self {
 
-        let mut comp_module = wgpu::include_spirv!("../../shaders/spirv/fmm_data_generator.comp.spv");
+        let mut comp_module = unsafe { wgpu::include_spirv_raw!("../../shaders/spirv/fmm_data_generator.comp.spv") };
 
         // GLSL, validation disabled.
-        comp_module.flags = wgpu::ShaderFlags::empty();
+        //comp_module.flags = wgpu::ShaderFlags::empty();
 
         // Define all bind grout entries for pipeline and bind groups.
         let layout_entries = vec![
@@ -727,7 +739,7 @@ impl FMM_data_generator_debug_pipeline {
                     // layout(set=0, binding=0) uniform camerauniform {
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -738,7 +750,7 @@ impl FMM_data_generator_debug_pipeline {
                     // layout(set = 0, binding = 1) buffer Prefix_sums  {
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -749,7 +761,7 @@ impl FMM_data_generator_debug_pipeline {
                     // layout(set = 0, binding = 2) buffer Points_out {
                     wgpu::BindGroupLayoutEntry {
                         binding: 2,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -760,7 +772,7 @@ impl FMM_data_generator_debug_pipeline {
                     // layout(set = 0, binding = 3) buffer Boundary_data  {
                     wgpu::BindGroupLayoutEntry {
                         binding: 3,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -771,7 +783,7 @@ impl FMM_data_generator_debug_pipeline {
                     // layout(set = 0, binding = 4) buffer Triangle_data  {
                     wgpu::BindGroupLayoutEntry {
                         binding: 4,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -782,7 +794,7 @@ impl FMM_data_generator_debug_pipeline {
                     // layout(set = 0, binding = 5) uniform texture1D z1z2_texture;
                     wgpu::BindGroupLayoutEntry {
                         binding: 5,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::StorageTexture {
                             access: wgpu::StorageTextureAccess::ReadOnly,
                             format: wgpu::TextureFormat::Rgba32Float,
@@ -793,7 +805,7 @@ impl FMM_data_generator_debug_pipeline {
                     //layout(set=0, binding=6) uniform Triangle_count {
                     wgpu::BindGroupLayoutEntry {
                         binding: 6,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -804,7 +816,7 @@ impl FMM_data_generator_debug_pipeline {
                     // layout(set = 0, binding = 6) uniform sampler z1z2_texture_sampler;
                     // wgpu::BindGroupLayoutEntry {
                     //     binding: 6,
-                    //     visibility: wgpu::ShaderStage::COMPUTE,
+                    //     visibility: wgpu::ShaderStages::COMPUTE,
                     //     ty: wgpu::BindingType::Sampler {
                     //         filtering: true,
                     //         comparison: false,
@@ -825,7 +837,7 @@ impl FMM_data_generator_debug_pipeline {
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("fmm_data_generator_debug_pipeline"),
             layout: Some(&pipeline_layout),
-            module: &device.create_shader_module(&comp_module),
+            module: unsafe { &device.create_shader_module_spirv(&comp_module) },
             entry_point: "main",
         });
 
