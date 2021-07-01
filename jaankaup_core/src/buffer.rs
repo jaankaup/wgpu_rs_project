@@ -16,7 +16,7 @@ pub struct VertexBufferInfo {
 pub fn buffer_from_data<T: Pod>(
     device: &wgpu::Device,
     t: &[T],
-    usage: wgpu::BufferUsage,
+    usage: wgpu::BufferUsages,
     _label: Option<String>)
     -> wgpu::Buffer {
         device.create_buffer_init(
@@ -44,7 +44,7 @@ pub fn to_vec<T: Convert2Vec>(
     let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: None,
         size: copy_size, 
-        usage: wgpu::BufferUsage::MAP_READ | wgpu::BufferUsage::COPY_DST,
+        usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
     

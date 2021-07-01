@@ -27,6 +27,18 @@ use jaankaup_core::noise3d::*;
 // Redefine needed features for this application.
 struct MyFeatures {}
 impl WGPUFeatures for MyFeatures { 
+    fn optional_features() -> wgpu::Features {
+        wgpu::Features::empty()
+    }
+    fn required_features() -> wgpu::Features {
+        //wgpu::Features::SPIRV_SHADER_PASSTHROUGH
+        wgpu::Features::ALL_NATIVE
+    }
+    fn required_limits() -> wgpu::Limits {
+        let mut limits = wgpu::Limits::default();
+        limits.max_storage_buffers_per_shader_stage = 8;
+        limits
+    }
 }
 
 // State for this application.
@@ -124,7 +136,7 @@ impl Application for HelloApp {
         //       -1.0,  1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0,
         //       -1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
         //     ],
-        //     wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC,
+        //     wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_SRC,
         //     None
         //     )
         // );
@@ -148,7 +160,10 @@ impl Application for HelloApp {
                     &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
                         label: Some("renderer_v4n4_module"),
                         source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v4n4.wgsl"))),
-                        flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                    // &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+                    //     label: Some("renderer_v4n4_module"),
+                    //     source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v4n4.wgsl"))),
+                    //     flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
                     })
 //                    &configuration.device.create_shader_module(&vertex_shader_src),
 //                    &configuration.device.create_shader_module(&fragment_shader_src)
@@ -190,12 +205,15 @@ impl Application for HelloApp {
 
 
         // The environment (mountains marching cubes). We need to disable shader validation because atomic counter are not supported yet.
-        let mut mc_mountain = wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv");
-        mc_mountain.flags = wgpu::ShaderFlags::empty();
+        let mut mc_mountain = wgpu::include_spirv_raw!("../../shaders/spirv/mc_test.comp.spv");
+        //mc_mountain.flags = wgpu::ShaderFlags::empty();
+
+        let module = unsafe { &configuration.device.create_shader_module_spirv(&mc_mountain) };
 
         let mc = MarchingCubes::init(
             &configuration.device,
-            &configuration.device.create_shader_module(&mc_mountain),
+            &module,
+            //++&configuration.device.create_shader_module_spirv(&mc_mountain),
             //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor { 
             //    label: Some("nojaa"), 
             //    source: wgpu::util::make_spirv(&include_bytes!("../../shaders/mc_test.comp")[..]),
@@ -215,7 +233,7 @@ impl Application for HelloApp {
             //    flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
             //}),
             false
-        );
+        ); 
 
         // Create output buffer for "mountains", the output of mc.
         buffers.insert(
@@ -223,7 +241,7 @@ impl Application for HelloApp {
             buffer_from_data::<f32>(
             &configuration.device,
             &vec![0 as f32 ; 128*128*64*24],
-            wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+            wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             None)
         );
 
@@ -247,8 +265,10 @@ impl Application for HelloApp {
         mc_params.bind_groups = Some(mc_bind_groups); 
         
         // GLSL, validation disabled.
-        let mut slime_spirv = wgpu::include_spirv!("../../shaders/spirv/mc_test_slime_noise3d_texture.comp.spv");
-        slime_spirv.flags = wgpu::ShaderFlags::empty();
+        let mut slime_spirv = wgpu::include_spirv_raw!("../../shaders/spirv/mc_test_slime_noise3d_texture.comp.spv");
+        //slime_spirv.flags = wgpu::ShaderFlags::empty();
+
+        let module_slime = unsafe { &configuration.device.create_shader_module_spirv(&slime_spirv)};
 
         // The slime marching cubes.
         let mc_slime = MarchingCubes::init(
@@ -259,7 +279,7 @@ impl Application for HelloApp {
             //    flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
             //}),
             //&configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test_slime_noise3d_texture.comp.spv")),
-            &configuration.device.create_shader_module(&slime_spirv),
+            &module_slime,
             true
         );
 
@@ -270,7 +290,7 @@ impl Application for HelloApp {
             &configuration.device,
             //&vec![0 as f32 ; 128*128*64*24],
             &vec![0 as f32 ; 128*128*80*24],
-            wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST,
+            wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             None)
         );
 
@@ -290,7 +310,7 @@ impl Application for HelloApp {
             //&vec![0 as f32 ; 64*2*64*16*4],
             &vec![0 as f32 ; 256*8*256],
             //&vec![0 as f32 ; 256*12*256],
-            wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             None)
         );
         // Future usage1
@@ -299,7 +319,7 @@ impl Application for HelloApp {
             buffer_from_data::<f32>(
             &configuration.device,
             &vec![0.3,0.3,0.3,0.3],
-            wgpu::BufferUsage::COPY_DST |wgpu::BufferUsage::STORAGE,
+            wgpu::BufferUsages::COPY_DST |wgpu::BufferUsages::STORAGE,
             None)
         );
 
@@ -317,12 +337,14 @@ impl Application for HelloApp {
         // Create nouse 3d "texture".
         
         // GLSL, validation disabled.
-        let mut shader_comp_3d_tex = wgpu::include_spirv!("../../shaders/spirv/data3d_test.comp.spv");
-        shader_comp_3d_tex.flags = wgpu::ShaderFlags::empty();
+        let mut shader_comp_3d_tex = wgpu::include_spirv_raw!("../../shaders/spirv/data3d_test.comp.spv");
+        //shader_comp_3d_tex.flags = wgpu::ShaderFlags::empty();
                                    
+        let module_comp3d = unsafe { &configuration.device.create_shader_module_spirv(&shader_comp_3d_tex)};
+
         let texture3_d = Custom3DTexture::init(
                 &configuration.device,
-                &configuration.device.create_shader_module(&shader_comp_3d_tex),
+                module_comp3d,
                 //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
                 //    label: Some("texture3_d"),
                 //    source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/data3d_test.wgsl"))),
@@ -337,7 +359,7 @@ impl Application for HelloApp {
             &configuration.device,
             //&vec![64,3,64],
             &vec![64,2,64],
-            wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE,
+            wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::STORAGE,
             None)
         );
         // Create uniform buffer uvec3 for area dimensions.
@@ -348,7 +370,7 @@ impl Application for HelloApp {
             &vec![256,8,256],
             //&vec![256,12,256],
             //&vec![256,24,256],
-            wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE,
+            wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::STORAGE,
             None)
         );
 

@@ -36,6 +36,10 @@ shared FMM_Temp_Node[160] shared_memory_nodes;
 
 shared uint[96] ghost_global_indices;
 
+uint get_global_index(int global_base_index, ivec3 coordinate) {
+    ivec3 c = coordinate + ivec3(1,1,1);
+}
+
 const ivec4[96] ghost_mappings = {
     // Front
     ivec4(0, 0, -1, -INDEX_OFFSET_Z),  
@@ -1736,7 +1740,7 @@ void main() {
 
     if (!((i == 1) && (j == 1) && (k == 1))) continue;
 
-    uint global_index = gl_LocalInvocationIndex + i * 64 + j * 64 * 3 + k * 64 * 3 * 3;
+    uint global_index = gl_LocalInvocationIndex + i * 64 + j * 64 * GLOBAL_DIM_X + k * 64 * GLOBAL_DIM_X * GLOBAL_DIM_Y;
 
     // Load inner nodes.
     shared_memory_nodes[gl_LocalInvocationIndex] = FMM_Temp_Node(global_index,fmm_nodes[global_index]); 
@@ -1764,12 +1768,12 @@ void main() {
 
     initialize_char_array(vec3(0.25 * neighbor_coordinate.x, 0.25 * neighbor_coordinate.y, 0.25 * neighbor_coordinate.z));
     bool in_domain = neighbor_coordinate.x >= 0 &&
-                     neighbor_coordinate.x < 4*3 &&
+                     neighbor_coordinate.x < 4*GLOBAL_DIM_X &&
                      neighbor_coordinate.y >= 0 &&
-                     neighbor_coordinate.y < 4*3 &&
+                     neighbor_coordinate.y < 4*GLOBAL_DIM_Y &&
                      neighbor_coordinate.z >= 0 &&
-                     neighbor_coordinate.z < 4*3;
-    uint global_neighbor_index = in_domain ? i * 64 + j * 64 * 3 + k * 64 * 3 * 3 + temp_ghost.w : 9999999; 
+                     neighbor_coordinate.z < 4*GLOBAL_DIM_Z;
+    uint global_neighbor_index = in_domain ? i * 64 + j * 64 * GLOBAL_DIM_X + k * 64 * GLOBAL_DIM_X * GLOBAL_DIM_Y + temp_ghost.w : 9999999; 
     log_number(global_neighbor_index, false);
     add_end_of_line();
     // log_uvec3(neighbor_coordinate);
@@ -1789,12 +1793,12 @@ void main() {
         neighbor_coordinate  = ivec3(i*4, j*4, k*4) + temp_ghost.xyz;
 
         in_domain = neighbor_coordinate.x >= 0 &&
-                    neighbor_coordinate.x < 4*3 &&
+                    neighbor_coordinate.x < 4*GLOBAL_DIM_X &&
                     neighbor_coordinate.y >= 0 &&
-                    neighbor_coordinate.y < 4*3 &&
+                    neighbor_coordinate.y < 4*GLOBAL_DIM_Y &&
                     neighbor_coordinate.z >= 0 &&
-                    neighbor_coordinate.z < 4*3;
-        global_neighbor_index = in_domain ? i * 64 + j * 64 * 3 + k * 64 * 3 * 3 + temp_ghost.w : 888888; 
+                    neighbor_coordinate.z < 4*GLOBAL_DIM_Z;
+        global_neighbor_index = in_domain ? i * 64 + j * 64 * GLOBAL_DIM_X + k * 64 * GLOBAL_DIM_X * GLOBAL_DIM_Y + temp_ghost.w : 9999999; 
 
         initialize_char_array(vec3(0.25 * neighbor_coordinate.x, 0.25 * neighbor_coordinate.y, 0.25 * neighbor_coordinate.z));
         log_number(global_neighbor_index, false);

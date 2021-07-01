@@ -89,7 +89,7 @@ impl Camera {
             self.camera_buffer = Some(buffer_from_data::<CameraUniform>(
                 &device,
                 &[camera_uniform],
-                wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+                wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 None)
             );
         }
@@ -122,7 +122,7 @@ impl Camera {
             self.ray_camera_buffer = Some(buffer_from_data::<RayCameraUniform>(
                 &device,
                 &[ray_camera_uniform],
-                wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+                wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 None)
             );
         }

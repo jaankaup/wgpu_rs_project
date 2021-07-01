@@ -11,13 +11,12 @@ edition = "2018"
 [dependencies]
 
 # Master branch
-#wgpu = { git = "https://github.com/gfx-rs/wgpu-rs" }
+#wgpu = { git = "https://github.com/gfx-rs/wgpu" }
 
 # Working brach.
-wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", rev="69be1ff88a073b3a7f9470044834e75c22f7b4ad" }
+wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="ba006cfaa73382ce21b56607ceb05038aec32168", features = ["spirv"] }
 
 winit = { version = "0.24.0", features = ["web-sys"] }
-#futures = "0.3"
 async-executor = "1.0"
 cgmath = "0.18"
 bytemuck = { version = "1.4", features = ["derive"] }
@@ -36,24 +35,9 @@ simple_logger = "1.11.0"
 package = "wgpu-subscriber"
 version = "0.1"
 
-#[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies.subscriber]
-
-#futures = "0.3"
-#raw-window-handle = "0.3"
-#log = "0.4"
-#rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-#ordered-float = "1.0.1"
-#obj-rs = "0.6.1"
-#wavefront_obj = "8.0.0"
-
-#[target.'cfg(all(unix, not(target_os = "ios"), not(target_os = "macos")))'.depencendies]
-#gfx-backend-vulkan = "0.6"
-
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "=0.2.73" # remember to change version in wiki as well
-#wasm-bindgen = "=0.2.72" # remember to change version in wiki as well
 web-sys = { version = "=0.3.50", features = [
-#web-sys = { version = "=0.3.49", features = [
     "Document",
     "Navigator",
     "Node",
@@ -178,9 +162,7 @@ web-sys = { version = "=0.3.50", features = [
     "HtmlCanvasElement",
     "Window",
 ]}
-#js-sys = "0.3.49"
 js-sys = "0.3.50"
-#wasm-bindgen-futures = "0.4.22"
 wasm-bindgen-futures = "0.4.23"
 wasm-timer = "0.2.5"
 console_error_panic_hook = "0.1.6"

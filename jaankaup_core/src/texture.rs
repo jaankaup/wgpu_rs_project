@@ -43,9 +43,9 @@ impl Texture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: Self::DEPTH_FORMAT,
-            usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::RENDER_ATTACHMENT, // TODO: SAMPLED?
-            //    | wgpu::TextureUsage::SAMPLED
-            //    | wgpu::TextureUsage::COPY_SRC,
+            usage: wgpu::TextureUsages::SAMPLED | wgpu::TextureUsages::RENDER_ATTACHMENT, // TODO: SAMPLED?
+            //    | wgpu::TextureUsages::SAMPLED
+            //    | wgpu::TextureUsages::COPY_SRC,
         };
         let texture = device.create_texture(&desc);
 
@@ -142,7 +142,7 @@ impl Texture {
             sample_count: sample_count,
             dimension: wgpu::TextureDimension::D2,
             format: sc_desc.format, // wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::COPY_DST,
+            usage: wgpu::TextureUsages::SAMPLED | wgpu::TextureUsages::COPY_DST,
         });
 
         // log::info!("Writing texture.");
@@ -151,6 +151,7 @@ impl Texture {
                 texture: &texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
             },
             match bits_per_pixel {
                 3 => &temp,
@@ -225,7 +226,7 @@ impl Texture {
             sample_count: sample_count,
             dimension: wgpu::TextureDimension::D2,
             format: sc_desc.format, //wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::COPY_DST,
+            usage: wgpu::TextureUsages::SAMPLED | wgpu::TextureUsages::COPY_DST,
             label: None,
         });
 
@@ -284,7 +285,7 @@ impl Texture {
             sample_count: 1, // this must always be 1
             dimension: wgpu::TextureDimension::D3,
             format: *format, //wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::COPY_DST | wgpu::TextureUsage::COPY_SRC,
+            usage: wgpu::TextureUsages::SAMPLED | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC,
             label: None,
         });
 
@@ -321,7 +322,7 @@ impl Texture {
         let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: size, 
-            usage: wgpu::BufferUsage::MAP_READ | wgpu::BufferUsage::COPY_DST,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
@@ -332,6 +333,7 @@ impl Texture {
                 texture: &self.texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
             },
             wgpu::ImageCopyBuffer {
                 buffer: &staging_buffer,
@@ -399,7 +401,7 @@ impl Texture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D1,
             format: texture_format,
-            usage: wgpu::TextureUsage::STORAGE | wgpu::TextureUsage::COPY_DST,
+            usage: wgpu::TextureUsages::STORAGE | wgpu::TextureUsages::COPY_DST,
             label: None,
         });
 
@@ -408,6 +410,7 @@ impl Texture {
                 texture: &texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
             },
             bytemuck::cast_slice(&data),
             wgpu::ImageDataLayout {

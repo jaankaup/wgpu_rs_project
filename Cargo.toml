@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 
 members = [
     "jaankaup_core",
@@ -9,6 +10,7 @@ members = [
     "geometry",
     "debug_shaders",
     "render_shaders",
+    "index_tables",
 ]
 
 [profile.dev]

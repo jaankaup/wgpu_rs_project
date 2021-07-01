@@ -42,12 +42,12 @@ impl McParams {
             buffer: buffer_from_data::<McUniform>(
                 &device,
                 &[uniform],
-                wgpu::BufferUsage::COPY_DST |wgpu::BufferUsage::UNIFORM,
+                wgpu::BufferUsages::COPY_DST |wgpu::BufferUsages::UNIFORM,
                 None),
             counter_buffer: buffer_from_data::<u32>(
                 &device,
                 &[0 as u32],
-                wgpu::BufferUsage::STORAGE | wgpu::BufferUsage::COPY_DST |wgpu::BufferUsage::COPY_SRC,
+                wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST |wgpu::BufferUsages::COPY_SRC,
                 None),
             bind_groups: None,
         }
@@ -236,7 +236,7 @@ impl MarchingCubes {
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -246,7 +246,7 @@ impl MarchingCubes {
                     },
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -264,7 +264,7 @@ impl MarchingCubes {
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStage::COMPUTE,
+                        visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -284,7 +284,7 @@ impl MarchingCubes {
                     entries: &[
                         wgpu::BindGroupLayoutEntry {
                             binding: 0,
-                            visibility: wgpu::ShaderStage::COMPUTE,
+                            visibility: wgpu::ShaderStages::COMPUTE,
                             ty: wgpu::BindingType::Buffer {
                                 ty: wgpu::BufferBindingType::Storage { read_only: false },
                                 has_dynamic_offset: false,
@@ -294,7 +294,7 @@ impl MarchingCubes {
                         },
                         wgpu::BindGroupLayoutEntry {
                             binding: 1,
-                            visibility: wgpu::ShaderStage::COMPUTE,
+                            visibility: wgpu::ShaderStages::COMPUTE,
                             ty: wgpu::BindingType::Buffer {
                                 ty: wgpu::BufferBindingType::Storage { read_only: true },
                                 has_dynamic_offset: false,

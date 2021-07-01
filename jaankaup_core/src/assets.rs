@@ -83,7 +83,7 @@ pub fn create_screen_texture_buffer(device: &wgpu::Device) -> wgpu::Buffer {
           -1.0,  1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0,
           -1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
         ],
-        wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC,
+        wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_SRC,
         None
     )
 }

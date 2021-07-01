@@ -53,7 +53,7 @@ impl TwoTriangles {
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStage::FRAGMENT,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Texture {
                             sample_type: wgpu::TextureSampleType::Float { filterable: true },
                             view_dimension: wgpu::TextureViewDimension::D2,
@@ -63,7 +63,7 @@ impl TwoTriangles {
                     },
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: wgpu::ShaderStage::FRAGMENT,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Sampler {
                             filtering: true,
                             comparison: false,
@@ -235,7 +235,7 @@ impl TwoTriangles {
               -1.0,  1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0,
               -1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
             ],
-            wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC,
+            wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_SRC,
             None
         )
     }

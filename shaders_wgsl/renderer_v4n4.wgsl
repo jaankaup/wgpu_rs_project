@@ -1,9 +1,3 @@
-struct VertexOutput {
-    [[builtin(position)]] my_pos: vec4<f32>;
-    [[location(0)]] pos: vec4<f32>;
-    [[location(1)]] nor: vec4<f32>;
-};
-
 [[block]]
 struct Camera {
     u_view_proj: mat4x4<f32>;
@@ -27,16 +21,6 @@ var t_diffuse2: texture_2d<f32>;
 [[group(1), binding(3)]]
 var s_diffuse2: sampler;
 
-[[stage(vertex)]]
-fn vs_main([[location(0)]] pos: vec4<f32>, [[location(1)]] nor: vec4<f32>) -> VertexOutput {
-    var out: VertexOutput;
-    out.my_pos = camerauniform.u_view_proj * pos;
-    out.pos = pos;
-    out.nor = nor;
-    return out;
-}
-
-
 fn rgb2hsv(c: vec3<f32>) -> vec3<f32> {
     let K = vec4<f32>(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
     let p = mix(vec4<f32>(c.bg, K.wz), vec4<f32>(c.gb, K.xy), vec4<f32>(step(c.b, c.g)));
@@ -56,6 +40,25 @@ fn hsv2rgb(c: vec3<f32>) -> vec3<f32>  {
     //return vec3<f32>(1.0, 2.0, 3.0);
 }
 
+struct VertexOutput {
+    [[builtin(position)]] my_pos: vec4<f32>;
+    [[location(0)]] pos: vec4<f32>;
+    [[location(1)]] nor: vec4<f32>;
+};
+
+
+[[stage(vertex)]]
+
+fn vs_main([[location(0)]] pos: vec4<f32>, [[location(1)]] nor: vec4<f32>) -> VertexOutput {
+    var out: VertexOutput;
+    out.my_pos = camerauniform.u_view_proj * pos;
+    out.pos = pos;
+    out.nor = nor;
+    return out;
+}
+
+
+
 // Ligth/material properties.
 let light_pos: vec3<f32> = vec3<f32>(3.0, 48.0, 3.0);
 let light_color: vec3<f32> = vec3<f32>(0.6, 0.2, 0.2);
@@ -66,7 +69,8 @@ let attentuation_factor: f32 = 0.009;
 
 [[stage(fragment)]]
 
-fn fs_main(in: VertexOutput, [[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f32> {
+//fn fs_main(in: VertexOutput, [[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f32> {
+fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
 
     var light_dir: vec3<f32> = normalize(light_pos - in.pos.xyz);
     var normal: vec3<f32> = normalize(in.nor).xyz; // is this necessery? 

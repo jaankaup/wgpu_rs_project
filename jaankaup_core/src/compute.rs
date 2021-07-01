@@ -13,12 +13,12 @@ impl CompDimensions {
             invocations: buffer_from_data::<u32>(
                             &device,
                             &invocations, //&vec![64,6,64],
-                            wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE,
+                            wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::STORAGE,
                             None),
             dimensions: buffer_from_data::<u32>(
                             &device,
                             &dimensions, //&vec![256,24,256],
-                            wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE,
+                            wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::STORAGE,
                             None)
         }
     }
@@ -49,7 +49,7 @@ impl Histogram {
         let histogram = buffer_from_data::<u32>(
             &device,
             &initial_values,
-            wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC | wgpu::BufferUsage::STORAGE,
+            wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::STORAGE,
             None);
 
         Self {
