@@ -10,11 +10,9 @@ edition = "2018"
 
 [dependencies]
 
-# Master branch
-#wgpu = { git = "https://github.com/gfx-rs/wgpu" }
-
 # Working brach.
-wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="ba006cfaa73382ce21b56607ceb05038aec32168", features = ["spirv"] }
+#wgpu = { git = "https://github.com/gfx-rs/wgpu" }
+wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="d6e386df2d5446d55d27cc8bcc73660352077ed6", features = ["spirv"] }
 
 winit = { version = "0.24.0", features = ["web-sys"] }
 async-executor = "1.0"
@@ -36,8 +34,9 @@ package = "wgpu-subscriber"
 version = "0.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "=0.2.73" # remember to change version in wiki as well
-web-sys = { version = "=0.3.50", features = [
+#wasm-bindgen = "=0.2.73" # remember to change version in wiki as well
+wasm-bindgen = "0.2.73" # remember to change version in wiki as well
+web-sys = { version = "=0.3.51", features = [
     "Document",
     "Navigator",
     "Node",
