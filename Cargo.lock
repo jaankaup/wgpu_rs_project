@@ -536,6 +536,7 @@ version = "0.1.0"
 dependencies = [
  "bytemuck",
  "geometry",
+ "index_tables",
  "jaankaup_core",
  "model_loader",
  "rand",

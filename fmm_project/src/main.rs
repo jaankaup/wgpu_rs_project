@@ -24,6 +24,7 @@ use jaankaup_core::texture::Texture as JTexture;
 use jaankaup_core::camera::{Camera};
 use jaankaup_core::input::InputCache;
 use jaankaup_core::misc::OutputVertex;
+use index_tables::create_hash_table;
 use geometry::aabb::{BBox, Triangle, Triangle_vvvvnnnn};
 use model_loader::load_triangles_from_obj;
 use bytemuck::{Pod, Zeroable};
@@ -115,7 +116,6 @@ impl Application for FMM_App {
         ); 
 
         // Create white noise [0,1] to texture. This is used for sampling triangles.
-
         let test_texture_data_1d: Vec<[f32 ; 4]> = vec![[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]];
         let mut white_noise: Vec<[f32 ; 4]> = Vec::new();
 
@@ -265,6 +265,8 @@ impl Application for FMM_App {
                             &buffers.get("fmm_nodes").unwrap().as_entire_binding(),
                             &buffers.get("fmm_blocks").unwrap().as_entire_binding(),
                             &histogram.get_histogram().as_entire_binding(),
+                            &buffers.get("index_hash_table").unwrap().as_entire_binding(),
+                            &buffers.get("vec_to_offset").unwrap().as_entire_binding(),
                         ], 
                     ]
         );
@@ -283,6 +285,8 @@ impl Application for FMM_App {
                             &wgpu::BindingResource::TextureView(&white_noise_texture.view),
                             &buffers.get("fmm_data_gen_params").unwrap().as_entire_binding(),
                             &histogram.get_histogram().as_entire_binding(),
+                            &buffers.get("index_hash_table").unwrap().as_entire_binding(),
+                            &buffers.get("vec_to_offset").unwrap().as_entire_binding(),
                             //&wgpu::BindingResource::Sampler(&white_noise_texture.sampler),
                         ], 
                     ]
@@ -448,6 +452,27 @@ fn create_buffers(device: &wgpu::Device,
             &device,
             &vec![OutputVertex { pos: [0.0, 0.0, 0.0], color_point_size: 0 } ; (1024000*2) as usize],
             wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            None)
+        );
+
+        // Create the index hash table for local indexing in GPU (includes ghost region).
+        let (offset_hash_table, vec_to_offset_table) = create_hash_table(4,4,4,3,3,3);
+
+        buffers.insert(
+            "index_hash_table".to_string(),
+            buffer_from_data::<i32>(
+            &device,
+            &offset_hash_table, // AHHAA
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
+            None)
+        );
+
+        buffers.insert(
+            "vec_to_offset".to_string(),
+            buffer_from_data::<u32>(
+            &device,
+            &vec_to_offset_table, // AHHAA
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             None)
         );
 

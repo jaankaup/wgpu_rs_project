@@ -34,11 +34,14 @@ struct FMM_Temp_Node {
 
 shared FMM_Temp_Node[160] shared_memory_nodes;
 
+// Load from application.
+shared int[216] local_indices;
+
 shared uint[96] ghost_global_indices;
 
-uint get_global_index(int global_base_index, ivec3 coordinate) {
-    ivec3 c = coordinate + ivec3(1,1,1);
-}
+// uint get_global_index(int global_base_index, ivec3 coordinate) {
+//     ivec3 c = coordinate + ivec3(1,1,1);
+// }
 
 const ivec4[96] ghost_mappings = {
     // Front
@@ -161,9 +164,9 @@ const ivec4[96] ghost_mappings = {
 //  48..63, // Right
 //  64..79, // Bottom
 //  80..95, // Top
-struct Ghost_Zone {
-    uint[96] ghost_data;
-};
+// struct Ghost_Zone {
+//     uint[96] ghost_data;
+// };
 
 #define DEBUG_OFFSET 0.07
 
@@ -209,6 +212,14 @@ layout(set = 0, binding = 4) buffer FMM_Blocks {
 
 layout(set = 0, binding = 5) buffer Counters {
     uint[2] atomic_counters;
+};
+
+layout(set = 0, binding = 6) buffer OffsetTable {
+    int[160] offset_hash_table;
+};
+
+layout(set = 0, binding = 7) buffer VecToHashTable {
+    int[216] vec_to_offset_table;
 };
 
 layout(local_size_x = LOCAL_X_DIM, local_size_y = LOCAL_Y_DIM, local_size_z = LOCAL_Z_DIM) in;
@@ -1738,7 +1749,7 @@ void main() {
   for (int j = 0; j<GLOBAL_DIM_Y ; j++) {
   for (int k = 0; k<GLOBAL_DIM_Z ; k++) {
 
-    if (!((i == 1) && (j == 1) && (k == 1))) continue;
+    if (!((i == 0) && (j == 0) && (k == 0))) continue;
 
     uint global_index = gl_LocalInvocationIndex + i * 64 + j * 64 * GLOBAL_DIM_X + k * 64 * GLOBAL_DIM_X * GLOBAL_DIM_Y;
 

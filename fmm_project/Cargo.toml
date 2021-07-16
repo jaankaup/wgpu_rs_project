@@ -18,3 +18,4 @@ jaankaup_core = { path = "../jaankaup_core" }
 model_loader = { path = "../model_loader" }
 render_shaders = { path = "../render_shaders" }
 geometry = { path = "../geometry" }
+index_tables = { path = "../index_tables" }
