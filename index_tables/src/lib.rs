@@ -44,12 +44,12 @@ pub fn create_fmm_index_table(
         match i {
             0 => {
                 let coord = work_x_index_to_uvec3(j as u32, x_dim as u32, y_dim as u32, z_dim as u32);
-                result.push([coord[0], coord[1], coord[2]-1, index_offset_z + j as i32]);
+                result.push([coord[0], coord[1], coord[2]-1, -index_offset_z + j as i32]);
                 // println!("0 : push {:?}", [coord[0], coord[1], coord[2]-1, index_offset_z + j as i32]);
             }
             1 => { 
                 let coord = work_x_index_to_uvec3((j + x_dim*y_dim * 3) as u32, x_dim as u32, y_dim as u32, z_dim as u32);
-                result.push([coord[0], coord[1], coord[2]+1, -index_offset_z + j as i32]);
+                result.push([coord[0], coord[1], coord[2]+1, index_offset_z + (48 + j) as i32]);
                 // println!("1 : push {:?}", [coord[0], coord[1], coord[2]+1, -index_offset_z + j as i32]);
             }
             2 => {
@@ -79,13 +79,14 @@ pub fn create_fmm_index_table(
                 result.push([coord[0], coord[1]+1, coord[2], index_offset_y + index]);
                 // println!("5 : push {:?}", [coord[0], coord[1]+1, coord[2], index_offset_y + index]);
             }
-            _ => { result.push([66666,66666,666666,666666]); }
+            _ => { panic!("Index out of bounds. >= 5."); }
         }
     }}
 
-    // for i in 0..result.len() as usize {
-    //     println!("{:?}",result[i]);
-    // }
+    for i in 0..result.len() as usize {
+        println!("{:?}",result[i]);
+    }
+
 
     // for i in 0..result.len() as usize {
     //     print!("{:?} => ",i);
@@ -103,7 +104,7 @@ pub fn create_hash_table(x_dim: u32,
                          z_dim: u32,
                          global_dim_x: u32,
                          global_dim_y: u32,
-                         global_dim_z: u32) -> (Vec<i32>, Vec<u32>) {
+                         global_dim_z: u32) -> (Vec<i32>, Vec<u32>, Vec<[i32; 4]>) {
 
     let table = create_fmm_index_table(x_dim,y_dim,z_dim,global_dim_x,global_dim_y,global_dim_z);
     let mut table_2 = table.to_vec().into_iter();
@@ -128,7 +129,7 @@ pub fn create_hash_table(x_dim: u32,
     // NOT FINISHED YET!
     // let mut thread_id_mapping: Vec<u32> =
     //     vec![0 ; x_dim as usize * y_dim as usize * z_dim as usize + xy_size + xz_size + yz_size];
-    let mut thread_id_mapping: Vec<u32> = vec![0 ; x_offset as usize * y_offset as usize * z_offset as usize];
+    let mut thread_id_mapping: Vec<u32> = vec![777 ; x_offset as usize * y_offset as usize * z_offset as usize];
 
     let mut indices: Vec<i32> = Vec::new();
 
@@ -149,6 +150,10 @@ pub fn create_hash_table(x_dim: u32,
             let temp = table[i]; 
             if temp[0] == coordinate[0] && temp[1] == coordinate[1] && temp[2] == coordinate[2] {
                 let translated_coordinate = [temp[0] + 1, temp[1] + 1, temp[2] + 1, temp[3]];
+                // if (translated_coordinase[0] == 0 && translated_coordinase[2] == 0) || 
+                //    (translated_coordinase[x_offset-1] == 0 && translated_coordinase[y_offset-1] == 0) || 
+                //    (translated_coordinase[0] == 0 && translated_coordinase[2] == 0) || 
+                //    (translated_coordinase[x_offset-1] == 0 && translated_coordinase[y_offset-1] == 0) || 
                 let translated_hash_index = translated_coordinate[0] + translated_coordinate[1] * x_offset as i32  + translated_coordinate[2] * x_offset as i32 * y_offset as i32; 
                 indices.push(translated_hash_index);
                 thread_id_mapping[translated_hash_index as usize] = i as u32;
@@ -188,15 +193,7 @@ pub fn create_hash_table(x_dim: u32,
         println!("temp (table) == {:?} table[thread_id_mapping[{:?}] == {:?}", temp, translated_hash_index, table[thread_id_mapping[translated_hash_index as usize] as usize]);
     }
 
-    //println!("max_index :: {:?}", max_index);
-
-    for x in 0..x_dim+2 {
-    for y in 0..y_dim+2 {
-    for z in 0..z_dim+2 {
-
-    }}}
-
-    (mapping, thread_id_mapping)
+    (mapping, thread_id_mapping, table)
 }
 
 // Create hash table for thread index accessing non corned tile indicex.

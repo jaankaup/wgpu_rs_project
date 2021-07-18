@@ -285,8 +285,6 @@ impl Application for FMM_App {
                             &wgpu::BindingResource::TextureView(&white_noise_texture.view),
                             &buffers.get("fmm_data_gen_params").unwrap().as_entire_binding(),
                             &histogram.get_histogram().as_entire_binding(),
-                            &buffers.get("index_hash_table").unwrap().as_entire_binding(),
-                            &buffers.get("vec_to_offset").unwrap().as_entire_binding(),
                             //&wgpu::BindingResource::Sampler(&white_noise_texture.sampler),
                         ], 
                     ]
@@ -456,13 +454,13 @@ fn create_buffers(device: &wgpu::Device,
         );
 
         // Create the index hash table for local indexing in GPU (includes ghost region).
-        let (offset_hash_table, vec_to_offset_table) = create_hash_table(4,4,4,3,3,3);
+        let (offset_hash_table, vec_to_offset_table, ivec_offset_hash_table) = create_hash_table(4,4,4,3,3,3);
 
         buffers.insert(
             "index_hash_table".to_string(),
-            buffer_from_data::<i32>(
+            buffer_from_data::<[i32; 4]>(
             &device,
-            &offset_hash_table, // AHHAA
+            &ivec_offset_hash_table,
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             None)
         );
@@ -471,7 +469,7 @@ fn create_buffers(device: &wgpu::Device,
             "vec_to_offset".to_string(),
             buffer_from_data::<u32>(
             &device,
-            &vec_to_offset_table, // AHHAA
+            &vec_to_offset_table,
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             None)
         );
@@ -683,6 +681,28 @@ impl FMM_debug_pipeline {
                         visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 6) buffer OffsetTable {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 6,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 7) buffer VecToHashTable {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 7,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
                             min_binding_size: None,
                         },

@@ -3,7 +3,7 @@
 
 #version 450
 
-#define MAX_NUM_CHARS 32 
+#define MAX_NUM_CHARS 40 // 32 
 
 #define LOCAL_X_DIM 4 
 #define LOCAL_Y_DIM 4
@@ -35,123 +35,118 @@ struct FMM_Temp_Node {
 shared FMM_Temp_Node[160] shared_memory_nodes;
 
 // Load from application.
-shared int[216] local_indices;
+shared ivec4[160] shared_offset_table;
+shared uint[216] shared_vec_to_offset;
 
-shared uint[96] ghost_global_indices;
-
-// uint get_global_index(int global_base_index, ivec3 coordinate) {
-//     ivec3 c = coordinate + ivec3(1,1,1);
-// }
-
-const ivec4[96] ghost_mappings = {
-    // Front
-    ivec4(0, 0, -1, -INDEX_OFFSET_Z),  
-    ivec4(1, 0, -1, -INDEX_OFFSET_Z + 1),  
-    ivec4(2, 0, -1, -INDEX_OFFSET_Z + 2),  
-    ivec4(3, 0, -1, -INDEX_OFFSET_Z + 3),  
-    ivec4(0, 1, -1, -INDEX_OFFSET_Z + 4),  
-    ivec4(1, 1, -1, -INDEX_OFFSET_Z + 5),  
-    ivec4(2, 1, -1, -INDEX_OFFSET_Z + 6),  
-    ivec4(3, 1, -1, -INDEX_OFFSET_Z + 7),  
-    ivec4(0, 2, -1, -INDEX_OFFSET_Z + 8),  
-    ivec4(1, 2, -1, -INDEX_OFFSET_Z + 9),  
-    ivec4(2, 2, -1, -INDEX_OFFSET_Z + 10),  
-    ivec4(3, 2, -1, -INDEX_OFFSET_Z + 11),  
-    ivec4(0, 3, -1, -INDEX_OFFSET_Z + 12),  
-    ivec4(1, 3, -1, -INDEX_OFFSET_Z + 13),  
-    ivec4(2, 3, -1, -INDEX_OFFSET_Z + 14),  
-    ivec4(3, 3, -1, -INDEX_OFFSET_Z + 15),  
-
-    // Back
-    ivec4(0, 0, 4, INDEX_OFFSET_Z + 48),       
-    ivec4(1, 0, 4, INDEX_OFFSET_Z + 49),       
-    ivec4(2, 0, 4, INDEX_OFFSET_Z + 50),   
-    ivec4(3, 0, 4, INDEX_OFFSET_Z + 51),   
-    ivec4(0, 1, 4, INDEX_OFFSET_Z + 52),   
-    ivec4(1, 1, 4, INDEX_OFFSET_Z + 53),   
-    ivec4(2, 1, 4, INDEX_OFFSET_Z + 54),   
-    ivec4(3, 1, 4, INDEX_OFFSET_Z + 55),   
-    ivec4(0, 2, 4, INDEX_OFFSET_Z + 56),   
-    ivec4(1, 2, 4, INDEX_OFFSET_Z + 57),   
-    ivec4(2, 2, 4, INDEX_OFFSET_Z + 58),  
-    ivec4(3, 2, 4, INDEX_OFFSET_Z + 59),  
-    ivec4(0, 3, 4, INDEX_OFFSET_Z + 60),  
-    ivec4(1, 3, 4, INDEX_OFFSET_Z + 61),  
-    ivec4(2, 3, 4, INDEX_OFFSET_Z + 62),  
-    ivec4(3, 3, 4, INDEX_OFFSET_Z + 63),  
-
-    // Right
-    ivec4(4, 0, 0, INDEX_OFFSET_X + 3),  
-    ivec4(4, 1, 0, INDEX_OFFSET_X + 7),  
-    ivec4(4, 2, 0, INDEX_OFFSET_X + 11),  
-    ivec4(4, 3, 0, INDEX_OFFSET_X + 15),  
-    ivec4(4, 0, 1, INDEX_OFFSET_X + 19),  
-    ivec4(4, 1, 1, INDEX_OFFSET_X + 23),  
-    ivec4(4, 2, 1, INDEX_OFFSET_X + 27),  
-    ivec4(4, 3, 1, INDEX_OFFSET_X + 31),  
-    ivec4(4, 0, 2, INDEX_OFFSET_X + 35),  
-    ivec4(4, 1, 2, INDEX_OFFSET_X + 39),  
-    ivec4(4, 2, 2, INDEX_OFFSET_X + 43),  
-    ivec4(4, 3, 2, INDEX_OFFSET_X + 47),  
-    ivec4(4, 0, 3, INDEX_OFFSET_X + 51),  
-    ivec4(4, 1, 3, INDEX_OFFSET_X + 55),  
-    ivec4(4, 2, 3, INDEX_OFFSET_X + 59),  
-    ivec4(4, 3, 3, INDEX_OFFSET_X + 63),  
-
-    // Left
-    ivec4(-1, 0, 0, -INDEX_OFFSET_X),  
-    ivec4(-1, 1, 0, -INDEX_OFFSET_X + 4),  
-    ivec4(-1, 2, 0, -INDEX_OFFSET_X + 8),  
-    ivec4(-1, 3, 0, -INDEX_OFFSET_X + 12),  
-    ivec4(-1, 0, 1, -INDEX_OFFSET_X + 16),  
-    ivec4(-1, 1, 1, -INDEX_OFFSET_X + 20),  
-    ivec4(-1, 2, 1, -INDEX_OFFSET_X + 24),  
-    ivec4(-1, 3, 1, -INDEX_OFFSET_X + 28),  
-    ivec4(-1, 0, 2, -INDEX_OFFSET_X + 32),  
-    ivec4(-1, 1, 2, -INDEX_OFFSET_X + 36),  
-    ivec4(-1, 2, 2, -INDEX_OFFSET_X + 40),  
-    ivec4(-1, 3, 2, -INDEX_OFFSET_X + 44),  
-    ivec4(-1, 0, 3, -INDEX_OFFSET_X + 48),  
-    ivec4(-1, 1, 3, -INDEX_OFFSET_X + 52),  
-    ivec4(-1, 2, 3, -INDEX_OFFSET_X + 56),  
-    ivec4(-1, 3, 3, -INDEX_OFFSET_X + 60),  
-
-    // Bottom
-    ivec4(0, -1, 0, -INDEX_OFFSET_Y),  
-    ivec4(1, -1, 0, -INDEX_OFFSET_Y + 1),  
-    ivec4(2, -1, 0, -INDEX_OFFSET_Y + 2),  
-    ivec4(3, -1, 0, -INDEX_OFFSET_Y + 3),  
-    ivec4(0, -1, 1, -INDEX_OFFSET_Y + 16),  
-    ivec4(1, -1, 1, -INDEX_OFFSET_Y + 17),  
-    ivec4(2, -1, 1, -INDEX_OFFSET_Y + 18),  
-    ivec4(3, -1, 1, -INDEX_OFFSET_Y + 19),  
-    ivec4(0, -1, 2, -INDEX_OFFSET_Y + 32),  
-    ivec4(1, -1, 2, -INDEX_OFFSET_Y + 33),  
-    ivec4(2, -1, 2, -INDEX_OFFSET_Y + 34),  
-    ivec4(3, -1, 2, -INDEX_OFFSET_Y + 35),  
-    ivec4(0, -1, 3, -INDEX_OFFSET_Y + 48),  
-    ivec4(1, -1, 3, -INDEX_OFFSET_Y + 49),  
-    ivec4(2, -1, 3, -INDEX_OFFSET_Y + 50),  
-    ivec4(3, -1, 3, -INDEX_OFFSET_Y + 51),  
-
-    // Top
-    ivec4(0, 4, 0, INDEX_OFFSET_Y + 12),  
-    ivec4(1, 4, 0, INDEX_OFFSET_Y + 13),  
-    ivec4(2, 4, 0, INDEX_OFFSET_Y + 14),  
-    ivec4(3, 4, 0, INDEX_OFFSET_Y + 15),  
-    ivec4(0, 4, 1, INDEX_OFFSET_Y + 28),  
-    ivec4(1, 4, 1, INDEX_OFFSET_Y + 29),  
-    ivec4(2, 4, 1, INDEX_OFFSET_Y + 30),  
-    ivec4(3, 4, 1, INDEX_OFFSET_Y + 31),  
-    ivec4(0, 4, 2, INDEX_OFFSET_Y + 44),  
-    ivec4(1, 4, 2, INDEX_OFFSET_Y + 45),  
-    ivec4(2, 4, 2, INDEX_OFFSET_Y + 46),  
-    ivec4(3, 4, 2, INDEX_OFFSET_Y + 47),  
-    ivec4(0, 4, 3, INDEX_OFFSET_Y + 60),  
-    ivec4(1, 4, 3, INDEX_OFFSET_Y + 61),  
-    ivec4(2, 4, 3, INDEX_OFFSET_Y + 62),  
-    ivec4(3, 4, 3, INDEX_OFFSET_Y + 63),  
-};
+////++ const ivec4[96] ghost_mappings = {
+////++     // Front
+////++     ivec4(0, 0, -1, -INDEX_OFFSET_Z),  
+////++     ivec4(1, 0, -1, -INDEX_OFFSET_Z + 1),  
+////++     ivec4(2, 0, -1, -INDEX_OFFSET_Z + 2),  
+////++     ivec4(3, 0, -1, -INDEX_OFFSET_Z + 3),  
+////++     ivec4(0, 1, -1, -INDEX_OFFSET_Z + 4),  
+////++     ivec4(1, 1, -1, -INDEX_OFFSET_Z + 5),  
+////++     ivec4(2, 1, -1, -INDEX_OFFSET_Z + 6),  
+////++     ivec4(3, 1, -1, -INDEX_OFFSET_Z + 7),  
+////++     ivec4(0, 2, -1, -INDEX_OFFSET_Z + 8),  
+////++     ivec4(1, 2, -1, -INDEX_OFFSET_Z + 9),  
+////++     ivec4(2, 2, -1, -INDEX_OFFSET_Z + 10),  
+////++     ivec4(3, 2, -1, -INDEX_OFFSET_Z + 11),  
+////++     ivec4(0, 3, -1, -INDEX_OFFSET_Z + 12),  
+////++     ivec4(1, 3, -1, -INDEX_OFFSET_Z + 13),  
+////++     ivec4(2, 3, -1, -INDEX_OFFSET_Z + 14),  
+////++     ivec4(3, 3, -1, -INDEX_OFFSET_Z + 15),  
+////++ 
+////++     // Back
+////++     ivec4(0, 0, 4, INDEX_OFFSET_Z + 48),       
+////++     ivec4(1, 0, 4, INDEX_OFFSET_Z + 49),       
+////++     ivec4(2, 0, 4, INDEX_OFFSET_Z + 50),   
+////++     ivec4(3, 0, 4, INDEX_OFFSET_Z + 51),   
+////++     ivec4(0, 1, 4, INDEX_OFFSET_Z + 52),   
+////++     ivec4(1, 1, 4, INDEX_OFFSET_Z + 53),   
+////++     ivec4(2, 1, 4, INDEX_OFFSET_Z + 54),   
+////++     ivec4(3, 1, 4, INDEX_OFFSET_Z + 55),   
+////++     ivec4(0, 2, 4, INDEX_OFFSET_Z + 56),   
+////++     ivec4(1, 2, 4, INDEX_OFFSET_Z + 57),   
+////++     ivec4(2, 2, 4, INDEX_OFFSET_Z + 58),  
+////++     ivec4(3, 2, 4, INDEX_OFFSET_Z + 59),  
+////++     ivec4(0, 3, 4, INDEX_OFFSET_Z + 60),  
+////++     ivec4(1, 3, 4, INDEX_OFFSET_Z + 61),  
+////++     ivec4(2, 3, 4, INDEX_OFFSET_Z + 62),  
+////++     ivec4(3, 3, 4, INDEX_OFFSET_Z + 63),  
+////++ 
+////++     // Right
+////++     ivec4(4, 0, 0, INDEX_OFFSET_X + 3),  
+////++     ivec4(4, 1, 0, INDEX_OFFSET_X + 7),  
+////++     ivec4(4, 2, 0, INDEX_OFFSET_X + 11),  
+////++     ivec4(4, 3, 0, INDEX_OFFSET_X + 15),  
+////++     ivec4(4, 0, 1, INDEX_OFFSET_X + 19),  
+////++     ivec4(4, 1, 1, INDEX_OFFSET_X + 23),  
+////++     ivec4(4, 2, 1, INDEX_OFFSET_X + 27),  
+////++     ivec4(4, 3, 1, INDEX_OFFSET_X + 31),  
+////++     ivec4(4, 0, 2, INDEX_OFFSET_X + 35),  
+////++     ivec4(4, 1, 2, INDEX_OFFSET_X + 39),  
+////++     ivec4(4, 2, 2, INDEX_OFFSET_X + 43),  
+////++     ivec4(4, 3, 2, INDEX_OFFSET_X + 47),  
+////++     ivec4(4, 0, 3, INDEX_OFFSET_X + 51),  
+////++     ivec4(4, 1, 3, INDEX_OFFSET_X + 55),  
+////++     ivec4(4, 2, 3, INDEX_OFFSET_X + 59),  
+////++     ivec4(4, 3, 3, INDEX_OFFSET_X + 63),  
+////++ 
+////++     // Left
+////++     ivec4(-1, 0, 0, -INDEX_OFFSET_X),  
+////++     ivec4(-1, 1, 0, -INDEX_OFFSET_X + 4),  
+////++     ivec4(-1, 2, 0, -INDEX_OFFSET_X + 8),  
+////++     ivec4(-1, 3, 0, -INDEX_OFFSET_X + 12),  
+////++     ivec4(-1, 0, 1, -INDEX_OFFSET_X + 16),  
+////++     ivec4(-1, 1, 1, -INDEX_OFFSET_X + 20),  
+////++     ivec4(-1, 2, 1, -INDEX_OFFSET_X + 24),  
+////++     ivec4(-1, 3, 1, -INDEX_OFFSET_X + 28),  
+////++     ivec4(-1, 0, 2, -INDEX_OFFSET_X + 32),  
+////++     ivec4(-1, 1, 2, -INDEX_OFFSET_X + 36),  
+////++     ivec4(-1, 2, 2, -INDEX_OFFSET_X + 40),  
+////++     ivec4(-1, 3, 2, -INDEX_OFFSET_X + 44),  
+////++     ivec4(-1, 0, 3, -INDEX_OFFSET_X + 48),  
+////++     ivec4(-1, 1, 3, -INDEX_OFFSET_X + 52),  
+////++     ivec4(-1, 2, 3, -INDEX_OFFSET_X + 56),  
+////++     ivec4(-1, 3, 3, -INDEX_OFFSET_X + 60),  
+////++ 
+////++     // Bottom
+////++     ivec4(0, -1, 0, -INDEX_OFFSET_Y),  
+////++     ivec4(1, -1, 0, -INDEX_OFFSET_Y + 1),  
+////++     ivec4(2, -1, 0, -INDEX_OFFSET_Y + 2),  
+////++     ivec4(3, -1, 0, -INDEX_OFFSET_Y + 3),  
+////++     ivec4(0, -1, 1, -INDEX_OFFSET_Y + 16),  
+////++     ivec4(1, -1, 1, -INDEX_OFFSET_Y + 17),  
+////++     ivec4(2, -1, 1, -INDEX_OFFSET_Y + 18),  
+////++     ivec4(3, -1, 1, -INDEX_OFFSET_Y + 19),  
+////++     ivec4(0, -1, 2, -INDEX_OFFSET_Y + 32),  
+////++     ivec4(1, -1, 2, -INDEX_OFFSET_Y + 33),  
+////++     ivec4(2, -1, 2, -INDEX_OFFSET_Y + 34),  
+////++     ivec4(3, -1, 2, -INDEX_OFFSET_Y + 35),  
+////++     ivec4(0, -1, 3, -INDEX_OFFSET_Y + 48),  
+////++     ivec4(1, -1, 3, -INDEX_OFFSET_Y + 49),  
+////++     ivec4(2, -1, 3, -INDEX_OFFSET_Y + 50),  
+////++     ivec4(3, -1, 3, -INDEX_OFFSET_Y + 51),  
+////++ 
+////++     // Top
+////++     ivec4(0, 4, 0, INDEX_OFFSET_Y + 12),  
+////++     ivec4(1, 4, 0, INDEX_OFFSET_Y + 13),  
+////++     ivec4(2, 4, 0, INDEX_OFFSET_Y + 14),  
+////++     ivec4(3, 4, 0, INDEX_OFFSET_Y + 15),  
+////++     ivec4(0, 4, 1, INDEX_OFFSET_Y + 28),  
+////++     ivec4(1, 4, 1, INDEX_OFFSET_Y + 29),  
+////++     ivec4(2, 4, 1, INDEX_OFFSET_Y + 30),  
+////++     ivec4(3, 4, 1, INDEX_OFFSET_Y + 31),  
+////++     ivec4(0, 4, 2, INDEX_OFFSET_Y + 44),  
+////++     ivec4(1, 4, 2, INDEX_OFFSET_Y + 45),  
+////++     ivec4(2, 4, 2, INDEX_OFFSET_Y + 46),  
+////++     ivec4(3, 4, 2, INDEX_OFFSET_Y + 47),  
+////++     ivec4(0, 4, 3, INDEX_OFFSET_Y + 60),  
+////++     ivec4(1, 4, 3, INDEX_OFFSET_Y + 61),  
+////++     ivec4(2, 4, 3, INDEX_OFFSET_Y + 62),  
+////++     ivec4(3, 4, 3, INDEX_OFFSET_Y + 63),  
+////++ };
 
 // Left, Right, Front, Back, Top, Back
 //const uint[384] neighbor_indices = {
@@ -214,12 +209,12 @@ layout(set = 0, binding = 5) buffer Counters {
     uint[2] atomic_counters;
 };
 
-layout(set = 0, binding = 6) buffer OffsetTable {
-    int[160] offset_hash_table;
+layout(set = 0, binding = 6) readonly buffer OffsetTable {
+    ivec4[160] offset_hash_table;
 };
 
-layout(set = 0, binding = 7) buffer VecToHashTable {
-    int[216] vec_to_offset_table;
+layout(set = 0, binding = 7) readonly buffer VecToHashTable {
+    uint[216] vec_to_offset_table;
 };
 
 layout(local_size_x = LOCAL_X_DIM, local_size_y = LOCAL_Y_DIM, local_size_z = LOCAL_Z_DIM) in;
@@ -887,19 +882,22 @@ void log_vec3(vec3 v, uint max_decimals) {
     // Add left paren.
     char_arrays[local_index].chars[update_counter()] = 11;
 
-    log_float(double(v.x), 7);
+    // log_float(double(v.x), 7);
+    log_float(double(v.x), max_decimals);
 
     // Add space x 2.
     char_arrays[local_index].chars[update_counter()] = 16;
     char_arrays[local_index].chars[update_counter()] = 16;
 
-    log_float(double(v.y), 7);
+    //log_float(double(v.y), 7);
+    log_float(double(v.y), max_decimals);
 
     // Add space x 2.
     char_arrays[local_index].chars[update_counter()] = 16;
     char_arrays[local_index].chars[update_counter()] = 16;
 
-    log_float(double(v.z), 7);
+    //log_float(double(v.z), 7);
+    log_float(double(v.z), max_decimals);
     
     // Add right paren.
     char_arrays[local_index].chars[update_counter()] = 12;
@@ -1215,6 +1213,18 @@ uvec3 work_x_index_to_uvec3(uint work_index) {
   index -= z * wh;
   uint y = index / group_dimension.x;
   index -= y * group_dimension.x;
+  uint x = index;
+  return uvec3(x, y, z);
+}
+
+// Calculate uvec3 from given index and dimensions.
+uvec3 index_to_uvec3(uint the_index, uint dim_x, uint dim_y) {
+  uint index = the_index;
+  uint wh = dim_x * dim_y;
+  uint z = index / wh;
+  index -= z * wh;
+  uint y = index / dim_y;
+  index -= y * dim_y;
   uint x = index;
   return uvec3(x, y, z);
 }
@@ -1662,6 +1672,23 @@ void sample_triangle(vec3 a, vec3 b, vec3 c, uint n) {
    // }
 }
 
+void copy_offset_to_shared(uint thread_id) {
+    shared_offset_table[thread_id] = offset_hash_table[thread_id];
+}
+
+void copy_vec_to_offset_to_shared(uint thread_id) {
+    shared_vec_to_offset[thread_id] = shared_vec_to_offset[thread_id];
+}
+
+// void copy_fmm_data_to_shared(uint chunck_id, uint number_of_items, uint base_index) {
+void copy_fmm_data_to_shared(uint thread_id, uint base_index) {
+
+    shared_memory_nodes[thread_id] = FMM_Temp_Node(offset_hash_table[thread_id].w + base_index, FMM_Node(0.0, 1));
+    // shared_memory_nodes[thread_id] = thread_id < 160 ?
+    //     FMM_Temp_Node(offset_hash_table[thread_id] + base_index, FMM_Node(0.0, 1)) :
+    //     FMM_Temp_Node(0, FMM_Node(0.0, 0));
+}
+
 void main() {
 
   // Reset the counters.
@@ -1669,164 +1696,177 @@ void main() {
     counter[0] = 0;
     counter[1] = 1024000;
   }
-  // barrier();
+  barrier();
 
   // solve_active_fmm_blocks();
   ////global_solver();
 
-  ////for (int j=0 ; j < 4 ; j++) {
+  /* LOAD HASH TABLES TO SHARED MEMORY. */
 
-  ////  uint ai = local_id_to_x();
-  ////  uint bi = local_id_to_x() + THREAD_COUNT;
+  // Available items count.
+  uint items_available_offset_table = 160;
 
-  ////  uint ai_global = ai + j*(THREAD_COUNT * 2);
-  ////  uint bi_global = bi + j*(THREAD_COUNT * 2);
+  // TODO: replace 64 with uniform variable.
+  const uint number_of_offset_blocks = (items_available_offset_table - 1) / 64 + 1;
 
-  ////  if (ai_global < stream_compaction_count) {
+  // The number of items on current chunk.
+  // uint number_of_taken_items = 0; 
 
-  ////      const vec3 this_coord  = vec3(ai_global * DEBUG_OFFSET, 0.0, 0.0);
+  // Load the offset hash table to the shared memory.
+  for (int j=0 ; j < number_of_offset_blocks ; j++) {
 
-  ////      initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * 2, 0.0));
-  ////      log_number(ai_global, false);
-  ////      add_end_of_line();
-  ////      log_number(fmm_block[ai_global + ACTIVE_FMM_BLOCKS_OFFSET].index, false);
-  ////      add_end_of_line();
-  ////      push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+      const uint thread_id = j * 64 + local_id_to_x();
+      if (thread_id >= items_available_offset_table) break;
+      copy_offset_to_shared(thread_id);
+  }
 
-  ////  }
-  ////  if (bi_global < stream_compaction_count) {
+  // Load vec to offset hash table to the shared memory.
 
-  ////      const vec3 this_coord2 = vec3(bi_global * DEBUG_OFFSET, 0.0, 0.0);
+  const uint items_available_vec_to_offset = 216;
+  const uint number_of_vec_to_offset_blocks = (items_available_vec_to_offset - 1) / 64 + 1;
 
-  ////      initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * 2, 0.0));
+  for (int j=0 ; j < number_of_vec_to_offset_blocks ; j++) {
 
-  ////      log_number(bi_global, false);
-  ////      add_end_of_line();
-  ////      log_number(fmm_block[bi_global + ACTIVE_FMM_BLOCKS_OFFSET].index, false);
-  ////      add_end_of_line();
-  ////      push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+      const uint thread_id = j * 64 + local_id_to_x();
+      if (thread_id >= items_available_vec_to_offset) break;
+      copy_vec_to_offset_to_shared(thread_id);
+  }
 
-  ////  }
-  ////}
+  barrier();
 
-  // const vec3 v0 = vec3(0.5, 1.0, 0.7);
-  // const vec3 v1 = vec3(0.8, 1.5, 0.2);
-  // const vec3 v2 = vec3(0.2, 2.5, 1.0);
-  // const vec3 v3 = vec3(10.0, 20.0, 15.0);
-  // const vec3 v4 = vec3(12.0, 22.0, 17.0);
-  // const vec3 v5 = vec3(13.0, 9.5, 13.0);
-  // const vec3 v6 = vec3(1.0, 2.0, 3.0);
-  // const vec3 v7 = vec3(0.0, 1.0, 0.0);
-  // const vec3 v8 = vec3(3.0, 3.5, 3.8);
-  // if (local_id_to_x() == 0) {
-  //   sample_triangle(v0, v1, v2, 0);
-  //   sample_triangle(v3, v4, v5, 0);
-  //   sample_triangle(v6, v7, v8, 0);
-  // }
-  // //barrier();
+  /* RENDER BLOCK. */
 
   uvec3 block = gl_WorkGroupID;
-
-  ////  uint local_index = local_id_to_x();
-  ////  //uint work_index = gl_WorkGroupID.x;
-
-  ////  //uint active_index = gl_WorkGroupID.x;
-
-  //// uvec3 this_coord = gl_LocalInvocationID + work_x_index_to_uvec3(active_index) * 4; // * 4; //index1D_to_index3D_custom(); 
-  ////   	
-  ////  // Check if block is active.
-  ////  if (!(gl_WorkGroupID == uvec3(0, 0, 0) || gl_WorkGroupID == uvec3(1, 0, 0))) return;
-  ////  
-  ////  uvec3 this_coord_local = index1D_to_index3D_local(); 
-  ////  uvec3 this_coord_group = index1D_to_index3D_group(); 
-
-  ////  //uvec3 this_coord_global = index1D_to_index3D(); 
-
-  //uint max_x = gl_LocalInvocationIndex + i * 64 + j * 64 * 3 + k * 64 * 3 * 3;
-
 
   for (int i = 0; i<GLOBAL_DIM_X ; i++) {
   for (int j = 0; j<GLOBAL_DIM_Y ; j++) {
   for (int k = 0; k<GLOBAL_DIM_Z ; k++) {
 
-    if (!((i == 0) && (j == 0) && (k == 0))) continue;
+    if (!((i == 1) && (j == 1) && (k == 1))) continue;
 
     uint global_index = gl_LocalInvocationIndex + i * 64 + j * 64 * GLOBAL_DIM_X + k * 64 * GLOBAL_DIM_X * GLOBAL_DIM_Y;
+    const uint base_index = i * 64 + j * 64 * GLOBAL_DIM_X + k * 64 * GLOBAL_DIM_X * GLOBAL_DIM_Y;
 
-    // Load inner nodes.
-    shared_memory_nodes[gl_LocalInvocationIndex] = FMM_Temp_Node(global_index,fmm_nodes[global_index]); 
+    // Load offset data (testing).
 
-    uvec3 this_coord = gl_LocalInvocationID + uvec3(i*4, j*4, k*4); //index1D_to_index3D_custom(); 
+    const uint number_of_blocks = (160 - 1) / 64 + 1;
 
-    initialize_char_array(vec3(0.25 * this_coord.x, 0.25 * this_coord.y, 0.25 * this_coord.z));
+    for (int x=0 ; x < number_of_blocks ; x++) {
+        const uint thread_id = x * 64 + local_id_to_x();
+        if (thread_id >= 160) break;
+        copy_fmm_data_to_shared(thread_id, base_index);
+    }
 
-    // Log global index.
-    log_number(global_index, false);
-    add_end_of_line();
+    //const uint number_of_chunck = (216 - 1) / 64 + 1;
+    const uint number_of_chunck = (160 - 1) / 64 + 1;
 
-    AABB aabb = create_char_sequency_points(255, 125, 125);
-    AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-    create_output_points(aabb,
-                      i % 2 == 0 ? 50 : 200,
-                      j % 2 == 0 ? 10 : 100,
-                      k % 2 == 0 ? 50 : 200
-                      );
+    // Draw items.
+    for (int x=0 ; x < number_of_chunck ; x++) {
+        const uint thread_id = x * 64 + local_id_to_x();
 
-    // Load ghost data.
+        if (thread_id >= 160) break;
 
-    ivec4 temp_ghost = ghost_mappings[gl_LocalInvocationIndex];
-    ivec3 neighbor_coordinate = ivec3(i*4, j*4, k*4) + temp_ghost.xyz;
+        // const uvec3 position = index_to_uvec3(thread_id, 6, 6);  
+        const ivec3 position = shared_offset_table[thread_id].xyz;  
+        ivec3 this_coord = position + ivec3(i*4, j*4, k*4);
+        //uvec3 this_coord = position + uvec3(i*4, j*4, k*4);
+        uint mapping_to_offset = shared_vec_to_offset[thread_id];
+        //FMM_Temp_Node joopajoo = shared_memory_nodes[mapping_to_offset];
+        FMM_Temp_Node joopajoo = shared_memory_nodes[thread_id];
 
-    initialize_char_array(vec3(0.25 * neighbor_coordinate.x, 0.25 * neighbor_coordinate.y, 0.25 * neighbor_coordinate.z));
-    bool in_domain = neighbor_coordinate.x >= 0 &&
-                     neighbor_coordinate.x < 4*GLOBAL_DIM_X &&
-                     neighbor_coordinate.y >= 0 &&
-                     neighbor_coordinate.y < 4*GLOBAL_DIM_Y &&
-                     neighbor_coordinate.z >= 0 &&
-                     neighbor_coordinate.z < 4*GLOBAL_DIM_Z;
-    uint global_neighbor_index = in_domain ? i * 64 + j * 64 * GLOBAL_DIM_X + k * 64 * GLOBAL_DIM_X * GLOBAL_DIM_Y + temp_ghost.w : 9999999; 
-    log_number(global_neighbor_index, false);
-    add_end_of_line();
-    // log_uvec3(neighbor_coordinate);
-    // add_end_of_line();
+        // initialize_char_array(vec3(0.25 * this_coord.x, 0.25 * this_coord.y, 0.25 * this_coord.z));
+        initialize_char_array(vec3(0.5 * this_coord.x, 0.5 * this_coord.y, 0.5 * this_coord.z));
 
-    aabb = create_char_sequency_points(255, 125, 125);
-    traslated = AABB(vec4(neighbor_coordinate, 1.0), vec4(neighbor_coordinate + vec3(1.0, 1.0, 1.0), 1.0));
-    create_output_points(aabb,
-                      255,
-                      0,
-                      100
-                      );
-
-    if (gl_LocalInvocationIndex < 32) {
-        ivec3 neighbor_coordinate2 = ivec3(i*4, j*4, k*4) + ghost_mappings[64 + gl_LocalInvocationIndex].xyz;
-        temp_ghost = ghost_mappings[gl_LocalInvocationIndex + 64];
-        neighbor_coordinate  = ivec3(i*4, j*4, k*4) + temp_ghost.xyz;
-
-        in_domain = neighbor_coordinate.x >= 0 &&
-                    neighbor_coordinate.x < 4*GLOBAL_DIM_X &&
-                    neighbor_coordinate.y >= 0 &&
-                    neighbor_coordinate.y < 4*GLOBAL_DIM_Y &&
-                    neighbor_coordinate.z >= 0 &&
-                    neighbor_coordinate.z < 4*GLOBAL_DIM_Z;
-        global_neighbor_index = in_domain ? i * 64 + j * 64 * GLOBAL_DIM_X + k * 64 * GLOBAL_DIM_X * GLOBAL_DIM_Y + temp_ghost.w : 9999999; 
-
-        initialize_char_array(vec3(0.25 * neighbor_coordinate.x, 0.25 * neighbor_coordinate.y, 0.25 * neighbor_coordinate.z));
-        log_number(global_neighbor_index, false);
-        //log_number(INDEX_OFFSET_X, false);
+        log_vec3(vec3(this_coord), 1);
         add_end_of_line();
-        // log_uvec3(neighbor_coordinate);
-        // add_end_of_line();
+        //log_number(123, false);
+        log_number(thread_id, false);
+        //log_number(joopajoo.index, false);
+        add_end_of_line();
+        ////  log_number(shared_vec_to_offset[thread_id], false);
+        log_number(joopajoo.index, false);
+        add_end_of_line();
 
-        aabb = create_char_sequency_points(255, 125, 125);
-        traslated = AABB(vec4(neighbor_coordinate, 1.0), vec4(neighbor_coordinate + vec3(1.0, 1.0, 1.0), 1.0));
+        AABB aabb = create_char_sequency_points(255, 125, 125);
+        AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
         create_output_points(aabb,
-                          255,
-                          0,
-                          100
+                          i % 2 == 0 ? 150 : 200,
+                          j % 2 == 0 ? 110 : 100,
+                          k % 2 == 0 ? 150 : 200
                           );
-        }
-    barrier();
+        //shared_memory_nodes[thread_id] = thread_id < 160 ?
+    }
+
+    ////++ uvec3 this_coord = gl_LocalInvocationID + uvec3(i*4, j*4, k*4); //index1D_to_index3D_custom(); 
+
+    ////++ initialize_char_array(vec3(0.25 * this_coord.x, 0.25 * this_coord.y, 0.25 * this_coord.z));
+
+    ////++ // Log global index.
+    ////++ log_number(global_index, false);
+    ////++ add_end_of_line();
+
+    ////++ AABB aabb = create_char_sequency_points(255, 125, 125);
+    ////++ AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+    ////++ create_output_points(aabb,
+    ////++                   i % 2 == 0 ? 50 : 200,
+    ////++                   j % 2 == 0 ? 10 : 100,
+    ////++                   k % 2 == 0 ? 50 : 200
+    ////++                   );
+
+    ////++ // Load ghost data.
+
+    ////++ ivec4 temp_ghost = ghost_mappings[gl_LocalInvocationIndex];
+    ////++ ivec3 neighbor_coordinate = ivec3(i*4, j*4, k*4) + temp_ghost.xyz;
+
+    ////++ initialize_char_array(vec3(0.25 * neighbor_coordinate.x, 0.25 * neighbor_coordinate.y, 0.25 * neighbor_coordinate.z));
+    ////++ bool in_domain = neighbor_coordinate.x >= 0 &&
+    ////++                  neighbor_coordinate.x < 4*GLOBAL_DIM_X &&
+    ////++                  neighbor_coordinate.y >= 0 &&
+    ////++                  neighbor_coordinate.y < 4*GLOBAL_DIM_Y &&
+    ////++                  neighbor_coordinate.z >= 0 &&
+    ////++                  neighbor_coordinate.z < 4*GLOBAL_DIM_Z;
+    ////++ uint global_neighbor_index = in_domain ? i * 64 + j * 64 * GLOBAL_DIM_X + k * 64 * GLOBAL_DIM_X * GLOBAL_DIM_Y + temp_ghost.w : 9999999; 
+    ////++ log_number(global_neighbor_index, false);
+    ////++ add_end_of_line();
+    ////++ // log_uvec3(neighbor_coordinate);
+    ////++ // add_end_of_line();
+
+    ////++ aabb = create_char_sequency_points(255, 125, 125);
+    ////++ traslated = AABB(vec4(neighbor_coordinate, 1.0), vec4(neighbor_coordinate + vec3(1.0, 1.0, 1.0), 1.0));
+    ////++ create_output_points(aabb,
+    ////++                   255,
+    ////++                   0,
+    ////++                   100
+    ////++                   );
+
+    ////++ if (gl_LocalInvocationIndex < 32) {
+    ////++     ivec3 neighbor_coordinate2 = ivec3(i*4, j*4, k*4) + ghost_mappings[64 + gl_LocalInvocationIndex].xyz;
+    ////++     temp_ghost = ghost_mappings[gl_LocalInvocationIndex + 64];
+    ////++     neighbor_coordinate  = ivec3(i*4, j*4, k*4) + temp_ghost.xyz;
+
+    ////++     in_domain = neighbor_coordinate.x >= 0 &&
+    ////++                 neighbor_coordinate.x < 4*GLOBAL_DIM_X &&
+    ////++                 neighbor_coordinate.y >= 0 &&
+    ////++                 neighbor_coordinate.y < 4*GLOBAL_DIM_Y &&
+    ////++                 neighbor_coordinate.z >= 0 &&
+    ////++                 neighbor_coordinate.z < 4*GLOBAL_DIM_Z;
+    ////++     global_neighbor_index = in_domain ? i * 64 + j * 64 * GLOBAL_DIM_X + k * 64 * GLOBAL_DIM_X * GLOBAL_DIM_Y + temp_ghost.w : 9999999; 
+
+    ////++     initialize_char_array(vec3(0.25 * neighbor_coordinate.x, 0.25 * neighbor_coordinate.y, 0.25 * neighbor_coordinate.z));
+    ////++     log_number(global_neighbor_index, false);
+    ////++     //log_number(INDEX_OFFSET_X, false);
+    ////++     add_end_of_line();
+    ////++     // log_uvec3(neighbor_coordinate);
+    ////++     // add_end_of_line();
+
+    ////++     aabb = create_char_sequency_points(255, 125, 125);
+    ////++     traslated = AABB(vec4(neighbor_coordinate, 1.0), vec4(neighbor_coordinate + vec3(1.0, 1.0, 1.0), 1.0));
+    ////++     create_output_points(aabb,
+    ////++                       255,
+    ////++                       0,
+    ////++                       100
+    ////++                       );
+    ////++     }
   }}}
 
   barrier();
