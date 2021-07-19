@@ -75,6 +75,18 @@ struct FMM_Node {
 unsafe impl bytemuck::Zeroable for FMM_Node {}
 unsafe impl bytemuck::Pod for FMM_Node {}
 
+#[repr(C)]
+#[derive(Copy, Clone)]
+struct FMM_Attributes {
+    global_dimensions: [u32 ; 3],
+    offset_hash_table_size: u32,
+    vec_to_offset_table_size: u32,
+    future_usage: u32, // check alignment
+}
+
+unsafe impl bytemuck::Zeroable for FMM_Attributes {}
+unsafe impl bytemuck::Pod for FMM_Attributes {}
+
 // The fmm application.
 struct FMM_App {
     depth_texture: JTexture,
@@ -267,6 +279,7 @@ impl Application for FMM_App {
                             &histogram.get_histogram().as_entire_binding(),
                             &buffers.get("index_hash_table").unwrap().as_entire_binding(),
                             &buffers.get("vec_to_offset").unwrap().as_entire_binding(),
+                            &buffers.get("fmm_attributes").unwrap().as_entire_binding(),
                         ], 
                     ]
         );
@@ -454,7 +467,9 @@ fn create_buffers(device: &wgpu::Device,
         );
 
         // Create the index hash table for local indexing in GPU (includes ghost region).
-        let (offset_hash_table, vec_to_offset_table, ivec_offset_hash_table) = create_hash_table(4,4,4,3,3,3);
+        let (offset_hash_table, vec_to_offset_table, ivec_offset_hash_table) =
+            create_hash_table(4, 4, 4, block_dimension[0], block_dimension[1], block_dimension[2]);
+
 
         buffers.insert(
             "index_hash_table".to_string(),
@@ -554,6 +569,23 @@ fn create_buffers(device: &wgpu::Device,
             wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             None)
         );
+
+        let fmm_attributes = FMM_Attributes{ global_dimensions: block_dimension,
+                                             offset_hash_table_size: ivec_offset_hash_table.len() as u32,
+                                             vec_to_offset_table_size: vec_to_offset_table.len() as u32,
+                                             future_usage: 123,
+        };
+
+        println!("Creating fmm attributes");
+
+        buffers.insert(
+            "fmm_attributes".to_string(),
+            buffer_from_data::<FMM_Attributes>(
+            &device,
+            &[fmm_attributes],
+            wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            None)
+        );
 }
 
 // fn create_fmm_buffer(device: &wgpu::Device,
@@ -620,18 +652,19 @@ impl FMM_debug_pipeline {
         let layout_entries = vec![
                 // layout(set = 0, binding = 0) uniform Dimensions. 
                 vec![
-                    // layout(set=0, binding=0) uniform camerauniform {
+                    // layout(set=0, binding=0) uniform camerauniform
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
-                            min_binding_size: wgpu::BufferSize::new(16),
+                            min_binding_size: None,
+                            //min_binding_size: wgpu::BufferSize::new(16),
                             },
                         count: None,
                     },
-                    // layout(set = 0, binding = 1) buffer Prefix_sums  {
+                    // layout(set = 0, binding = 1) buffer Prefix_sums
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -642,7 +675,7 @@ impl FMM_debug_pipeline {
                         },
                         count: None,
                     },
-                    // layout(set = 0, binding = 2) buffer Points_out {
+                    // layout(set = 0, binding = 2) buffer Points_out
                     wgpu::BindGroupLayoutEntry {
                         binding: 2,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -653,7 +686,7 @@ impl FMM_debug_pipeline {
                         },
                         count: None,
                     },
-                    // layout(set = 0, binding = 3) buffer FMM_Nodes {
+                    // layout(set = 0, binding = 3) buffer FMM_Nodes
                     wgpu::BindGroupLayoutEntry {
                         binding: 3,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -664,7 +697,7 @@ impl FMM_debug_pipeline {
                         },
                         count: None,
                     },
-                    // layout(set = 0, binding = 4) buffer FMM_Blocks {
+                    // layout(set = 0, binding = 4) buffer FMM_Blocks
                     wgpu::BindGroupLayoutEntry {
                         binding: 4,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -675,7 +708,7 @@ impl FMM_debug_pipeline {
                         },
                         count: None,
                     },
-                    // layout(set = 0, binding = 5) buffer Counters {
+                    // layout(set = 0, binding = 5) buffer Counters
                     wgpu::BindGroupLayoutEntry {
                         binding: 5,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -686,7 +719,7 @@ impl FMM_debug_pipeline {
                         },
                         count: None,
                     },
-                    // layout(set = 0, binding = 6) buffer OffsetTable {
+                    // layout(set = 0, binding = 6) buffer OffsetTable
                     wgpu::BindGroupLayoutEntry {
                         binding: 6,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -697,7 +730,7 @@ impl FMM_debug_pipeline {
                         },
                         count: None,
                     },
-                    // layout(set = 0, binding = 7) buffer VecToHashTable {
+                    // layout(set = 0, binding = 7) buffer VecToHashTable
                     wgpu::BindGroupLayoutEntry {
                         binding: 7,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -706,6 +739,18 @@ impl FMM_debug_pipeline {
                             has_dynamic_offset: false,
                             min_binding_size: None,
                         },
+                        count: None,
+                    },
+                    // layout(set=0, binding=8) uniform FMM_Attributes
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 8,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                            //min_binding_size: wgpu::BufferSize::new(12),
+                            },
                         count: None,
                     },
                 ],
@@ -788,7 +833,8 @@ impl FMM_data_generator_debug_pipeline {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
-                            min_binding_size: wgpu::BufferSize::new(16),
+                            min_binding_size: None,
+                            //min_binding_size: wgpu::BufferSize::new(16),
                             },
                         count: None,
                     },
@@ -854,7 +900,8 @@ impl FMM_data_generator_debug_pipeline {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
-                            min_binding_size: wgpu::BufferSize::new(16),
+                            min_binding_size: None,
+                            //min_binding_size: wgpu::BufferSize::new(24),
                             },
                         count: None,
                     },

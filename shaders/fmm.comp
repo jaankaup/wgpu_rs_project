@@ -28,7 +28,7 @@ struct FMM_Node {
 };
 
 struct FMM_Temp_Node {
-    uint index;
+    int index;
     FMM_Node node;
 };
 
@@ -90,6 +90,17 @@ layout(set = 0, binding = 6) readonly buffer OffsetTable {
 
 layout(set = 0, binding = 7) readonly buffer VecToHashTable {
     uint[216] vec_to_offset_table;
+};
+
+struct FMM_Attribute {
+    uvec3 global_dimensions;
+    uint offset_hash_table_size;
+    uint vec_to_offset_table_size;
+    uint future_usage;
+};
+
+layout(set=0, binding=8) uniform FMM_Attributes {
+    FMM_Attribute fmm_attributes;
 };
 
 layout(local_size_x = LOCAL_X_DIM, local_size_y = LOCAL_Y_DIM, local_size_z = LOCAL_Z_DIM) in;
@@ -1545,18 +1556,52 @@ void copy_vec_to_offset_to_shared(uint thread_id) {
     shared_vec_to_offset[thread_id] = vec_to_offset_table[thread_id];
 }
 
-// void copy_fmm_data_to_shared(uint chunck_id, uint number_of_items, uint base_index) {
 void copy_fmm_data_to_shared(uint thread_id, uint base_index) {
-
-    shared_memory_nodes[thread_id] = FMM_Temp_Node(offset_hash_table[thread_id].w + base_index, FMM_Node(0.0, 1));
-    // shared_memory_nodes[thread_id] = thread_id < 160 ?
-    //     FMM_Temp_Node(offset_hash_table[thread_id] + base_index, FMM_Node(0.0, 1)) :
-    //     FMM_Temp_Node(0, FMM_Node(0.0, 0));
+    shared_memory_nodes[thread_id] = FMM_Temp_Node(offset_hash_table[thread_id].w + int(base_index), FMM_Node(0.0, 1));
 }
+
+// Calculate from local coordinate to local shared index (map from local indes
+// to local index hash map value. NOT TESTED YET.
+// Prerequisites: shared_vec_to_offset must be initialized before using this function.
+uint get_transformed_index(ivec3 position) {
+    const uint x_size = LOCAL_X_DIM + 2;
+    const uint xy_size = (LOCAL_Y_DIM + 2) * x_size;
+    const ivec3 transformed_position = position + ivec3(1,1,1);
+    const uint position_index = position.x + position.y * x_size + position.z * xy_size;
+    return shared_vec_to_offset[position_index];
+}
+
+// Loads offset hash table to shared memory.
+void load_offset_hash_table() {
+
+  const uint number_of_offset_blocks = (fmm_attributes.offset_hash_table_size - 1) / 64 + 1;
+
+  for (int j=0 ; j < number_of_offset_blocks ; j++) {
+      const uint thread_id = j * 64 + local_id_to_x();
+      if (thread_id >= fmm_attributes.offset_hash_table_size) break;
+      copy_offset_to_shared(thread_id);
+  }
+
+}
+
+// Loads vec to offset hash table to shared memory.
+void load_vec_to_offset() {
+
+  const uint number_of_vec_to_offset_blocks = (fmm_attributes.vec_to_offset_table_size - 1) / 64 + 1;
+
+  for (int j=0 ; j < number_of_vec_to_offset_blocks ; j++) {
+
+      const uint thread_id = j * 64 + local_id_to_x();
+      if (thread_id >= fmm_attributes.vec_to_offset_table_size) break;
+      copy_vec_to_offset_to_shared(thread_id);
+  }
+}
+
+void load_offset_data(
 
 void main() {
 
-  // Reset the counters.
+  // Reset the counters. TODO: remove when debugging is no longer needed.
   if (local_id_to_x() == 0) {
     counter[0] = 0;
     counter[1] = 1024000;
@@ -1568,33 +1613,8 @@ void main() {
 
   /* LOAD HASH TABLES TO SHARED MEMORY. */
 
-  // Available items count.
-  uint items_available_offset_table = 160;
-
-  // TODO: replace 64 with uniform variable.
-  const uint number_of_offset_blocks = (items_available_offset_table - 1) / 64 + 1;
-
-  // The number of items on current chunk.
-  // uint number_of_taken_items = 0; 
-
-  // Load the offset hash table to the shared memory.
-  for (int j=0 ; j < number_of_offset_blocks ; j++) {
-      const uint thread_id = j * 64 + local_id_to_x();
-      if (thread_id >= items_available_offset_table) break;
-      copy_offset_to_shared(thread_id);
-  }
-
-  // Load vec to offset hash table to the shared memory.
-
-  const uint items_available_vec_to_offset = 216;
-  const uint number_of_vec_to_offset_blocks = (items_available_vec_to_offset - 1) / 64 + 1;
-
-  for (int j=0 ; j < number_of_vec_to_offset_blocks ; j++) {
-
-      const uint thread_id = j * 64 + local_id_to_x();
-      if (thread_id >= items_available_vec_to_offset) break;
-      copy_vec_to_offset_to_shared(thread_id);
-  }
+  load_offset_hash_table();
+  load_vec_to_offset();
 
   barrier();
 
@@ -1602,14 +1622,19 @@ void main() {
 
   uvec3 block = gl_WorkGroupID;
 
-  for (int i = 0; i<GLOBAL_DIM_X ; i++) {
-  for (int j = 0; j<GLOBAL_DIM_Y ; j++) {
-  for (int k = 0; k<GLOBAL_DIM_Z ; k++) {
+  for (int i = 0; i<fmm_attributes.global_dimensions.x ; i++) {
+  for (int j = 0; j<fmm_attributes.global_dimensions.y ; j++) {
+  for (int k = 0; k<fmm_attributes.global_dimensions.z ; k++) {
 
     if (!((i == 0) && (j == 0) && (k == 0))) continue;
 
-    uint global_index = gl_LocalInvocationIndex + i * 64 + j * 64 * GLOBAL_DIM_X + k * 64 * GLOBAL_DIM_X * GLOBAL_DIM_Y;
-    const uint base_index = i * 64 + j * 64 * GLOBAL_DIM_X + k * 64 * GLOBAL_DIM_X * GLOBAL_DIM_Y;
+    uint global_index = gl_LocalInvocationIndex +
+                        i * 64 + j * 64 * fmm_attributes.global_dimensions.x +
+                        k * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
+
+    const uint base_index = i * 64 +
+                            j * 64 * fmm_attributes.global_dimensions.x +
+                            k * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
 
     // Load offset data (testing).
 
@@ -1643,11 +1668,11 @@ void main() {
         const ivec3 global_coordinate = original_local_coordinate + ivec3(i * 4, j * 4, k * 4);
 
         bool in_domain = global_coordinate.x >= 0 &&
-                         global_coordinate.x < 4*GLOBAL_DIM_X &&
+                         global_coordinate.x < 4*fmm_attributes.global_dimensions.x &&
                          global_coordinate.y >= 0 &&
-                         global_coordinate.y < 4*GLOBAL_DIM_Y &&
+                         global_coordinate.y < 4*fmm_attributes.global_dimensions.y &&
                          global_coordinate.z >= 0 &&
-                         global_coordinate.z < 4*GLOBAL_DIM_Z;
+                         global_coordinate.z < 4*fmm_attributes.global_dimensions.z;
 
         // initialize_char_array(vec3(0.25 * this_coord.x, 0.25 * this_coord.y, 0.25 * this_coord.z));
         initialize_char_array(vec3(0.5 * this_coord.x, 0.5 * this_coord.y, 0.5 * this_coord.z));
@@ -1656,7 +1681,7 @@ void main() {
         add_end_of_line();
         //log_number(123, false);
         // log_number(position_index, false);
-        log_number(joopajoo.index, false);
+        log_float(float(joopajoo.index), 1);
         add_end_of_line();
         ////  log_number(shared_vec_to_offset[thread_id], false);
         log_number(mapping_to_offset, false);
