@@ -34,7 +34,7 @@ use bytemuck::{Pod, Zeroable};
 //triangle points.
 static DEBUG_BUFFER_SIZE: u32   = 1024000; //4194300; // 1048575; //33554416;
 static DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
-static BLOCK_DIMENSIONS: [u32; 3] = [8, 8, 8];
+static BLOCK_DIMENSIONS: [u32; 3] = [3, 3, 3];
 //8388607
 
 // Redefine needed features for this application.
@@ -80,8 +80,8 @@ unsafe impl bytemuck::Pod for FMM_Node {}
 struct FMM_Attributes {
     global_dimensions: [u32 ; 3],
     offset_hash_table_size: u32,
+    current_block: [u32;3], // check alignment
     vec_to_offset_table_size: u32,
-    future_usage: u32, // check alignment
 }
 
 unsafe impl bytemuck::Zeroable for FMM_Attributes {}
@@ -107,6 +107,8 @@ struct FMM_App {
     render_vvvvnnnn_pipeline: Render_vvvvnnnn,
     render_vvvvnnnn_bind_groups: Vec<wgpu::BindGroup>,
     show_mesh: bool,
+    current_block: [f32;3], 
+    fmm_attributes: FMM_Attributes,
 }
 
 impl FMM_App {
@@ -126,6 +128,47 @@ impl Application for FMM_App {
             &configuration.sc_desc,
             Some("fmm depth texture")
         ); 
+
+        // Create the index hash table for local indexing in GPU (includes ghost region).
+        let (offset_hash_table, vec_to_offset_table, ivec_offset_hash_table) =
+            create_hash_table(4, 4, 4, BLOCK_DIMENSIONS[0], BLOCK_DIMENSIONS[1], BLOCK_DIMENSIONS[2]);
+
+        let current_block: [f32; 3] = [0.0,0.0,0.0];
+
+        let fmm_attributes = FMM_Attributes{ global_dimensions: BLOCK_DIMENSIONS,
+                                             offset_hash_table_size: ivec_offset_hash_table.len() as u32,
+                                             current_block: [0,0,0],
+                                             vec_to_offset_table_size: vec_to_offset_table.len() as u32,
+        };
+
+        buffers.insert(
+            "index_hash_table".to_string(),
+            buffer_from_data::<[i32; 4]>(
+            &configuration.device,
+            &ivec_offset_hash_table,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
+            None)
+        );
+
+        buffers.insert(
+            "vec_to_offset".to_string(),
+            buffer_from_data::<u32>(
+            &configuration.device,
+            &vec_to_offset_table,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
+            None)
+        );
+
+        println!("Creating fmm attributes");
+
+        buffers.insert(
+            "fmm_attributes".to_string(),
+            buffer_from_data::<FMM_Attributes>(
+            &configuration.device,
+            &[fmm_attributes],
+            wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            None)
+        );
 
         // Create white noise [0,1] to texture. This is used for sampling triangles.
         let test_texture_data_1d: Vec<[f32 ; 4]> = vec![[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]];
@@ -179,6 +222,7 @@ impl Application for FMM_App {
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
         camera.set_movement_sensitivity(0.002);
         camera.set_rotation_sensitivity(0.2);
+
 
         // Create buffers for fmm alogrithm.
         create_buffers(&configuration.device,
@@ -304,6 +348,7 @@ impl Application for FMM_App {
         );
         let show_mesh = false;
 
+
         Self {
             depth_texture,
             camera,
@@ -323,6 +368,8 @@ impl Application for FMM_App {
             render_vvvvnnnn_pipeline,
             render_vvvvnnnn_bind_groups,
             show_mesh,
+            current_block,
+            fmm_attributes,
         }
     }
     fn render(&mut self,
@@ -406,6 +453,48 @@ impl Application for FMM_App {
         let space_pressed = input.key_state(&Key::Space);
         if !space_pressed.is_none() {self.show_mesh = !self.show_mesh; }
 
+        let g_pressed = input.key_state(&Key::G);
+        let h_pressed = input.key_state(&Key::H);
+        let j_pressed = input.key_state(&Key::J);
+        let y_pressed = input.key_state(&Key::Y);
+        let u_pressed = input.key_state(&Key::U);
+        let m_pressed = input.key_state(&Key::M);
+
+        let mut block_x_pos: f32 = self.current_block[0];
+        let mut block_y_pos: f32 = self.current_block[1];
+        let mut block_z_pos: f32 = self.current_block[2];
+
+        let time_offset = input.get_time_delta() as f32 / 200000000.0;
+
+        if !g_pressed.is_none() {block_x_pos = block_x_pos-time_offset; }
+        if !h_pressed.is_none() {block_z_pos = block_z_pos+time_offset; }
+        if !j_pressed.is_none() {block_x_pos = block_x_pos+time_offset; }
+        if !y_pressed.is_none() {block_z_pos = block_z_pos-time_offset; }
+        if !u_pressed.is_none() {block_y_pos = block_y_pos+time_offset; }
+        if !m_pressed.is_none() {block_y_pos = block_y_pos-time_offset; }
+
+        let mut block_pos: [f32;3] = [block_x_pos, block_y_pos, block_z_pos] ;
+
+        if (block_x_pos >= 0.0 && block_x_pos < BLOCK_DIMENSIONS[0] as f32) &&
+           (block_y_pos >= 0.0 && block_y_pos < BLOCK_DIMENSIONS[1] as f32) &&
+           (block_z_pos >= 0.0 && block_z_pos < BLOCK_DIMENSIONS[2] as f32) {
+                self.current_block = block_pos; 
+                self.fmm_attributes.current_block  = [block_x_pos as u32, block_y_pos as u32, block_z_pos as u32];
+                queue.write_buffer(
+                    &self.buffers.get("fmm_attributes").unwrap(),
+                    0,
+                    bytemuck::cast_slice(&[self.fmm_attributes])
+                );
+        }
+
+
+        // let mut fmm_attributes = FMM_Attributes{ global_dimensions: BLOCK_DIMENSIONS,
+        //                                          offset_hash_table_size: ivec_offset_hash_table.len() as u32,
+        //                                          vec_to_offset_table_size: vec_to_offset_table.len() as u32,
+        //                                          current_block: block_pos,
+        // };
+
+
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("FMM update encoder.") });
         
         self.fmm_debug_pipeline.dispatch(&self.fmm_debug_bind_groups,
@@ -463,29 +552,6 @@ fn create_buffers(device: &wgpu::Device,
             &device,
             &vec![OutputVertex { pos: [0.0, 0.0, 0.0], color_point_size: 0 } ; (1024000*2) as usize],
             wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-            None)
-        );
-
-        // Create the index hash table for local indexing in GPU (includes ghost region).
-        let (offset_hash_table, vec_to_offset_table, ivec_offset_hash_table) =
-            create_hash_table(4, 4, 4, block_dimension[0], block_dimension[1], block_dimension[2]);
-
-
-        buffers.insert(
-            "index_hash_table".to_string(),
-            buffer_from_data::<[i32; 4]>(
-            &device,
-            &ivec_offset_hash_table,
-            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
-            None)
-        );
-
-        buffers.insert(
-            "vec_to_offset".to_string(),
-            buffer_from_data::<u32>(
-            &device,
-            &vec_to_offset_table,
-            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             None)
         );
 
@@ -566,23 +632,6 @@ fn create_buffers(device: &wgpu::Device,
             buffer_from_data::<[u32; 4]>(
             &device,
             &[[2036, 0, 0, 0]],
-            wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            None)
-        );
-
-        let fmm_attributes = FMM_Attributes{ global_dimensions: block_dimension,
-                                             offset_hash_table_size: ivec_offset_hash_table.len() as u32,
-                                             vec_to_offset_table_size: vec_to_offset_table.len() as u32,
-                                             future_usage: 123,
-        };
-
-        println!("Creating fmm attributes");
-
-        buffers.insert(
-            "fmm_attributes".to_string(),
-            buffer_from_data::<FMM_Attributes>(
-            &device,
-            &[fmm_attributes],
             wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             None)
         );

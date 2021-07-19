@@ -95,8 +95,8 @@ layout(set = 0, binding = 7) readonly buffer VecToHashTable {
 struct FMM_Attribute {
     uvec3 global_dimensions;
     uint offset_hash_table_size;
+    uvec3 current_block;
     uint vec_to_offset_table_size;
-    uint future_usage;
 };
 
 layout(set=0, binding=8) uniform FMM_Attributes {
@@ -1597,7 +1597,16 @@ void load_vec_to_offset() {
   }
 }
 
-void load_offset_data(
+void load_offset_data(uint base_index) {
+
+    const uint number_of_blocks = (fmm_attributes.offset_hash_table_size - 1) / 64 + 1;
+
+    for (int x=0 ; x < number_of_blocks ; x++) {
+        const uint thread_id = x * 64 + local_id_to_x();
+        if (thread_id >= fmm_attributes.offset_hash_table_size) break;
+        copy_fmm_data_to_shared(thread_id, base_index);
+    }
+}
 
 void main() {
 
@@ -1605,6 +1614,21 @@ void main() {
   if (local_id_to_x() == 0) {
     counter[0] = 0;
     counter[1] = 1024000;
+  }
+  barrier();
+
+  if (local_id_to_x() == 0) {
+    AABB scene_aabb = AABB(vec4(0.0, 0.0, 0.0, 1.0),
+                           vec4(fmm_attributes.global_dimensions.x * 4 * 0.5,
+                                fmm_attributes.global_dimensions.y * 4 * 0.5,
+                                fmm_attributes.global_dimensions.z * 4 * 0.5,
+                                1.0));
+    create_aabb_triangles_r(scene_aabb,
+                      255,
+                      0,
+                      0,
+                      0.1
+    );
   }
   barrier();
 
@@ -1626,7 +1650,7 @@ void main() {
   for (int j = 0; j<fmm_attributes.global_dimensions.y ; j++) {
   for (int k = 0; k<fmm_attributes.global_dimensions.z ; k++) {
 
-    if (!((i == 0) && (j == 0) && (k == 0))) continue;
+    if (!((fmm_attributes.current_block.x == i) && (fmm_attributes.current_block.y == j) && (fmm_attributes.current_block.z == k))) continue;
 
     uint global_index = gl_LocalInvocationIndex +
                         i * 64 + j * 64 * fmm_attributes.global_dimensions.x +
@@ -1638,54 +1662,49 @@ void main() {
 
     // Load offset data (testing).
 
-    const uint number_of_blocks = (160 - 1) / 64 + 1;
+    load_offset_data(base_index); 
 
-    for (int x=0 ; x < number_of_blocks ; x++) {
-        const uint thread_id = x * 64 + local_id_to_x();
-        if (thread_id >= 160) break;
-        copy_fmm_data_to_shared(thread_id, base_index);
-    }
-
-    const uint number_of_chunck = (216 - 1) / 64 + 1;
-    //const uint number_of_chunck = (160 - 1) / 64 + 1;
+    //const uint number_of_chunck = (216 - 1) / 64 + 1;
+    const uint number_of_chunck = (160 - 1) / 64 + 1;
 
     // Draw items.
     for (int x=0 ; x < number_of_chunck ; x++) {
         const uint thread_id = x * 64 + local_id_to_x();
 
-        if (thread_id >= 216) break;
+        //if (thread_id >= 216) break;
+        if (thread_id >= 160) break;
 
-        const ivec3 position = ivec3(index_to_uvec3(thread_id, 6, 6));  
-        const uint position_index = position.x + position.y * 6 + position.z * 6 * 6;
-        ////++ const ivec3 position = shared_offset_table[thread_id].xyz;  
-        ivec3 this_coord = position; // + ivec3(i*4, j*4, k*4);
-        //uvec3 this_coord = position + uvec3(i*4, j*4, k*4);
-        uint mapping_to_offset = shared_vec_to_offset[position_index];
+        ////++const ivec3 position = ivec3(index_to_uvec3(thread_id, 6, 6));  
+        ////++const uint position_index = position.x + position.y * 6 + position.z * 6 * 6;
+        const ivec3 position = shared_offset_table[thread_id].xyz;  
+        ivec3 this_coord = position + ivec3(i*4, j*4, k*4);
+        ////++uint mapping_to_offset = shared_vec_to_offset[position_index];
         //FMM_Temp_Node joopajoo = shared_memory_nodes[mapping_to_offset];
-        FMM_Temp_Node joopajoo = shared_memory_nodes[mapping_to_offset];
+        FMM_Temp_Node joopajoo = shared_memory_nodes[thread_id];
 
-        const ivec3 original_local_coordinate = (position - ivec3(1, 1, 1));
-        const ivec3 global_coordinate = original_local_coordinate + ivec3(i * 4, j * 4, k * 4);
+        ////++const ivec3 original_local_coordinate = (position - ivec3(1, 1, 1));
+        ////++const ivec3 global_coordinate = original_local_coordinate + ivec3(i * 4, j * 4, k * 4);
+        ////++const ivec3 global_coordinate = original_local_coordinate + ivec3(i * 4, j * 4, k * 4);
 
-        bool in_domain = global_coordinate.x >= 0 &&
-                         global_coordinate.x < 4*fmm_attributes.global_dimensions.x &&
-                         global_coordinate.y >= 0 &&
-                         global_coordinate.y < 4*fmm_attributes.global_dimensions.y &&
-                         global_coordinate.z >= 0 &&
-                         global_coordinate.z < 4*fmm_attributes.global_dimensions.z;
+        bool in_domain = this_coord.x >= 0 &&
+                         this_coord.x < 4*fmm_attributes.global_dimensions.x &&
+                         this_coord.y >= 0 &&
+                         this_coord.y < 4*fmm_attributes.global_dimensions.y &&
+                         this_coord.z >= 0 &&
+                         this_coord.z < 4*fmm_attributes.global_dimensions.z;
 
         // initialize_char_array(vec3(0.25 * this_coord.x, 0.25 * this_coord.y, 0.25 * this_coord.z));
         initialize_char_array(vec3(0.5 * this_coord.x, 0.5 * this_coord.y, 0.5 * this_coord.z));
 
-        log_vec3(vec3(global_coordinate), 1);
+        log_vec3(vec3(this_coord), 1);
         add_end_of_line();
         //log_number(123, false);
         // log_number(position_index, false);
         log_float(float(joopajoo.index), 1);
         add_end_of_line();
         ////  log_number(shared_vec_to_offset[thread_id], false);
-        log_number(mapping_to_offset, false);
-        add_end_of_line();
+        //++log_number(mapping_to_offset, false);
+        //++add_end_of_line();
 
         ////++ log_vec3(vec3(this_coord), 1);
         ////++ add_end_of_line();

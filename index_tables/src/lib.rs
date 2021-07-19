@@ -26,7 +26,7 @@ pub fn create_fmm_index_table(
 
     let block_size = x_dim * y_dim * z_dim;
 
-    let index_offset_z: i32 = (block_size * global_dim_x * global_dim_y - x_dim * y_dim) as i32;
+    let index_offset_z: i32 = (block_size * global_dim_x * global_dim_y - (block_size - x_dim * y_dim)) as i32;
     let index_offset_y: i32 = (block_size * global_dim_x - (x_dim * y_dim - x_dim)) as i32;
     let index_offset_x: i32 = (1 + (block_size - x_dim)) as i32;
 
@@ -49,7 +49,8 @@ pub fn create_fmm_index_table(
             }
             1 => { 
                 let coord = work_x_index_to_uvec3((j + x_dim*y_dim * 3) as u32, x_dim as u32, y_dim as u32, z_dim as u32);
-                result.push([coord[0], coord[1], coord[2]+1, index_offset_z + (48 + j) as i32]);
+                result.push([coord[0], coord[1], coord[2]+1, index_offset_z + (j + 48) as i32]);
+                //result.push([coord[0], coord[1], coord[2]+1, index_offset_z + (48 + j) as i32]);
                 // println!("1 : push {:?}", [coord[0], coord[1], coord[2]+1, -index_offset_z + j as i32]);
             }
             2 => {
