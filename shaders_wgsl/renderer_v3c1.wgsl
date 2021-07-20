@@ -1,8 +1,8 @@
 struct VertexOutput {
     [[builtin(position)]] my_pos: vec4<f32>;
-    [[location(0)]] pos: vec3<f32>;
-    [[location(1)]] col: u32;
-    //[[location(1), interpolate(flat)]] col: u32;
+    [[location(0), interpolate(flat)]] pos: vec3<f32>;
+    //[[location(1)]] col: u32;
+    [[location(1), interpolate(flat)]] col: u32;
 };
 
 [[block]]
@@ -24,7 +24,7 @@ fn decode_color(c: u32) -> vec4<f32> {
 }
 
 [[stage(vertex)]]
-fn vs_main([[location(0)]] pos: vec3<f32>, [[location(1)]] col: u32) -> VertexOutput {
+fn vs_main([[location(0)]] pos: vec3<f32>, [[location(1), interpolate(flat)]] col: u32) -> VertexOutput {
     var out: VertexOutput;
     out.my_pos = camerauniform.u_view_proj * vec4<f32>(pos , 1.0);
     out.pos = pos;

@@ -1618,16 +1618,16 @@ void main() {
   barrier();
 
   if (local_id_to_x() == 0) {
-    AABB scene_aabb = AABB(vec4(0.0, 0.0, 0.0, 1.0),
+    AABB scene_aabb = AABB(vec4(-0.15, -0.15, 0.15, 1.0),
                            vec4(fmm_attributes.global_dimensions.x * 4 * 0.5,
                                 fmm_attributes.global_dimensions.y * 4 * 0.5,
                                 fmm_attributes.global_dimensions.z * 4 * 0.5,
-                                1.0));
+                                1.0) + vec4(0.15, 0.15, -0.15, 0.0));
     create_aabb_triangles_r(scene_aabb,
-                      255,
-                      0,
-                      0,
-                      0.1
+                      150,
+                      100,
+                      100,
+                      0.05
     );
   }
   barrier();
@@ -1716,13 +1716,19 @@ void main() {
         ////++ log_number(joopajoo.index, false);
         ////++ add_end_of_line();
 
+        const uvec3 center_color = uvec3(0,255,0); 
+        const uvec3 ghost_color = uvec3(0,0,255); 
+        const uvec3 outside_color = uvec3(255,0,0); 
+
+        uvec3 final_color = uvec3(255,255,255);
+
+        if (thread_id < 64) { final_color = center_color; }
+        else if (in_domain) { final_color = ghost_color; } 
+        else { final_color = outside_color; }
+
         AABB aabb = create_char_sequency_points(255, 125, 125);
         AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-        create_output_points(aabb,
-                          in_domain ? 255 : 100,
-                          in_domain ? 100 : 255,
-                          in_domain ? 150 : 150
-                          );
+        create_output_points(aabb, final_color.x, final_color.y, final_color.z);
         //shared_memory_nodes[thread_id] = thread_id < 160 ?
     }
 

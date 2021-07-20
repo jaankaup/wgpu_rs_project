@@ -109,6 +109,7 @@ struct FMM_App {
     show_mesh: bool,
     current_block: [f32;3], 
     fmm_attributes: FMM_Attributes,
+    current_global_dimensions: [f32;3], 
 }
 
 impl FMM_App {
@@ -134,6 +135,7 @@ impl Application for FMM_App {
             create_hash_table(4, 4, 4, BLOCK_DIMENSIONS[0], BLOCK_DIMENSIONS[1], BLOCK_DIMENSIONS[2]);
 
         let current_block: [f32; 3] = [0.0,0.0,0.0];
+        let current_global_dimensions: [f32; 3] = [BLOCK_DIMENSIONS[0] as f32, BLOCK_DIMENSIONS[1] as f32, BLOCK_DIMENSIONS[2] as f32];
 
         let fmm_attributes = FMM_Attributes{ global_dimensions: BLOCK_DIMENSIONS,
                                              offset_hash_table_size: ivec_offset_hash_table.len() as u32,
@@ -370,6 +372,7 @@ impl Application for FMM_App {
             show_mesh,
             current_block,
             fmm_attributes,
+            current_global_dimensions,
         }
     }
     fn render(&mut self,
@@ -453,6 +456,69 @@ impl Application for FMM_App {
         let space_pressed = input.key_state(&Key::Space);
         if !space_pressed.is_none() {self.show_mesh = !self.show_mesh; }
 
+        let time_offset = input.get_time_delta() as f32 / 150000000.0;
+
+        // Global dimensions.
+          
+        let key1_pressed = input.key_state(&Key::Key1);
+        let key2_pressed = input.key_state(&Key::Key2);
+        let key3_pressed = input.key_state(&Key::Key3);
+        let key4_pressed = input.key_state(&Key::Key4);
+        let key5_pressed = input.key_state(&Key::Key5);
+        let key6_pressed = input.key_state(&Key::Key6);
+
+        let mut global_dimensions = self.current_global_dimensions;
+
+        if !key1_pressed.is_none() {global_dimensions = [global_dimensions[0] - time_offset, global_dimensions[1], global_dimensions[2]]; }
+        if !key2_pressed.is_none() {global_dimensions = [global_dimensions[0] + time_offset, global_dimensions[1], global_dimensions[2]]; }
+        if !key3_pressed.is_none() {global_dimensions = [global_dimensions[0] , global_dimensions[1] - time_offset, global_dimensions[2]]; }
+        if !key4_pressed.is_none() {global_dimensions = [global_dimensions[0] , global_dimensions[1] + time_offset, global_dimensions[2]]; }
+        if !key5_pressed.is_none() {global_dimensions = [global_dimensions[0] , global_dimensions[1], global_dimensions[2] - time_offset]; }
+        if !key6_pressed.is_none() {global_dimensions = [global_dimensions[0] , global_dimensions[1], global_dimensions[2] + time_offset]; }
+
+        if global_dimensions[0] > 1.0 && global_dimensions[1] > 1.0 &&  global_dimensions[2] > 1.0 {
+
+                self.fmm_attributes.global_dimensions = [global_dimensions[0] as u32, global_dimensions[1] as u32, global_dimensions[2] as u32];
+
+                self.current_global_dimensions = global_dimensions; 
+
+                if self.fmm_attributes.current_block[0] >= self.fmm_attributes.global_dimensions[0] { 
+                    self.current_block[0] = self.fmm_attributes.global_dimensions[0] as f32 - 0.5;
+                    self.fmm_attributes.current_block[0] = self.fmm_attributes.global_dimensions[0]-1;
+                }
+                if self.fmm_attributes.current_block[1] >= self.fmm_attributes.global_dimensions[1] { 
+                    self.current_block[1] = self.fmm_attributes.global_dimensions[1] as f32 - 0.5;
+                    self.fmm_attributes.current_block[1] = self.fmm_attributes.global_dimensions[1]-1;
+                }
+                if self.fmm_attributes.current_block[2] >= self.fmm_attributes.global_dimensions[2] { 
+                    self.current_block[2] = self.fmm_attributes.global_dimensions[2] as f32 - 0.5;
+                    self.fmm_attributes.current_block[2] = self.fmm_attributes.global_dimensions[2]-1;
+                }
+
+                queue.write_buffer(
+                    &self.buffers.get("fmm_attributes").unwrap(),
+                    0,
+                    bytemuck::cast_slice(&[self.fmm_attributes])
+                );
+
+                // Update hash tables.
+                let (offset_hash_table, vec_to_offset_table, ivec_offset_hash_table) =
+                    create_hash_table(4, 4, 4, self.fmm_attributes.global_dimensions[0], self.fmm_attributes.global_dimensions[1], self.fmm_attributes.global_dimensions[2] );
+
+                queue.write_buffer(
+                    &self.buffers.get("index_hash_table").unwrap(),
+                    0,
+                    bytemuck::cast_slice(&ivec_offset_hash_table)
+                );
+                // queue.write_buffer(
+                //     &self.buffers.get("vec_to_offset").unwrap(),
+                //     0,
+                //     bytemuck::cast_slice(&vec_to_offset_table)
+                // );
+        }
+
+        // Block location.
+          
         let g_pressed = input.key_state(&Key::G);
         let h_pressed = input.key_state(&Key::H);
         let j_pressed = input.key_state(&Key::J);
@@ -464,8 +530,6 @@ impl Application for FMM_App {
         let mut block_y_pos: f32 = self.current_block[1];
         let mut block_z_pos: f32 = self.current_block[2];
 
-        let time_offset = input.get_time_delta() as f32 / 200000000.0;
-
         if !g_pressed.is_none() {block_x_pos = block_x_pos-time_offset; }
         if !h_pressed.is_none() {block_z_pos = block_z_pos+time_offset; }
         if !j_pressed.is_none() {block_x_pos = block_x_pos+time_offset; }
@@ -475,9 +539,9 @@ impl Application for FMM_App {
 
         let mut block_pos: [f32;3] = [block_x_pos, block_y_pos, block_z_pos] ;
 
-        if (block_x_pos >= 0.0 && block_x_pos < BLOCK_DIMENSIONS[0] as f32) &&
-           (block_y_pos >= 0.0 && block_y_pos < BLOCK_DIMENSIONS[1] as f32) &&
-           (block_z_pos >= 0.0 && block_z_pos < BLOCK_DIMENSIONS[2] as f32) {
+        if (block_x_pos >= 0.0 && block_x_pos < self.fmm_attributes.global_dimensions[0] as f32) &&
+           (block_y_pos >= 0.0 && block_y_pos < self.fmm_attributes.global_dimensions[1] as f32) &&
+           (block_z_pos >= 0.0 && block_z_pos < self.fmm_attributes.global_dimensions[2] as f32) {
                 self.current_block = block_pos; 
                 self.fmm_attributes.current_block  = [block_x_pos as u32, block_y_pos as u32, block_z_pos as u32];
                 queue.write_buffer(
@@ -486,7 +550,6 @@ impl Application for FMM_App {
                     bytemuck::cast_slice(&[self.fmm_attributes])
                 );
         }
-
 
         // let mut fmm_attributes = FMM_Attributes{ global_dimensions: BLOCK_DIMENSIONS,
         //                                          offset_hash_table_size: ivec_offset_hash_table.len() as u32,

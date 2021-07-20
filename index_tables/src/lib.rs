@@ -84,9 +84,9 @@ pub fn create_fmm_index_table(
         }
     }}
 
-    for i in 0..result.len() as usize {
-        println!("{:?}",result[i]);
-    }
+    // for i in 0..result.len() as usize {
+    //     println!("{:?}",result[i]);
+    // }
 
 
     // for i in 0..result.len() as usize {
@@ -191,7 +191,7 @@ pub fn create_hash_table(x_dim: u32,
     for temp in table.iter() {
         let translated_coordinate = [temp[0] + 1, temp[1] + 1, temp[2] + 1, temp[3]];
         let translated_hash_index = translated_coordinate[0] + translated_coordinate[1] * x_offset as i32  + translated_coordinate[2] * x_offset as i32 * y_offset as i32; 
-        println!("temp (table) == {:?} table[thread_id_mapping[{:?}] == {:?}", temp, translated_hash_index, table[thread_id_mapping[translated_hash_index as usize] as usize]);
+        //println!("temp (table) == {:?} table[thread_id_mapping[{:?}] == {:?}", temp, translated_hash_index, table[thread_id_mapping[translated_hash_index as usize] as usize]);
     }
 
     (mapping, thread_id_mapping, table)
