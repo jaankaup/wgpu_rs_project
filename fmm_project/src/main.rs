@@ -337,19 +337,21 @@ impl Application for FMM_App {
                     &vec![
                         vec![
                             &camera.get_camera_uniform(&configuration.device).as_entire_binding(),
-                            &buffers.get("prefix_sum_temp").unwrap().as_entire_binding(),
+                            &histogram.get_histogram().as_entire_binding(),
                             &buffers.get("debug_points_output").unwrap().as_entire_binding(),
                             &buffers.get("fmm_nodes").unwrap().as_entire_binding(),
                             &buffers.get("wood").unwrap().as_entire_binding(),
-                            &wgpu::BindingResource::TextureView(&white_noise_texture.view),
+                            //&wgpu::BindingResource::TextureView(&white_noise_texture.view),
+                            &buffers.get("index_hash_table").unwrap().as_entire_binding(),
+                            &buffers.get("vec_to_offset").unwrap().as_entire_binding(),
+                            &buffers.get("fmm_attributes").unwrap().as_entire_binding(),
                             &buffers.get("fmm_data_gen_params").unwrap().as_entire_binding(),
-                            &histogram.get_histogram().as_entire_binding(),
                             //&wgpu::BindingResource::Sampler(&white_noise_texture.sampler),
                         ], 
                     ]
         );
+                
         let show_mesh = false;
-
 
         Self {
             depth_texture,
@@ -375,6 +377,7 @@ impl Application for FMM_App {
             current_global_dimensions,
         }
     }
+
     fn render(&mut self,
               device: &wgpu::Device,
               queue: &mut wgpu::Queue,
@@ -449,8 +452,8 @@ impl Application for FMM_App {
 
     fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, input: &InputCache) {
 
-        // Reset counters.
-        // self.histogram.set_values_cpu_version(&queue, &vec![0, 2]);
+        // Reset debug counters.
+        self.histogram.set_values_cpu_version(&queue, &vec![0, DEBUG_BUFFER_OFFSET]);
 
         // Get the keyboard state (camera movement).
         let space_pressed = input.key_state(&Key::Space);
@@ -551,13 +554,6 @@ impl Application for FMM_App {
                 );
         }
 
-        // let mut fmm_attributes = FMM_Attributes{ global_dimensions: BLOCK_DIMENSIONS,
-        //                                          offset_hash_table_size: ivec_offset_hash_table.len() as u32,
-        //                                          vec_to_offset_table_size: vec_to_offset_table.len() as u32,
-        //                                          current_block: block_pos,
-        // };
-
-
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("FMM update encoder.") });
         
         self.fmm_debug_pipeline.dispatch(&self.fmm_debug_bind_groups,
@@ -566,12 +562,13 @@ impl Application for FMM_App {
                     1,
                     1
         ); 
-        // self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
-        //             &mut encoder,
-        //             1,
-        //             1,
-        //             1
-        // ); 
+
+        self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
+                    &mut encoder,
+                    1,
+                    1,
+                    1
+        ); 
 
         queue.submit(Some(encoder.finish()));
 
@@ -675,7 +672,8 @@ fn create_buffers(device: &wgpu::Device,
             None)
         );
 
-        let (mc_triangle_data, mc_vvvvnnnn, aabb): (Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox) = load_triangles_from_obj("assets/models/wood.obj").unwrap();
+        let (mc_triangle_data, mc_vvvvnnnn, aabb): (Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox) =
+            load_triangles_from_obj("assets/models/wood.obj", 2.2, [0.0, 0.0, 0.0]).unwrap();
 
         println!("WOOD vertex count = {}", mc_vvvvnnnn.len());
         println!("WOOD vertex count (vvvv) = {}", mc_triangle_data.len());
@@ -950,7 +948,7 @@ impl FMM_data_generator_debug_pipeline {
                             },
                         count: None,
                     },
-                    // layout(set = 0, binding = 1) buffer Prefix_sums  {
+                    //layout(set = 0, binding = 1) buffer Counters {
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -972,7 +970,7 @@ impl FMM_data_generator_debug_pipeline {
                         },
                         count: None,
                     },
-                    // layout(set = 0, binding = 3) buffer Boundary_data  {
+                    //layout(set = 0, binding = 3) buffer FMM_Nodes
                     wgpu::BindGroupLayoutEntry {
                         binding: 3,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -983,7 +981,17 @@ impl FMM_data_generator_debug_pipeline {
                         },
                         count: None,
                     },
-                    // layout(set = 0, binding = 4) buffer Triangle_data  {
+                    //++wgpu::BindGroupLayoutEntry {
+                    //++    binding: 4,
+                    //++    visibility: wgpu::ShaderStages::COMPUTE,
+                    //++    ty: wgpu::BindingType::Buffer {
+                    //++        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    //++        has_dynamic_offset: false,
+                    //++        min_binding_size: None, //wgpu::BufferSize::new(fmm_blocks_size),
+                    //++    },
+                    //++    count: None,
+                    //++},
+                    //layout(set = 0, binding = 4) buffer Triangle_data
                     wgpu::BindGroupLayoutEntry {
                         binding: 4,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -994,20 +1002,54 @@ impl FMM_data_generator_debug_pipeline {
                         },
                         count: None,
                     },
-                    // layout(set = 0, binding = 5) uniform texture1D z1z2_texture;
+                    //layout(set = 0, binding = 5) readonly buffer OffsetTable
                     wgpu::BindGroupLayoutEntry {
                         binding: 5,
                         visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::StorageTexture {
-                            access: wgpu::StorageTextureAccess::ReadOnly,
-                            format: wgpu::TextureFormat::Rgba32Float,
-                            view_dimension: wgpu::TextureViewDimension::D1,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None, //wgpu::BufferSize::new(fmm_blocks_size),
                         },
                         count: None,
                     },
-                    //layout(set=0, binding=6) uniform Triangle_count {
+                    //layout(set = 0, binding = 6) readonly buffer VecToHashTable
                     wgpu::BindGroupLayoutEntry {
                         binding: 6,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None, //wgpu::BufferSize::new(fmm_blocks_size),
+                        },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 5) uniform texture1D z1z2_texture;
+                    //++wgpu::BindGroupLayoutEntry {
+                    //++    binding: 5,
+                    //++    visibility: wgpu::ShaderStages::COMPUTE,
+                    //++    ty: wgpu::BindingType::StorageTexture {
+                    //++        access: wgpu::StorageTextureAccess::ReadOnly,
+                    //++        format: wgpu::TextureFormat::Rgba32Float,
+                    //++        view_dimension: wgpu::TextureViewDimension::D1,
+                    //++    },
+                    //++    count: None,
+                    //++},
+                    // layout(set=0, binding=8) uniform FMM_Attributes {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 7,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                            //min_binding_size: wgpu::BufferSize::new(24),
+                            },
+                        count: None,
+                    },
+                    //layout(set=0, binding=8) uniform General_params {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 8,
                         visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
@@ -1044,7 +1086,6 @@ impl FMM_data_generator_debug_pipeline {
             module: unsafe { &device.create_shader_module_spirv(&comp_module) },
             entry_point: "main",
         });
-
 
         Self {
             layout_entries, 

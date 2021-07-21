@@ -2,12 +2,10 @@
 
 #define MAX_NUM_CHARS 32 
 
-#define LOCAL_X_DIM 4 
-#define LOCAL_Y_DIM 4
-#define LOCAL_Z_DIM 4
+#define LOCAL_X_DIM 64 
+#define LOCAL_Y_DIM 1
+#define LOCAL_Z_DIM 1
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
-#define SCAN_BLOCK_SIZE (THREAD_COUNT * 2 + (THREAD_COUNT * 2 >> 4)) //136 // 128 + (128 >> 4)
-#define ACTIVE_FMM_BLOCKS_OFFSET 512 // TODO: from uniform
 
 #define DEBUG_OFFSET 0.07
 
@@ -42,14 +40,16 @@ struct AABB {
     vec4 max; 
 };
 
+shared Vertex_vvvvnnnn temp_vertices[THREAD_COUNT * 3]; 
+shared AABB temp_aabbs[THREAD_COUNT]; 
+
 layout(set=0, binding=0) uniform camerauniform {
     mat4 u_view_proj;
     vec4 camera_pos;
 };
 
-// This buffer holds the temporary prefix sum data.
-layout(set = 0, binding = 1) buffer Prefix_sums  {
-    uint[] temp_prefix_sum;
+layout(set = 0, binding = 1) buffer Counters {
+    uint[2] atomic_counters;
 };
 
 layout(set = 0, binding = 2) buffer Points_out {
@@ -64,15 +64,33 @@ layout(set = 0, binding = 4) buffer Triangle_data  {
     Vertex_vvvvnnnn[] triangle_data;
 };
 
-layout(set=0, binding=5, rgba32f) uniform readonly image1D myStorageImage;
+//layout(set=0, binding=5, rgba32f) uniform readonly image1D myStorageImage;
 //layout(set=0, binding=5, r32f) uniform readonly image1D myStorageImage;
 // layout(set = 0, binding = 5) uniform texture1D z1z2_texture;
 // layout(set = 0, binding = 6) uniform sampler z1z2_texture_sampler;
 
-layout(set=0, binding=6) uniform Some_Data {
-    uvec4 custom_data;
+layout(set = 0, binding = 5) readonly buffer OffsetTable {
+    ivec4[160] offset_hash_table;
 };
 
+layout(set = 0, binding = 6) readonly buffer VecToHashTable {
+    uint[216] vec_to_offset_table;
+};
+
+struct FMM_Attribute {
+    uvec3 global_dimensions;
+    uint offset_hash_table_size;
+    uvec3 current_block;
+    uint vec_to_offset_table_size;
+};
+
+layout(set=0, binding=7) uniform FMM_Attributes {
+    FMM_Attribute fmm_attributes;
+};
+
+layout(set=0, binding=8) uniform General_params {
+    uvec4 custom_data;
+};
 
 layout(local_size_x = LOCAL_X_DIM, local_size_y = LOCAL_Y_DIM, local_size_z = LOCAL_Z_DIM) in;
 
@@ -106,16 +124,16 @@ struct CharInformation {
 // 2 x float
 shared uint[2] counter;
 
-// 136 x float
-// The auxiliar scan block array
-shared uint shared_aux[SCAN_BLOCK_SIZE];
-
-// 136 x float
-// The output of global active fmm block scan.
-shared uint[SCAN_BLOCK_SIZE] shared_prefix_sum;
-
-//// The counter for active fmm blocks.
-shared uint stream_compaction_count;
+//++// 136 x float
+//++// The auxiliar scan block array
+//++shared uint shared_aux[SCAN_BLOCK_SIZE];
+//++
+//++// 136 x float
+//++// The output of global active fmm block scan.
+//++shared uint[SCAN_BLOCK_SIZE] shared_prefix_sum;
+//++
+//++//// The counter for active fmm blocks.
+//++shared uint stream_compaction_count;
 
 // Debugging.
 shared CharInformation[THREAD_COUNT] char_arrays;
@@ -830,153 +848,153 @@ void push_chars(uint r, uint g, uint b) {
                     );
 }
 
-void copy_prefix_sum_to_temp(uint chunck_id) {
-
-    // Create the local indices.
-    const uint ai = local_id_to_x(); 
-    const uint bi = ai + THREAD_COUNT;
-
-    // Create the bank conflict free local indices.
-    const uint ai_bcf = ai + (ai >> 4); 
-    const uint bi_bcf = bi + (bi >> 4);
-
-    // Create the global indices to access the global memory.
-    const uint global_ai = ai + chunck_id * (THREAD_COUNT * 2);
-    const uint global_bi = bi + chunck_id * (THREAD_COUNT * 2);
-
-    temp_prefix_sum[global_ai] = shared_prefix_sum[ai_bcf];
-    temp_prefix_sum[global_bi] = shared_prefix_sum[bi_bcf];
-}
-
-// Perform prefix sum. Return the exclusive part of the prefix sum.
-// NOTE: only the thread 0 returns the actual exclusive part.
-uint local_prefix_sum() {
-
-    // Create the local indices.
-    const uint ai = local_id_to_x(); 
-    const uint bi = ai + THREAD_COUNT;
-
-    // Create the bank conflict free local indices.
-    const uint ai_bcf = ai + (ai >> 4); 
-    const uint bi_bcf = bi + (bi >> 4);
-
-    uint exclusive_part = 0;
-
-    // Up sweep.
-
-    const int n = THREAD_COUNT*2;
-    int offset = 1;
-    for (int d = n>>1 ; d > 0; d >>= 1) {
-      barrier();
-      //if (local_id_x < d) {
-      if (ai < d) {
-
-          int ai_temp = offset*(int(ai*2)+1)-1; // 0, 2, 4, 6
-          int bi_temp = offset*(int(ai*2)+2)-1; // 1, 3, 5, 7
-
-          ai_temp += (ai_temp >> 4);
-          bi_temp += (bi_temp >> 4);
-
-          shared_prefix_sum[bi_temp] += shared_prefix_sum[ai_temp];
-      }
-      offset *= 2;
-    }
-    barrier();
-      
-    // Clear the last item. 
-    if (ai == 0) {
-
-        // Global last index.
-        uint last_index = (THREAD_COUNT * 2) -1 + ((THREAD_COUNT * 2 - 1) >> 4);
-
-        // Copy the last prefix sum to the shared_aux. 
-        exclusive_part = shared_prefix_sum[last_index];
-
-        // Add zero to the last index.
-        shared_prefix_sum[last_index] = 0;
-    }
-    
-    // Down sweep.
-    for (int d = 1; d < n ; d *=2) {
-      offset >>= 1;
-      barrier();
-      if (ai < d) {
-          int ai_temp = offset*(int(ai*2)+1)-1;
-          int bi_temp = offset*(int(ai*2)+2)-1;
-          ai_temp += (ai_temp >> 4);
-          bi_temp += (bi_temp >> 4);
-          uint t = shared_prefix_sum[ai_temp];
-
-          shared_prefix_sum[ai_temp] = shared_prefix_sum[bi_temp];
-          shared_prefix_sum[bi_temp] += t;
-      }
-  }
-  return exclusive_part;
-}
-
-// Perform prefix sum for shared_aux. Return the exclusive part of the prefix sum.
-uint local_prefix_sum_aux() {
-
-    // Create the local indices.
-    const uint ai = local_id_to_x(); 
-    const uint bi = ai + THREAD_COUNT;
-
-    // Create the bank conflict free local indices.
-    const uint ai_bcf = ai + (ai >> 4); 
-    const uint bi_bcf = bi + (bi >> 4);
-
-    uint exclusive_part = 0;
-
-    // Up sweep.
-
-    const int n = THREAD_COUNT*2;
-    int offset = 1;
-    for (int d = n>>1 ; d > 0; d >>= 1) {
-      barrier();
-      if (ai < d) {
-
-          int ai_temp = offset*(int(ai*2)+1)-1; // 0, 2, 4, 6
-          int bi_temp = offset*(int(ai*2)+2)-1; // 1, 3, 5, 7
-
-          ai_temp += (ai_temp >> 4);
-          bi_temp += (bi_temp >> 4);
-
-          shared_aux[bi_temp] += shared_aux[ai_temp];
-      }
-      offset *= 2;
-    }
-    barrier();
-      
-    // Clear the last item. 
-    if (ai == 0) {
-
-        // Global last index.
-        uint last_index = (THREAD_COUNT * 2) -1 + ((THREAD_COUNT * 2 - 1) >> 4);
-
-        // Copy the last prefix sum to the shared_aux. 
-        stream_compaction_count = shared_aux[last_index];
-
-        // Add zero to the last index.
-        shared_aux[last_index] = 0;
-    }
-    
-    // Down sweep.
-    for (int d = 1; d < n ; d *=2) {
-      offset >>= 1;
-      barrier();
-      if (ai < d) {
-          int ai_temp = offset*(int(ai*2)+1)-1;
-          int bi_temp = offset*(int(ai*2)+2)-1;
-          ai_temp += (ai_temp >> 4);
-          bi_temp += (bi_temp >> 4);
-          uint t = shared_aux[ai_temp];
-
-          shared_aux[ai_temp] = shared_aux[bi_temp];
-          shared_aux[bi_temp] += t;
-      }
-  }
-  return exclusive_part;
-}
+//++void copy_prefix_sum_to_temp(uint chunck_id) {
+//++
+//++    // Create the local indices.
+//++    const uint ai = local_id_to_x(); 
+//++    const uint bi = ai + THREAD_COUNT;
+//++
+//++    // Create the bank conflict free local indices.
+//++    const uint ai_bcf = ai + (ai >> 4); 
+//++    const uint bi_bcf = bi + (bi >> 4);
+//++
+//++    // Create the global indices to access the global memory.
+//++    const uint global_ai = ai + chunck_id * (THREAD_COUNT * 2);
+//++    const uint global_bi = bi + chunck_id * (THREAD_COUNT * 2);
+//++
+//++    temp_prefix_sum[global_ai] = shared_prefix_sum[ai_bcf];
+//++    temp_prefix_sum[global_bi] = shared_prefix_sum[bi_bcf];
+//++}
+//++
+//++// Perform prefix sum. Return the exclusive part of the prefix sum.
+//++// NOTE: only the thread 0 returns the actual exclusive part.
+//++uint local_prefix_sum() {
+//++
+//++    // Create the local indices.
+//++    const uint ai = local_id_to_x(); 
+//++    const uint bi = ai + THREAD_COUNT;
+//++
+//++    // Create the bank conflict free local indices.
+//++    const uint ai_bcf = ai + (ai >> 4); 
+//++    const uint bi_bcf = bi + (bi >> 4);
+//++
+//++    uint exclusive_part = 0;
+//++
+//++    // Up sweep.
+//++
+//++    const int n = THREAD_COUNT*2;
+//++    int offset = 1;
+//++    for (int d = n>>1 ; d > 0; d >>= 1) {
+//++      barrier();
+//++      //if (local_id_x < d) {
+//++      if (ai < d) {
+//++
+//++          int ai_temp = offset*(int(ai*2)+1)-1; // 0, 2, 4, 6
+//++          int bi_temp = offset*(int(ai*2)+2)-1; // 1, 3, 5, 7
+//++
+//++          ai_temp += (ai_temp >> 4);
+//++          bi_temp += (bi_temp >> 4);
+//++
+//++          shared_prefix_sum[bi_temp] += shared_prefix_sum[ai_temp];
+//++      }
+//++      offset *= 2;
+//++    }
+//++    barrier();
+//++      
+//++    // Clear the last item. 
+//++    if (ai == 0) {
+//++
+//++        // Global last index.
+//++        uint last_index = (THREAD_COUNT * 2) -1 + ((THREAD_COUNT * 2 - 1) >> 4);
+//++
+//++        // Copy the last prefix sum to the shared_aux. 
+//++        exclusive_part = shared_prefix_sum[last_index];
+//++
+//++        // Add zero to the last index.
+//++        shared_prefix_sum[last_index] = 0;
+//++    }
+//++    
+//++    // Down sweep.
+//++    for (int d = 1; d < n ; d *=2) {
+//++      offset >>= 1;
+//++      barrier();
+//++      if (ai < d) {
+//++          int ai_temp = offset*(int(ai*2)+1)-1;
+//++          int bi_temp = offset*(int(ai*2)+2)-1;
+//++          ai_temp += (ai_temp >> 4);
+//++          bi_temp += (bi_temp >> 4);
+//++          uint t = shared_prefix_sum[ai_temp];
+//++
+//++          shared_prefix_sum[ai_temp] = shared_prefix_sum[bi_temp];
+//++          shared_prefix_sum[bi_temp] += t;
+//++      }
+//++  }
+//++  return exclusive_part;
+//++}
+//++
+//++// Perform prefix sum for shared_aux. Return the exclusive part of the prefix sum.
+//++uint local_prefix_sum_aux() {
+//++
+//++    // Create the local indices.
+//++    const uint ai = local_id_to_x(); 
+//++    const uint bi = ai + THREAD_COUNT;
+//++
+//++    // Create the bank conflict free local indices.
+//++    const uint ai_bcf = ai + (ai >> 4); 
+//++    const uint bi_bcf = bi + (bi >> 4);
+//++
+//++    uint exclusive_part = 0;
+//++
+//++    // Up sweep.
+//++
+//++    const int n = THREAD_COUNT*2;
+//++    int offset = 1;
+//++    for (int d = n>>1 ; d > 0; d >>= 1) {
+//++      barrier();
+//++      if (ai < d) {
+//++
+//++          int ai_temp = offset*(int(ai*2)+1)-1; // 0, 2, 4, 6
+//++          int bi_temp = offset*(int(ai*2)+2)-1; // 1, 3, 5, 7
+//++
+//++          ai_temp += (ai_temp >> 4);
+//++          bi_temp += (bi_temp >> 4);
+//++
+//++          shared_aux[bi_temp] += shared_aux[ai_temp];
+//++      }
+//++      offset *= 2;
+//++    }
+//++    barrier();
+//++      
+//++    // Clear the last item. 
+//++    if (ai == 0) {
+//++
+//++        // Global last index.
+//++        uint last_index = (THREAD_COUNT * 2) -1 + ((THREAD_COUNT * 2 - 1) >> 4);
+//++
+//++        // Copy the last prefix sum to the shared_aux. 
+//++        stream_compaction_count = shared_aux[last_index];
+//++
+//++        // Add zero to the last index.
+//++        shared_aux[last_index] = 0;
+//++    }
+//++    
+//++    // Down sweep.
+//++    for (int d = 1; d < n ; d *=2) {
+//++      offset >>= 1;
+//++      barrier();
+//++      if (ai < d) {
+//++          int ai_temp = offset*(int(ai*2)+1)-1;
+//++          int bi_temp = offset*(int(ai*2)+2)-1;
+//++          ai_temp += (ai_temp >> 4);
+//++          bi_temp += (bi_temp >> 4);
+//++          uint t = shared_aux[ai_temp];
+//++
+//++          shared_aux[ai_temp] = shared_aux[bi_temp];
+//++          shared_aux[bi_temp] += t;
+//++      }
+//++  }
+//++  return exclusive_part;
+//++}
 
 ////++ // Stream compation.
 ////++ void solve_active_fmm_block(uint number_of_scan_blocks) {
@@ -1008,91 +1026,91 @@ uint local_prefix_sum_aux() {
 ////++     }
 ////++ }
 
-uint global_solver() {
-
-  // This should come from the host program.
-  const int number_of_blocks = 512; 
-
-  // Convert 4x4x4 index to uint.
-  uint local_id_x = local_id_to_x();
-
-  // Reset the counter for active blocks. 
-  if (local_id_x == 0) stream_compaction_count = 0;
-  
-  // Number of data chunks. There must be at least one iteration.
-  // neeeded. TODO: check number_of_blocks == 0. Return immediatelly if it
-  // true.
-  const int number_of_scan_blocks = (number_of_blocks - 1) / 128 + 1;
-
-  // Available items count.
-  uint items_available = number_of_blocks;
-
-  // The number of items on current chunk.
-  uint number_of_taken_items = 0; 
-
-  // Create the local indices.
-  const uint ai = local_id_to_x(); 
-  const uint bi = ai + THREAD_COUNT;
-
-  // Create the local indices.
-  const uint ai_bcf = ai + (ai >> 4); 
-  const uint bi_bcf = bi + (bi >> 4);
-  
-  // Add zeroes to the shared_aux (the conflict free indexes).
-  shared_aux[ai_bcf] = 0;
-  shared_aux[bi_bcf] = 0;
-  shared_prefix_sum[ai_bcf] = 8;
-  shared_prefix_sum[bi_bcf] = 3;
-  // barrier();
-
-  // FMM_Blocks are converted to boolean array.
-  // FMM_Block.band_points_count >  0 :: 1
-  // FMM_Block.band_points_count == 0 :: 0
-  // Perfom prefix sum on boolean array.
-  for (int j=0 ; j < number_of_scan_blocks ; j++) {
-
-      // Determine the count of items in this iteration.
-      number_of_taken_items = min(THREAD_COUNT * 2, items_available);
-
-      // Decrease the number of available items.
-      items_available -= number_of_taken_items;
-
-      // Copy data from global FMM_Block array to
-      // shared_prefix_sum. [{0,1}]
-      ////++ copy_block_to_temp(j, number_of_taken_items);
-
-      // Perform the prefix_sum.
-      uint exclusive_part = local_prefix_sum();
-
-      // Add the exclusive part to the shared aux.
-      if (local_id_x == 0) shared_aux[j + (j >> 4)] = exclusive_part; 
-
-      // Copy local prefix sum data to 'temp_prefix_sum' buffer.
-      copy_prefix_sum_to_temp(j);
-  }
-
-  // Perform the prefix_sum for shared_aux.
-  uint aux_exclusive_part = local_prefix_sum_aux();
-
-  // Add the shared_aux to the final result.
-  for (int j=0 ; j < number_of_scan_blocks ; j++) {
-    uint value_to_add = shared_aux[j + (j >> 4)]; 
-
-    // Create the global indices to access the global memory.
-    const uint global_ai = ai + j * (THREAD_COUNT * 2);
-    const uint global_bi = bi + j * (THREAD_COUNT * 2);
-
-    temp_prefix_sum[global_ai] += value_to_add; 
-    temp_prefix_sum[global_bi] += value_to_add; 
-  }
-
-  // Finally. Update the number of active FMM_Blocks.
-
-  ////++ solve_active_fmm_block(number_of_scan_blocks);
-
-  return 777;
-}
-
+//++uint global_solver() {
+//++
+//++  // This should come from the host program.
+//++  const int number_of_blocks = 512; 
+//++
+//++  // Convert 4x4x4 index to uint.
+//++  uint local_id_x = local_id_to_x();
+//++
+//++  // Reset the counter for active blocks. 
+//++  if (local_id_x == 0) stream_compaction_count = 0;
+//++  
+//++  // Number of data chunks. There must be at least one iteration.
+//++  // neeeded. TODO: check number_of_blocks == 0. Return immediatelly if it
+//++  // true.
+//++  const int number_of_scan_blocks = (number_of_blocks - 1) / 128 + 1;
+//++
+//++  // Available items count.
+//++  uint items_available = number_of_blocks;
+//++
+//++  // The number of items on current chunk.
+//++  uint number_of_taken_items = 0; 
+//++
+//++  // Create the local indices.
+//++  const uint ai = local_id_to_x(); 
+//++  const uint bi = ai + THREAD_COUNT;
+//++
+//++  // Create the local indices.
+//++  const uint ai_bcf = ai + (ai >> 4); 
+//++  const uint bi_bcf = bi + (bi >> 4);
+//++  
+//++  // Add zeroes to the shared_aux (the conflict free indexes).
+//++  shared_aux[ai_bcf] = 0;
+//++  shared_aux[bi_bcf] = 0;
+//++  shared_prefix_sum[ai_bcf] = 8;
+//++  shared_prefix_sum[bi_bcf] = 3;
+//++  // barrier();
+//++
+//++  // FMM_Blocks are converted to boolean array.
+//++  // FMM_Block.band_points_count >  0 :: 1
+//++  // FMM_Block.band_points_count == 0 :: 0
+//++  // Perfom prefix sum on boolean array.
+//++  for (int j=0 ; j < number_of_scan_blocks ; j++) {
+//++
+//++      // Determine the count of items in this iteration.
+//++      number_of_taken_items = min(THREAD_COUNT * 2, items_available);
+//++
+//++      // Decrease the number of available items.
+//++      items_available -= number_of_taken_items;
+//++
+//++      // Copy data from global FMM_Block array to
+//++      // shared_prefix_sum. [{0,1}]
+//++      ////++ copy_block_to_temp(j, number_of_taken_items);
+//++
+//++      // Perform the prefix_sum.
+//++      uint exclusive_part = local_prefix_sum();
+//++
+//++      // Add the exclusive part to the shared aux.
+//++      if (local_id_x == 0) shared_aux[j + (j >> 4)] = exclusive_part; 
+//++
+//++      // Copy local prefix sum data to 'temp_prefix_sum' buffer.
+//++      copy_prefix_sum_to_temp(j);
+//++  }
+//++
+//++  // Perform the prefix_sum for shared_aux.
+//++  uint aux_exclusive_part = local_prefix_sum_aux();
+//++
+//++  // Add the shared_aux to the final result.
+//++  for (int j=0 ; j < number_of_scan_blocks ; j++) {
+//++    uint value_to_add = shared_aux[j + (j >> 4)]; 
+//++
+//++    // Create the global indices to access the global memory.
+//++    const uint global_ai = ai + j * (THREAD_COUNT * 2);
+//++    const uint global_bi = bi + j * (THREAD_COUNT * 2);
+//++
+//++    temp_prefix_sum[global_ai] += value_to_add; 
+//++    temp_prefix_sum[global_bi] += value_to_add; 
+//++  }
+//++
+//++  // Finally. Update the number of active FMM_Blocks.
+//++
+//++  ////++ solve_active_fmm_block(number_of_scan_blocks);
+//++
+//++  return 777;
+//++}
+//++
 
 #define DBL_EPSILON 0.001
 
@@ -1125,136 +1143,225 @@ float calc_v(float u, float phi_u, float phi_v, float r) {
     return tau <= 0.5*(1.0-u) ? tau + q : tau - q;
 }
 
-void sample_triangle(vec3 a, vec3 b, vec3 c, uint n) {
-
-   //uint index_triangle = atomicAdd(counter[1], 3);
-   //output_points[index_triangle] = OutputVertex(a, encode_rgba_u32(0, 255, 0, 1)); 
-   //output_points[index_triangle+1] = OutputVertex(b, encode_rgba_u32(0, 255, 0, 1)); 
-   //output_points[index_triangle+2] = OutputVertex(c, encode_rgba_u32(0, 255, 0, 1)); 
-
-   vec3 ab = b - a; 
-   vec3 ac = c - a;
-   vec3 bc = c - b;
-
-   //let n = ab.cross(ac).normalize(); 
-   float area = 0.5 * length(cross(ab,ac));
-
-   uint samples = min(uint(area * 1000.0), 8095);  
-
-   // initialize_char_array((a+b+c)/3.0 + vec3(0.0, DEBUG_OFFSET, 0.0));
-   // log_float(area, 3);
-   // add_end_of_line();
-   // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-
-   // for (int i=0 ; i<samples ; i++) {
-   //   
-   // }
-
-   for (int i=0 ; i<samples ; i++) {
-        vec4 white_noise = imageLoad(myStorageImage, i);
-        float u = calc_u(white_noise.x, white_noise.y, white_noise.z);
-        float v = calc_v(u, white_noise.x, white_noise.y, white_noise.w);
-        float w = 1 - u - v;
-        float the_u = white_noise.x;
-        float the_v = white_noise.y;
-        float the_w = 1.0 -  white_noise.x - white_noise.y;
-        // const vec3 p = a * (sample_points[i].x - sample_points[i].y) +
-        //                b * (sample_points[i].y - (1 - sample_points[i].x -
-        //                sample_points[i].y)) + (1 - sample_points[i].x - sample_points[i].y);
-        const float x = u * (the_u - the_w) +
-                        v * (the_v - the_w) +
-                        the_w;
-        const vec3 p = u*a + v*b + (1-u-v)*c;
-        const vec3 p_minus = p - vec3(0.01, 0.01, 0.01);
-        const vec3 p_plus =  p + vec3(0.01, 0.01, 0.01);
-        //create_aabb_triangles_r(AABB(vec4(p_minus, 1.0), vec4(p_plus, 1.0)), 255, 10, 10, 0.005);
-
-        uint index = atomicAdd(counter[0], 1);
-
-        const float dist = min(max(1.0, distance(camera_pos.xyz, p)), 255);
-        output_points[index] = OutputVertex(
-            p,
-            encode_rgba_u32(
-                255,
-                255,
-                255,
-                uint(dist)));
-   }
-
-   //for (int i=0 ; i<128 ; i++) {
-
-   //     // uint index = atomicAdd(counter[0], 1);
-
-   //     vec4 white_noise = imageLoad(myStorageImage, i);
-   //     const float z_square = pow(white_noise.x, 0.5);
-   //     const vec3 p = (1.0 - z_square) * a +
-   //                    z_square*(1.0 - white_noise.y) * b +
-   //                    z_square * white_noise.y * c;
-   //     const vec3 p_minus = p - vec3(0.01, 0.01, 0.01);
-   //     const vec3 p_plus =  p + vec3(0.01, 0.01, 0.01);
-
-   //     // initialize_char_array(p + vec3(0.0, DEBUG_OFFSET, 0.0));
-   //     // log_float(sample_points[i].x, 3);
-   //     // add_end_of_line();
-   //     // log_float(sample_points[i].y, 3);
-   //     // add_end_of_line();
-   //     // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-   //                    
-   //     create_aabb_triangles_r(AABB(vec4(p_minus, 1.0), vec4(p_plus, 1.0)),
-   //                             uint(sample_points[i] * 255), 10,
-   //                             uint(sample_points[i] * 255), 0.005);
-   //     // output_points[index] = OutputVertex(p, encode_rgba_u32(255, 0, 0, 50)); 
-   //}
-}
+//++void sample_triangle(vec3 a, vec3 b, vec3 c, uint n) {
+//++
+//++   //uint index_triangle = atomicAdd(counter[1], 3);
+//++   //output_points[index_triangle] = OutputVertex(a, encode_rgba_u32(0, 255, 0, 1)); 
+//++   //output_points[index_triangle+1] = OutputVertex(b, encode_rgba_u32(0, 255, 0, 1)); 
+//++   //output_points[index_triangle+2] = OutputVertex(c, encode_rgba_u32(0, 255, 0, 1)); 
+//++
+//++   vec3 ab = b - a; 
+//++   vec3 ac = c - a;
+//++   vec3 bc = c - b;
+//++
+//++   //let n = ab.cross(ac).normalize(); 
+//++   float area = 0.5 * length(cross(ab,ac));
+//++
+//++   uint samples = min(uint(area * 1000.0), 8095);  
+//++
+//++   // initialize_char_array((a+b+c)/3.0 + vec3(0.0, DEBUG_OFFSET, 0.0));
+//++   // log_float(area, 3);
+//++   // add_end_of_line();
+//++   // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+//++
+//++   // for (int i=0 ; i<samples ; i++) {
+//++   //   
+//++   // }
+//++
+//++   for (int i=0 ; i<samples ; i++) {
+//++        vec4 white_noise = imageLoad(myStorageImage, i);
+//++        float u = calc_u(white_noise.x, white_noise.y, white_noise.z);
+//++        float v = calc_v(u, white_noise.x, white_noise.y, white_noise.w);
+//++        float w = 1 - u - v;
+//++        float the_u = white_noise.x;
+//++        float the_v = white_noise.y;
+//++        float the_w = 1.0 -  white_noise.x - white_noise.y;
+//++        // const vec3 p = a * (sample_points[i].x - sample_points[i].y) +
+//++        //                b * (sample_points[i].y - (1 - sample_points[i].x -
+//++        //                sample_points[i].y)) + (1 - sample_points[i].x - sample_points[i].y);
+//++        const float x = u * (the_u - the_w) +
+//++                        v * (the_v - the_w) +
+//++                        the_w;
+//++        const vec3 p = u*a + v*b + (1-u-v)*c;
+//++        const vec3 p_minus = p - vec3(0.01, 0.01, 0.01);
+//++        const vec3 p_plus =  p + vec3(0.01, 0.01, 0.01);
+//++        //create_aabb_triangles_r(AABB(vec4(p_minus, 1.0), vec4(p_plus, 1.0)), 255, 10, 10, 0.005);
+//++
+//++        uint index = atomicAdd(counter[0], 1);
+//++
+//++        const float dist = min(max(1.0, distance(camera_pos.xyz, p)), 255);
+//++        output_points[index] = OutputVertex(
+//++            p,
+//++            encode_rgba_u32(
+//++                255,
+//++                255,
+//++                255,
+//++                uint(dist)));
+//++   }
+//++
+//++   //for (int i=0 ; i<128 ; i++) {
+//++
+//++   //     // uint index = atomicAdd(counter[0], 1);
+//++
+//++   //     vec4 white_noise = imageLoad(myStorageImage, i);
+//++   //     const float z_square = pow(white_noise.x, 0.5);
+//++   //     const vec3 p = (1.0 - z_square) * a +
+//++   //                    z_square*(1.0 - white_noise.y) * b +
+//++   //                    z_square * white_noise.y * c;
+//++   //     const vec3 p_minus = p - vec3(0.01, 0.01, 0.01);
+//++   //     const vec3 p_plus =  p + vec3(0.01, 0.01, 0.01);
+//++
+//++   //     // initialize_char_array(p + vec3(0.0, DEBUG_OFFSET, 0.0));
+//++   //     // log_float(sample_points[i].x, 3);
+//++   //     // add_end_of_line();
+//++   //     // log_float(sample_points[i].y, 3);
+//++   //     // add_end_of_line();
+//++   //     // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+//++   //                    
+//++   //     create_aabb_triangles_r(AABB(vec4(p_minus, 1.0), vec4(p_plus, 1.0)),
+//++   //                             uint(sample_points[i] * 255), 10,
+//++   //                             uint(sample_points[i] * 255), 0.005);
+//++   //     // output_points[index] = OutputVertex(p, encode_rgba_u32(255, 0, 0, 50)); 
+//++   //}
+//++}
 
 void add_triangles() {
-  const uint number_of_triangle_blocks = (custom_data.x - 1) / 64 + 1;
 
-  // Available items count.
-  uint items_available = custom_data.x;
+  const uint triangle_count = custom_data.x * 3;
+  const uint number_of_triangle_blocks = (custom_data.x - 1) / THREAD_COUNT + 1;
 
-  // The number of triangles on current chunk.
-  uint number_of_taken_items = 0; 
-  
-  for (int j=0 ; j < number_of_triangle_blocks ; j++) {
+  //++ if (gl_LocalInvocationIndex == 0) {
 
-      // Determine the count of items in this iteration.
-      number_of_taken_items = min(THREAD_COUNT, items_available);
+  //++   vec3 joopajoo_coord = vec3(-0.5, -0.5, 0.5);
 
-      // Decrease the number of available items.
-      items_available -= number_of_taken_items;
+  //++   initialize_char_array(joopajoo_coord);
 
-      uint index = local_id_to_x();
-      uint global_index = index * 3 + j * THREAD_COUNT * 3;
+  //++   log_number(triangle_count , false);
+  //++   add_end_of_line();
 
-      // initialize_char_array(vec3(global_index * DEBUG_OFFSET, -5.0, 0.0));
-      // log_number(number_of_taken_items, false);
-      // add_end_of_line();
-      // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
+  //++   log_number(number_of_triangle_blocks, false);
+  //++   add_end_of_line();
 
-      if (index < number_of_taken_items) { 
-        //uint offset = index*3;
-        vec3 vert_a = triangle_data[global_index].pos.xyz; 
-        vec3 vert_b = triangle_data[global_index+1].pos.xyz; 
-        vec3 vert_c = triangle_data[global_index+2].pos.xyz; 
-        sample_triangle(vert_a, vert_b, vert_c, 123);
-      }
-    }
+  //++   log_number(custom_data.x, false);
+  //++   add_end_of_line();
+
+  //++   AABB aabb = create_char_sequency_points(255, 125, 125);
+  //++   AABB traslated = AABB(vec4(joopajoo_coord, 1.0), vec4(joopajoo_coord + joopajoo_coord, 1.0));
+  //++   create_output_points(aabb, 255, 255, 255);
+  //++ }
+  //++ barrier();
+
+  // Iterate over all triangles.
+  for (int i=0 ; i<number_of_triangle_blocks ; i++ ) {
+    barrier();
+
+    // Load triangles to shared memory.
+    uint thread_id = i * 2 * THREAD_COUNT + gl_LocalInvocationIndex;
+    bool will_continue = thread_id + 2*THREAD_COUNT < triangle_count;
+
+        if (will_continue) {
+
+            // Load triangle vertices to shared memory.
+
+            const Vertex_vvvvnnnn vert_a = triangle_data[thread_id];
+            const Vertex_vvvvnnnn vert_b = triangle_data[thread_id + THREAD_COUNT];
+            const Vertex_vvvvnnnn vert_c = triangle_data[thread_id + THREAD_COUNT * 2];
+
+            temp_vertices[gl_LocalInvocationIndex] = vert_a;
+            temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT] = vert_b;
+            temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT * 2] = vert_c;
+
+            // initialize_char_array(vert_a.pos.xyz);
+
+            // log_vec3(vert_a.pos.xyz, 1);
+            // add_end_of_line();
+
+            // AABB aabb = create_char_sequency_points(255, 125, 125);
+            // AABB traslated = AABB(vec4(vert_a.pos.xyz, 1.0), vec4(vert_a.pos.xyz + vert_a.pos.xyz, 1.0));
+            // create_output_points(aabb, 255, 255, 255);
+        }
+
+        uint thread_id2 = gl_LocalInvocationIndex * 3 + i * THREAD_COUNT * 3;
+
+        if (will_continue && (thread_id2 < triangle_count-2)) {
+
+            // Load triangle.
+            const Vertex_vvvvnnnn vert_a = temp_vertices[gl_LocalInvocationIndex];
+            const Vertex_vvvvnnnn vert_b = temp_vertices[gl_LocalInvocationIndex+1];
+            const Vertex_vvvvnnnn vert_c = temp_vertices[gl_LocalInvocationIndex+2]; 
+            
+            // Calculate aabb.
+
+            const float aabb_min_x = min(vert_c.pos.x, min(vert_a.pos.x, vert_b.pos.x)); 
+            const float aabb_min_y = min(vert_c.pos.y, min(vert_a.pos.y, vert_b.pos.y)); 
+            const float aabb_min_z = min(vert_c.pos.z, min(vert_a.pos.z, vert_b.pos.z)); 
+
+            const float aabb_max_x = max(vert_c.pos.x, max(vert_a.pos.x, vert_b.pos.x)); 
+            const float aabb_max_y = max(vert_c.pos.y, max(vert_a.pos.y, vert_b.pos.y)); 
+            const float aabb_max_z = max(vert_c.pos.z, max(vert_a.pos.z, vert_b.pos.z)); 
+
+            // Add aabb to shared memory.
+            AABB aabb = AABB(vec4(aabb_min_x, aabb_min_y, aabb_min_z, 1.0), vec4(aabb_max_x, aabb_max_y, aabb_max_z, 1.0));
+            //AABB aabb = AABB(vec4(-3.0, 0.0, 1.0, 1.0), vec4(2.0, 1.5, 0.5, 1.0));
+            //++temp_aabbs[gl_LocalInvocationIndex] = aabb;
+            create_aabb_triangles_r(aabb, 255, 255, 255, 0.01);
+        }
+        barrier();
+
+  } // iterate over all triangles.
+  // barrier();
+
+  // Calculate aabbs.
+  //++ for (int i=0 ; i<number_of_triangle_blocks ; i++ ) {
+
+  //++   const uint thread_id = gl_LocalInvocationIndex*3 + i*3*THREAD_COUNT;
+
+  //++   if (thread_id < triangle_count-2) {
+
+
+  //++       // Load triangle.
+  //++       const Vertex_vvvvnnnn vert_a = temp_vertices[thread_id];
+  //++       const Vertex_vvvvnnnn vert_b = temp_vertices[thread_id+1];
+  //++       const Vertex_vvvvnnnn vert_c = temp_vertices[thread_id+2]; 
+  //++       
+  //++       // Calculate aabb.
+
+  //++       const float aabb_min_x = min(vert_c.pos.x, min(vert_a.pos.x, vert_b.pos.x)); 
+  //++       const float aabb_min_y = min(vert_c.pos.y, min(vert_a.pos.y, vert_b.pos.y)); 
+  //++       const float aabb_min_z = min(vert_c.pos.z, min(vert_a.pos.z, vert_b.pos.z)); 
+
+  //++       const float aabb_max_x = max(vert_c.pos.x, max(vert_a.pos.x, vert_b.pos.x)); 
+  //++       const float aabb_max_y = max(vert_c.pos.y, max(vert_a.pos.y, vert_b.pos.y)); 
+  //++       const float aabb_max_z = max(vert_c.pos.z, max(vert_a.pos.z, vert_b.pos.z)); 
+
+  //++       // Add aabb to shared memory.
+  //++       AABB aabb = AABB(vec4(aabb_min_x, aabb_min_y, aabb_min_z, 1.0), vec4(aabb_max_x, aabb_max_y, aabb_max_z, 1.0));
+  //++       //AABB aabb = AABB(vec4(-3.0, 0.0, 1.0, 1.0), vec4(2.0, 1.5, 0.5, 1.0));
+  //++       //++temp_aabbs[gl_LocalInvocationIndex] = aabb;
+  //++       create_aabb_triangles_r(aabb, 255, 255, 255, 0.01);
+  //++   }
+  //++   else {
+  //++       //AABB aabb = AABB(vec4(-3.0, 0.0, 1.0, 1.0), vec4(2.0, 1.5, 0.5, 1.0));
+  //++       ////temp_aabbs[thread_id] = aabb;
+  //++       //create_aabb_triangles_r(aabb, 255, 255, 255, 0.1);
+  //++       break;
+  //++   }
+  //++ }
 }
 
 void main() {
 
   if (local_id_to_x() == 0) {
-    counter[0] = output_points[0].color_point_size;
-    counter[1] = output_points[1].color_point_size;
+    counter[0] = atomic_counters[0];
+    counter[1] = atomic_counters[1];
   }
+  barrier();
 
   add_triangles();
-
-  
+  barrier();
 
   if (local_id_to_x() == 0) {
-    output_points[0] = OutputVertex(vec3(7,7,7), counter[0]);
-    output_points[1] = OutputVertex(vec3(8,8,8), counter[1]);
+    atomic_counters[0] = counter[0];
+    atomic_counters[1] = counter[1];
   }
 }

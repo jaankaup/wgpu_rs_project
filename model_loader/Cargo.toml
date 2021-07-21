@@ -9,6 +9,7 @@ edition = "2018"
 [lib]
 
 [dependencies]
-wavefront_obj = "8.0.0"
+#wavefront_obj = "8.0.0"
+wavefront_obj = "10.0.0"
 cgmath = "0.18"
 geometry = { path = "../geometry" }

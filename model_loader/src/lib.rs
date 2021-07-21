@@ -5,7 +5,7 @@ use wavefront_obj::obj::*;
 use cgmath::{Vector3, Vector4};
 use geometry::aabb::{BBox, Triangle, Triangle_vvvvnnnn};
 
-pub fn load_triangles_from_obj(file_name: &'static str) -> Option<(Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox)> {
+pub fn load_triangles_from_obj(file_name: &'static str, scale_factor: f32, translation: [f32;3]) -> Option<(Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox)> {
 
     let file_content = {
       let mut file = File::open(file_name).map_err(|e| format!("cannot open file: {}", e)).unwrap();
@@ -50,15 +50,15 @@ pub fn load_triangles_from_obj(file_name: &'static str) -> Option<(Vec<Triangle>
                     aabb.expand(&Vector3::<f32>::new(vec_c.x, vec_c.y, vec_c.z));
 
                     let tr = Triangle_vvvvnnnn {
-                        a: vec_a,
-                        b: vec_b,
-                        c: vec_c,
-                        na: vec_na, 
-                        nb: vec_nb, 
-                        nc: vec_nc, 
+                        a: vec_a * scale_factor - Vector4::<f32>::new(translation[0], translation[1],translation[2], 0.0),
+                        b: vec_b * scale_factor - Vector4::<f32>::new(translation[0], translation[1],translation[2], 0.0),
+                        c: vec_c * scale_factor - Vector4::<f32>::new(translation[0], translation[1],translation[2], 0.0),
+                        na: vec_na,
+                        nb: vec_nb,
+                        nc: vec_nc,
                     };
 
-                    // println!("{:?}", tr);
+                    println!("{:?}", tr);
 
                     result_vvvvnnnn.push(tr);
                 }
@@ -86,6 +86,7 @@ pub fn load_triangles_from_obj(file_name: &'static str) -> Option<(Vec<Triangle>
                 }
                 Primitive::Line(_, _) => { panic!("load_triangles_from_obj not supporting lines."); }
                 Primitive::Point(_) => { panic!("load_triangles_from_obj not supporting points."); }
+                _ => { panic!("Oh no..... Unsupported Primitive!"); }
             }
         }
     }

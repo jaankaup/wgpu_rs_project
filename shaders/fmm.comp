@@ -1612,8 +1612,8 @@ void main() {
 
   // Reset the counters. TODO: remove when debugging is no longer needed.
   if (local_id_to_x() == 0) {
-    counter[0] = 0;
-    counter[1] = 1024000;
+    counter[0] = atomic_counters[0];
+    counter[1] = atomic_counters[1];
   }
   barrier();
 
@@ -1622,7 +1622,7 @@ void main() {
                            vec4(fmm_attributes.global_dimensions.x * 4 * 0.5,
                                 fmm_attributes.global_dimensions.y * 4 * 0.5,
                                 fmm_attributes.global_dimensions.z * 4 * 0.5,
-                                1.0) + vec4(0.15, 0.15, -0.15, 0.0));
+                                1.0) + vec4(-0.15, -0.15, -0.15, 0.0));
     create_aabb_triangles_r(scene_aabb,
                       150,
                       100,
@@ -1696,8 +1696,8 @@ void main() {
         // initialize_char_array(vec3(0.25 * this_coord.x, 0.25 * this_coord.y, 0.25 * this_coord.z));
         initialize_char_array(vec3(0.5 * this_coord.x, 0.5 * this_coord.y, 0.5 * this_coord.z));
 
-        log_vec3(vec3(this_coord), 1);
-        add_end_of_line();
+        // log_vec3(vec3(this_coord), 1);
+        // add_end_of_line();
         //log_number(123, false);
         // log_number(position_index, false);
         log_float(float(joopajoo.index), 1);

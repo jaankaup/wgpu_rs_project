@@ -1,7 +1,6 @@
 struct VertexOutput {
     [[builtin(position)]] my_pos: vec4<f32>;
-    [[location(0), interpolate(flat)]] pos: vec3<f32>;
-    //[[location(1)]] col: u32;
+    [[location(0)]] pos: vec3<f32>;
     [[location(1), interpolate(flat)]] col: u32;
 };
 
