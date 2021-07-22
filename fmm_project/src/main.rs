@@ -34,7 +34,7 @@ use bytemuck::{Pod, Zeroable};
 //triangle points.
 static DEBUG_BUFFER_SIZE: u32   = 1024000; //4194300; // 1048575; //33554416;
 static DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
-static BLOCK_DIMENSIONS: [u32; 3] = [3, 3, 3];
+static BLOCK_DIMENSIONS: [u32; 3] = [8, 8, 8];
 //8388607
 
 // Redefine needed features for this application.
@@ -673,7 +673,7 @@ fn create_buffers(device: &wgpu::Device,
         );
 
         let (mc_triangle_data, mc_vvvvnnnn, aabb): (Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox) =
-            load_triangles_from_obj("assets/models/wood.obj", 2.2, [0.0, 0.0, 0.0]).unwrap();
+            load_triangles_from_obj("assets/models/wood.obj", 1.0, [0.0, 0.0, 0.0]).unwrap();
 
         println!("WOOD vertex count = {}", mc_vvvvnnnn.len());
         println!("WOOD vertex count (vvvv) = {}", mc_triangle_data.len());

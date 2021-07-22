@@ -96,7 +96,7 @@ layout(local_size_x = LOCAL_X_DIM, local_size_y = LOCAL_Y_DIM, local_size_z = LO
 
 const float FONT_SIZE = 0.02;
 const float FONT_OFFSET_Y = 1.2;
-const uint MAX_NUM_OF_POINTS = 700;
+const uint MAX_NUM_OF_POINTS = 150;
 
 //// Super clever hack to avoid if :).
 const uint blah[2] = {0, 0xffffffff};
@@ -1228,85 +1228,105 @@ float calc_v(float u, float phi_u, float phi_v, float r) {
 void add_triangles() {
 
   const uint triangle_count = custom_data.x * 3;
-  const uint number_of_triangle_blocks = (custom_data.x - 1) / THREAD_COUNT + 1;
+  const uint number_of_triangle_blocks = (triangle_count - 1) / THREAD_COUNT + 1;
 
-  //++ if (gl_LocalInvocationIndex == 0) {
+  // const uint number_of_triangle_blocks = (custom_data.x - 1) / THREAD_COUNT + 1;
 
-  //++   vec3 joopajoo_coord = vec3(-0.5, -0.5, 0.5);
+  if (gl_LocalInvocationIndex == 0) {
 
-  //++   initialize_char_array(joopajoo_coord);
+    vec3 joopajoo_coord = vec3(-0.5, -0.5, 0.5);
 
-  //++   log_number(triangle_count , false);
-  //++   add_end_of_line();
+    initialize_char_array(joopajoo_coord);
 
-  //++   log_number(number_of_triangle_blocks, false);
-  //++   add_end_of_line();
+    log_uvec3(fmm_attributes.global_dimensions);
+    add_end_of_line();
 
-  //++   log_number(custom_data.x, false);
-  //++   add_end_of_line();
+   // log_float(fmm_attributes.global_dimensions.y, 7);
+   // add_end_of_line();
 
-  //++   AABB aabb = create_char_sequency_points(255, 125, 125);
-  //++   AABB traslated = AABB(vec4(joopajoo_coord, 1.0), vec4(joopajoo_coord + joopajoo_coord, 1.0));
-  //++   create_output_points(aabb, 255, 255, 255);
-  //++ }
-  //++ barrier();
+   // log_number(custom_data.x, false);
+   // add_end_of_line();
+
+    AABB aabb = create_char_sequency_points(255, 125, 125);
+    AABB traslated = AABB(vec4(joopajoo_coord, 1.0), vec4(joopajoo_coord + joopajoo_coord, 1.0));
+    create_output_points(aabb, 255, 255, 255);
+  }
+  // barrier();
 
   // Iterate over all triangles.
   for (int i=0 ; i<number_of_triangle_blocks ; i++ ) {
     barrier();
 
     // Load triangles to shared memory.
-    uint thread_id = i * 2 * THREAD_COUNT + gl_LocalInvocationIndex;
-    bool will_continue = thread_id + 2*THREAD_COUNT < triangle_count;
+    // uint thread_id = i * 2 * THREAD_COUNT + gl_LocalInvocationIndex;
+    uint thread_id = i * 3 * THREAD_COUNT + gl_LocalInvocationIndex;
+    // bool will_continue = thread_id + 2 * THREAD_COUNT < triangle_count;
 
-        if (will_continue) {
+    // Load triangle vertices to shared memory.
 
-            // Load triangle vertices to shared memory.
+    const Vertex_vvvvnnnn vert_a = triangle_data[thread_id];
+    temp_vertices[gl_LocalInvocationIndex] = thread_id < triangle_count ?  vert_a : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
 
-            const Vertex_vvvvnnnn vert_a = triangle_data[thread_id];
-            const Vertex_vvvvnnnn vert_b = triangle_data[thread_id + THREAD_COUNT];
-            const Vertex_vvvvnnnn vert_c = triangle_data[thread_id + THREAD_COUNT * 2];
+    const Vertex_vvvvnnnn vert_b = triangle_data[thread_id + THREAD_COUNT];
+    temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT] = thread_id < triangle_count ? vert_b : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
+    // temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT] = vert_b;
 
-            temp_vertices[gl_LocalInvocationIndex] = vert_a;
-            temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT] = vert_b;
-            temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT * 2] = vert_c;
+    const Vertex_vvvvnnnn vert_c = triangle_data[thread_id + THREAD_COUNT * 2];
+    temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT * 2] = thread_id < triangle_count ? vert_c : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
 
-            // initialize_char_array(vert_a.pos.xyz);
+    barrier();
 
-            // log_vec3(vert_a.pos.xyz, 1);
-            // add_end_of_line();
+    // Create aabbs and load the to shared memory.
 
-            // AABB aabb = create_char_sequency_points(255, 125, 125);
-            // AABB traslated = AABB(vec4(vert_a.pos.xyz, 1.0), vec4(vert_a.pos.xyz + vert_a.pos.xyz, 1.0));
-            // create_output_points(aabb, 255, 255, 255);
-        }
+    uint thread_id2 = gl_LocalInvocationIndex * 3 + i * THREAD_COUNT * 3;
 
-        uint thread_id2 = gl_LocalInvocationIndex * 3 + i * THREAD_COUNT * 3;
+    if (thread_id2 < triangle_count-2) {
 
-        if (will_continue && (thread_id2 < triangle_count-2)) {
+        // Load triangle.
+        const Vertex_vvvvnnnn vert_a = temp_vertices[3*gl_LocalInvocationIndex];
+        const Vertex_vvvvnnnn vert_b = temp_vertices[3*gl_LocalInvocationIndex+1];
+        const Vertex_vvvvnnnn vert_c = temp_vertices[3*gl_LocalInvocationIndex+2]; 
+        
+        // Calculate aabb.
 
-            // Load triangle.
-            const Vertex_vvvvnnnn vert_a = temp_vertices[gl_LocalInvocationIndex];
-            const Vertex_vvvvnnnn vert_b = temp_vertices[gl_LocalInvocationIndex+1];
-            const Vertex_vvvvnnnn vert_c = temp_vertices[gl_LocalInvocationIndex+2]; 
-            
-            // Calculate aabb.
+        const float aabb_min_x = min(vert_c.pos.x, min(vert_a.pos.x, vert_b.pos.x));
+        const float aabb_min_y = min(vert_c.pos.y, min(vert_a.pos.y, vert_b.pos.y));
+        const float aabb_min_z = min(vert_c.pos.z, min(vert_a.pos.z, vert_b.pos.z));
 
-            const float aabb_min_x = min(vert_c.pos.x, min(vert_a.pos.x, vert_b.pos.x)); 
-            const float aabb_min_y = min(vert_c.pos.y, min(vert_a.pos.y, vert_b.pos.y)); 
-            const float aabb_min_z = min(vert_c.pos.z, min(vert_a.pos.z, vert_b.pos.z)); 
+        const float aabb_max_x = max(vert_c.pos.x, max(vert_a.pos.x, vert_b.pos.x));
+        const float aabb_max_y = max(vert_c.pos.y, max(vert_a.pos.y, vert_b.pos.y));
+        const float aabb_max_z = max(vert_c.pos.z, max(vert_a.pos.z, vert_b.pos.z));
 
-            const float aabb_max_x = max(vert_c.pos.x, max(vert_a.pos.x, vert_b.pos.x)); 
-            const float aabb_max_y = max(vert_c.pos.y, max(vert_a.pos.y, vert_b.pos.y)); 
-            const float aabb_max_z = max(vert_c.pos.z, max(vert_a.pos.z, vert_b.pos.z)); 
+        // Add aabb to shared memory.
+        AABB aabb = AABB(vec4(aabb_min_x, aabb_min_y, aabb_min_z, 1.0), vec4(aabb_max_x, aabb_max_y, aabb_max_z, 1.0));
+        temp_aabbs[gl_LocalInvocationIndex] = aabb;
+        // create_aabb_triangles_r(aabb, 255, 255, 255, 0.01);
+    }
+    barrier();
 
-            // Add aabb to shared memory.
-            AABB aabb = AABB(vec4(aabb_min_x, aabb_min_y, aabb_min_z, 1.0), vec4(aabb_max_x, aabb_max_y, aabb_max_z, 1.0));
-            //AABB aabb = AABB(vec4(-3.0, 0.0, 1.0, 1.0), vec4(2.0, 1.5, 0.5, 1.0));
-            //++temp_aabbs[gl_LocalInvocationIndex] = aabb;
-            create_aabb_triangles_r(aabb, 255, 255, 255, 0.01);
-        }
-        barrier();
+    if (thread_id >= triangle_count) { continue; }
+
+    const AABB temp_aabb = temp_aabbs[gl_LocalInvocationIndex];
+
+    const int min_x_expanded = int(min(float(fmm_attributes.global_dimensions.x-1), max(0.0, floor(temp_aabb.min.x))));
+    const int min_y_expanded = int(min(float(fmm_attributes.global_dimensions.y-1), max(0.0, floor(temp_aabb.min.y))));
+    const int min_z_expanded = int(min(float(fmm_attributes.global_dimensions.z-1), max(0.0, floor(temp_aabb.min.z))));
+
+    const int max_x_expanded = int(min(float(fmm_attributes.global_dimensions.x-1), max(0.0, ceil(temp_aabb.max.x))));
+    const int max_y_expanded = int(min(float(fmm_attributes.global_dimensions.y-1), max(0.0, ceil(temp_aabb.max.y))));
+    const int max_z_expanded = int(min(float(fmm_attributes.global_dimensions.z-1), max(0.0, ceil(temp_aabb.max.z))));
+
+    // Triangle is atleast partly inside computation domain.
+    if (!(max_x_expanded == 0 || min_x_expanded >= fmm_attributes.global_dimensions.x ||
+        max_y_expanded == 0 || min_y_expanded >= fmm_attributes.global_dimensions.y ||
+        max_z_expanded == 0 || min_z_expanded >= fmm_attributes.global_dimensions.z)) { 
+
+        // Add aabb to shared memory.
+        AABB aabb = AABB(vec4(min_x_expanded, min_y_expanded, min_z_expanded, 1.0), vec4(max_x_expanded, max_y_expanded, max_z_expanded, 1.0));
+        //++create_aabb_triangles_r(aabb, 255, 255, 255, 0.01);
+        //++AABB aabb = AABB(vec4(min_x_expanded, min_y_expanded, min_z_expanded, 1.0), temp_aabb.max);
+        create_aabb_triangles_r(aabb, 255, 255, 255, 0.01);
+    }
 
   } // iterate over all triangles.
   // barrier();
