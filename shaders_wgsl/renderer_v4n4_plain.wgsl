@@ -47,7 +47,7 @@ fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
         specular_coeffient = pow(cosAngle, material_shininess);
     }
     
-    var surface_color: vec3<f32> = vec3<f32>(0.5,0.3,1.0);
+    var surface_color: vec3<f32> = vec3<f32>(0.8,0.7,1.0);
 
     var specular_component: vec3<f32> = specular_coeffient * material_spec_color * light_color;
     var ambient_component:  vec3<f32> = ambient_coeffience * light_color * surface_color.xyz;

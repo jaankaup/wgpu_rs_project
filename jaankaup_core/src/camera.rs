@@ -232,7 +232,7 @@ impl Camera {
         let proj = cgmath::perspective(cgmath::Rad(std::f32::consts::PI/2.0), self.aspect, self.znear, self.zfar);
 
         // Convert "opengl" matrix to wgpu matris.
-        OPENGL_TO_WGPU_MATRIX * (proj * view)
+        OPENGL_TO_WGPU_MATRIX * proj * view
     }
 
     /// Build view projection matrix.

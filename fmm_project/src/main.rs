@@ -110,6 +110,11 @@ struct FMM_App {
     current_block: [f32;3], 
     fmm_attributes: FMM_Attributes,
     current_global_dimensions: [f32;3], 
+    triangle_count: u32,
+    update_data_generator: u32,
+    triangle_data: Vec<Triangle_vvvvnnnn>,
+    triangle_index: f32,
+    show_whole_mesh: u32,
 }
 
 impl FMM_App {
@@ -142,6 +147,7 @@ impl Application for FMM_App {
                                              current_block: [0,0,0],
                                              vec_to_offset_table_size: vec_to_offset_table.len() as u32,
         };
+        let update_data_generator = 0;
 
         buffers.insert(
             "index_hash_table".to_string(),
@@ -169,6 +175,26 @@ impl Application for FMM_App {
             &configuration.device,
             &[fmm_attributes],
             wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            None)
+        );
+
+        let (_, triangle_data, aabb): (Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox) =
+            load_triangles_from_obj("assets/models/wood.obj", 3.0, [5.0, -5.0, 18.0], None).unwrap();
+            //load_triangles_from_obj("assets/models/wood.obj", 1.0, [5.0, -5.0, 18.0], Some(1)).unwrap();
+
+        let triangle_count: u32 = triangle_data.len() as u32;
+
+        println!("WOOD vertex count (vvvv) = {}", triangle_data.len());
+        println!("WOOD aabb = {:?}", aabb);
+
+        let triangle_index: f32 = 0.0;
+        let show_whole_mesh = 0;
+        buffers.insert(
+            "wood".to_string(),
+            buffer_from_data::<Triangle_vvvvnnnn>(
+            &configuration.device,
+            &triangle_data,
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             None)
         );
 
@@ -222,7 +248,7 @@ impl Application for FMM_App {
 
         // Initialize camera for fmm application.
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
-        camera.set_movement_sensitivity(0.002);
+        camera.set_movement_sensitivity(0.01);
         camera.set_rotation_sensitivity(0.2);
 
 
@@ -375,6 +401,11 @@ impl Application for FMM_App {
             current_block,
             fmm_attributes,
             current_global_dimensions,
+            triangle_count,
+            update_data_generator,
+            triangle_data,
+            triangle_index,
+            show_whole_mesh,
         }
     }
 
@@ -398,19 +429,20 @@ impl Application for FMM_App {
                  label: Some("Render Encoder"),
          });
          let mut clear = true;
-         if self.show_mesh {
-            draw(&mut encoder,
-                 &frame,
-                 &self.depth_texture,
-                 &self.render_vvvvnnnn_bind_groups,
-                 &self.render_vvvvnnnn_pipeline.get_pipeline(),
-                 &self.buffers.get("wood").unwrap(),
-                 //0..300,
-                 0..2036*3,
-                 clear
-            );
-            clear = false;
-         }
+
+         draw(&mut encoder,
+              &frame,
+              &self.depth_texture,
+              &self.render_vvvvnnnn_bind_groups,
+              &self.render_vvvvnnnn_pipeline.get_pipeline(),
+              &self.buffers.get("wood").unwrap(),
+              //0..300,
+              //0..2036*3,
+              0..self.triangle_count * 3,
+              clear
+         );
+         clear = false;
+         
          if self.debug_point_count > 0 {
             draw(&mut encoder,
                  &frame,
@@ -457,7 +489,25 @@ impl Application for FMM_App {
 
         // Get the keyboard state (camera movement).
         let space_pressed = input.key_state(&Key::Space);
-        if !space_pressed.is_none() {self.show_mesh = !self.show_mesh; }
+        if !space_pressed.is_none() {
+            self.show_mesh = !self.show_mesh;
+            if !self.show_mesh {
+                queue.write_buffer(
+                    &self.buffers.get("wood").unwrap(),
+                    0,
+                    bytemuck::cast_slice(&self.triangle_data)
+                );
+                self.triangle_count = self.triangle_data.len() as u32;
+            }
+            else {
+                queue.write_buffer(
+                    &self.buffers.get("wood").unwrap(),
+                    0,
+                    bytemuck::cast_slice(&[self.triangle_data[self.triangle_index as usize]])
+                );
+                self.triangle_count = 1;
+            }
+        }
 
         let time_offset = input.get_time_delta() as f32 / 150000000.0;
 
@@ -554,8 +604,39 @@ impl Application for FMM_App {
                 );
         }
 
+        let enter_pressed = input.key_state(&Key::Return);
+        if !enter_pressed.is_none() {self.update_data_generator = (self.update_data_generator + 1) % 10; }
+
+        let add_pressed = input.key_state(&Key::Comma);
+        let minus_pressed = input.key_state(&Key::Period);
+        if !add_pressed.is_none() {
+            let value: f32 = self.triangle_index+time_offset;
+            if value < self.triangle_data.len() as f32 { 
+                self.triangle_index = value;
+                println!("{:?}", self.triangle_index);
+                queue.write_buffer(
+                    &self.buffers.get("wood").unwrap(),
+                    0,
+                    bytemuck::cast_slice(&[self.triangle_data[self.triangle_index as usize]])
+                );
+            }
+        }
+        if !minus_pressed.is_none() {
+            let value: f32 = self.triangle_index-time_offset;
+            if value > 0.0 { 
+                self.triangle_index = value;
+                println!("{:?}", self.triangle_index);
+                queue.write_buffer(
+                    &self.buffers.get("wood").unwrap(),
+                    0,
+                    bytemuck::cast_slice(&[self.triangle_data[self.triangle_index as usize]])
+                );
+            }
+        }
+
+
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("FMM update encoder.") });
-        
+
         self.fmm_debug_pipeline.dispatch(&self.fmm_debug_bind_groups,
                     &mut encoder,
                     1,
@@ -563,12 +644,15 @@ impl Application for FMM_App {
                     1
         ); 
 
-        self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
-                    &mut encoder,
-                    1,
-                    1,
-                    1
-        ); 
+        if self.update_data_generator < 5 && self.show_mesh {
+            self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
+                        &mut encoder,
+                        1,
+                        1,
+                        1
+            ); 
+        }
+        
 
         queue.submit(Some(encoder.finish()));
 
@@ -672,27 +756,12 @@ fn create_buffers(device: &wgpu::Device,
             None)
         );
 
-        let (mc_triangle_data, mc_vvvvnnnn, aabb): (Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox) =
-            load_triangles_from_obj("assets/models/wood.obj", 1.0, [0.0, 0.0, 0.0]).unwrap();
-
-        println!("WOOD vertex count = {}", mc_vvvvnnnn.len());
-        println!("WOOD vertex count (vvvv) = {}", mc_triangle_data.len());
-        println!("WOOD aabb = {:?}", aabb);
-
-        buffers.insert(
-            "wood".to_string(),
-            buffer_from_data::<Triangle_vvvvnnnn>(
-            &device,
-            &mc_vvvvnnnn,
-            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
-            None)
-        );
-
         buffers.insert(
             "fmm_data_gen_params".to_string(),
             buffer_from_data::<[u32; 4]>(
             &device,
-            &[[2036, 0, 0, 0]],
+            &[[1, 0, 0, 0]],
+            //&[[2036, 0, 0, 0]],
             wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             None)
         );

@@ -1619,15 +1619,15 @@ void main() {
 
   if (local_id_to_x() == 0) {
     AABB scene_aabb = AABB(vec4(-0.15, -0.15, 0.15, 1.0),
-                           vec4(fmm_attributes.global_dimensions.x,
-                                fmm_attributes.global_dimensions.y,
-                                fmm_attributes.global_dimensions.z,
+                           vec4(fmm_attributes.global_dimensions.x * 4,
+                                fmm_attributes.global_dimensions.y * 4,
+                                fmm_attributes.global_dimensions.z * 4,
                                 1.0) + vec4(0.15, 0.15, -0.15, 0.0));
     create_aabb_triangles_r(scene_aabb,
                       150,
                       100,
                       100,
-                      0.05
+                      0.15
     );
   }
   barrier();
@@ -1697,9 +1697,12 @@ void main() {
 
         const float vector_pos_factor = 1.0;
         initialize_char_array(
-            vec3(vector_pos_factor * this_coord.x * 0.25,
-                 vector_pos_factor * this_coord.y * 0.25,
-                 vector_pos_factor * this_coord.z * 0.25));
+            vec3(vector_pos_factor * this_coord.x,
+                 vector_pos_factor * this_coord.y,
+                 vector_pos_factor * this_coord.z));
+            // vec3(vector_pos_factor * this_coord.x * 0.25,
+            //      vector_pos_factor * this_coord.y * 0.25,
+            //      vector_pos_factor * this_coord.z * 0.25));
 
         // log_vec3(vec3(this_coord), 1);
         // add_end_of_line();

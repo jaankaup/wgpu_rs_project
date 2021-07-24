@@ -5,7 +5,10 @@ use wavefront_obj::obj::*;
 use cgmath::{Vector3, Vector4};
 use geometry::aabb::{BBox, Triangle, Triangle_vvvvnnnn};
 
-pub fn load_triangles_from_obj(file_name: &'static str, scale_factor: f32, translation: [f32;3]) -> Option<(Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox)> {
+pub fn load_triangles_from_obj(file_name: &'static str,
+                               scale_factor: f32,
+                               translation: [f32;3],
+                               take: Option<u32>) -> Option<(Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox)> {
 
     let file_content = {
       let mut file = File::open(file_name).map_err(|e| format!("cannot open file: {}", e)).unwrap();
@@ -34,12 +37,16 @@ pub fn load_triangles_from_obj(file_name: &'static str, scale_factor: f32, trans
                     let normal_b = objects[0].normals[nb];
                     let normal_c = objects[0].normals[nc];
 
-                    let mut vec_a = Vector4::<f32>::new(vertex_a.x as f32, vertex_a.y as f32, vertex_a.z as f32, 0.0); 
-                    let mut vec_b = Vector4::<f32>::new(vertex_b.x as f32, vertex_b.y as f32, vertex_b.z as f32, 0.0); 
-                    let mut vec_c = Vector4::<f32>::new(vertex_c.x as f32, vertex_c.y as f32, vertex_c.z as f32, 0.0); 
+                    let mut vec_a = scale_factor * Vector4::<f32>::new(vertex_a.x as f32, vertex_a.y as f32, vertex_a.z as f32, 0.0); 
+                    let mut vec_b = scale_factor * Vector4::<f32>::new(vertex_b.x as f32, vertex_b.y as f32, vertex_b.z as f32, 0.0); 
+                    let mut vec_c = scale_factor * Vector4::<f32>::new(vertex_c.x as f32, vertex_c.y as f32, vertex_c.z as f32, 0.0); 
                     vec_a.w = 1.0;
                     vec_b.w = 1.0;
                     vec_c.w = 1.0;
+
+                    vec_a = vec_a + Vector4::<f32>::new(translation[0], translation[1],translation[2], 0.0);
+                    vec_b = vec_b + Vector4::<f32>::new(translation[0], translation[1],translation[2], 0.0);
+                    vec_c = vec_c + Vector4::<f32>::new(translation[0], translation[1],translation[2], 0.0);
 
                     let vec_na = Vector4::<f32>::new(normal_a.x as f32, normal_a.y as f32, normal_a.z as f32, 0.0); 
                     let vec_nb = Vector4::<f32>::new(normal_b.x as f32, normal_b.y as f32, normal_b.z as f32, 0.0); 
@@ -50,9 +57,9 @@ pub fn load_triangles_from_obj(file_name: &'static str, scale_factor: f32, trans
                     aabb.expand(&Vector3::<f32>::new(vec_c.x, vec_c.y, vec_c.z));
 
                     let tr = Triangle_vvvvnnnn {
-                        a: vec_a * scale_factor - Vector4::<f32>::new(translation[0], translation[1],translation[2], 0.0),
-                        b: vec_b * scale_factor - Vector4::<f32>::new(translation[0], translation[1],translation[2], 0.0),
-                        c: vec_c * scale_factor - Vector4::<f32>::new(translation[0], translation[1],translation[2], 0.0),
+                        a: vec_a,
+                        b: vec_b,
+                        c: vec_c,
                         na: vec_na,
                         nb: vec_nb,
                         nc: vec_nc,
@@ -90,5 +97,10 @@ pub fn load_triangles_from_obj(file_name: &'static str, scale_factor: f32, trans
             }
         }
     }
-    Some((result, result_vvvvnnnn, aabb))
+    match take {
+        // TODO: check bounds!
+        Some(amount) => Some((result, (&result_vvvvnnnn[0..amount as usize]).to_vec(), aabb)), 
+        None => Some((result, result_vvvvnnnn, aabb)) 
+    }
+    // Some((result, result_vvvvnnnn, aabb))
 }

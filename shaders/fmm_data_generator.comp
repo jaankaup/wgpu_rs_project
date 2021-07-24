@@ -40,8 +40,27 @@ struct AABB {
     vec4 max; 
 };
 
+struct Triangle {
+    AABB aabb;
+    Vertex_vvvvnnnn x;
+    Vertex_vvvvnnnn y;
+    Vertex_vvvvnnnn z;
+};
+
+struct FMM_Temp_Node {
+    int index;
+    FMM_Node node;
+};
+
 shared Vertex_vvvvnnnn temp_vertices[THREAD_COUNT * 3]; 
 shared AABB temp_aabbs[THREAD_COUNT]; 
+shared Triangle temp_triangles[THREAD_COUNT]; 
+shared uint triangle_counter;
+shared FMM_Node[160] shared_memory_nodes;
+
+// Load from application.
+shared ivec4[160] shared_offset_table;
+shared uint[216] shared_vec_to_offset;
 
 layout(set=0, binding=0) uniform camerauniform {
     mat4 u_view_proj;
@@ -358,6 +377,31 @@ const vec4 bez_table[164] = {
     0.2 * (vec4(1.8, 0.0, 0.0, 0.0) + vec4(0.75, 0.45, 0.0, 0.0)),  // 162
     0.2 * (vec4(1.8, 0.0, 0.0, 0.0) + vec4(0.75, 0.5, 0.0, 0.0))    // 163
 };
+
+float dot2( in vec2 v ) { return dot(v,v); }
+float dot2( in vec3 v ) { return dot(v,v); }
+float ndot( in vec2 a, in vec2 b ) { return a.x*b.x - a.y*b.y; }
+
+// Triangle - exact
+float udTriangle( vec3 p, vec3 a, vec3 b, vec3 c )
+{
+  vec3 ba = b - a; vec3 pa = p - a;
+  vec3 cb = c - b; vec3 pb = p - b;
+  vec3 ac = a - c; vec3 pc = p - c;
+  vec3 nor = cross( ba, ac );
+
+  return sqrt(
+    (sign(dot(cross(ba,nor),pa)) +
+     sign(dot(cross(cb,nor),pb)) +
+     sign(dot(cross(ac,nor),pc))<2.0)
+     ?
+     min( min(
+     dot2(ba*clamp(dot(ba,pa)/dot2(ba),0.0,1.0)-pa),
+     dot2(cb*clamp(dot(cb,pb)/dot2(cb),0.0,1.0)-pb) ),
+     dot2(ac*clamp(dot(ac,pc)/dot2(ac),0.0,1.0)-pc) )
+     :
+     dot(nor,pa)*dot(nor,pa)/dot2(nor) );
+}
 
 // Encode vector to "rgba" uint.
 uint encode_rgba_u32(uint r, uint g, uint b, uint a) {
@@ -1225,13 +1269,29 @@ float calc_v(float u, float phi_u, float phi_v, float r) {
 //++   //}
 //++}
 
-void add_triangles() {
+// Load FMM_Block data to shared memory.
+void load_offset_data(uint base_index) {
 
-  const uint triangle_count = custom_data.x * 3;
+    const uint number_of_blocks = (fmm_attributes.offset_hash_table_size - 1) / 64 + 1;
+
+    for (int x=0 ; x < number_of_blocks ; x++) {
+        const uint thread_id = x * 64 + gl_LocalInvocationIndex;
+        if (thread_id < fmm_attributes.offset_hash_table_size) {
+            shared_memory_nodes[thread_id] = fmm_cells[offset_hash_table[thread_id].w + int(base_index)];
+        }
+    }
+}
+
+void apply_triangle_mesh() {
+
+  // Total number of triangles.
+  const uint triangle_count = custom_data.x;
+  const uint vertex_count = custom_data.x*3;
+
+  // The number of triangle blocks divided among the all threads.
   const uint number_of_triangle_blocks = (triangle_count - 1) / THREAD_COUNT + 1;
 
-  // const uint number_of_triangle_blocks = (custom_data.x - 1) / THREAD_COUNT + 1;
-
+  // If we want to debug some single information, it goes here.
   if (gl_LocalInvocationIndex == 0) {
 
     vec3 joopajoo_coord = vec3(-0.5, -0.5, 0.5);
@@ -1251,122 +1311,276 @@ void add_triangles() {
     AABB traslated = AABB(vec4(joopajoo_coord, 1.0), vec4(joopajoo_coord + joopajoo_coord, 1.0));
     create_output_points(aabb, 255, 255, 255);
   }
-  // barrier();
+  
+  // PLAN.
+  // 1. Load triangle data in blocks to the shared memory.
+  // 2. Calculate expanded aabbs. Expanded mean that the aabb is extended to
+  //    the nearest fmm grids.
+  // 3. For each triangle, compute the distance values.
+  // 4. Go back to 1. if there are still unprocessed data.
 
-  // Iterate over all triangles.
-  for (int i=0 ; i<number_of_triangle_blocks ; i++ ) {
-    barrier();
+  // The number of unprocessed triangles.
+  uint items_available = triangle_count;
 
-    // Load triangles to shared memory.
-    // uint thread_id = i * 2 * THREAD_COUNT + gl_LocalInvocationIndex;
+  for (int i=0 ; i<number_of_triangle_blocks ; i++) {
+
     uint thread_id = i * 3 * THREAD_COUNT + gl_LocalInvocationIndex;
-    // bool will_continue = thread_id + 2 * THREAD_COUNT < triangle_count;
+    
+    //    0         64        128       192      256       320       384       ....  (triangle_data 'Global') 
+    //    +---------+---------+---------+---------+---------+---------+---------+---------+
+    //    |         |         |         |         |         |         |         |         |
+    //    +---------+---------+---------+---------+---------+---------+---------+---------+
+    //        ^         ^         ^           ^         ^         ^                             
+    //        |         |         |           |         |         |                              
+    //        a0        b0        c0          a1        b2        c1                             
+    //
 
     // Load triangle vertices to shared memory.
-
     const Vertex_vvvvnnnn vert_a = triangle_data[thread_id];
-    temp_vertices[gl_LocalInvocationIndex] = thread_id < triangle_count ?  vert_a : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
+    temp_vertices[gl_LocalInvocationIndex] = thread_id < vertex_count ? vert_a : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
 
     const Vertex_vvvvnnnn vert_b = triangle_data[thread_id + THREAD_COUNT];
-    temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT] = thread_id < triangle_count ? vert_b : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
-    // temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT] = vert_b;
+    temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT] = thread_id < vertex_count ? vert_b : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
 
     const Vertex_vvvvnnnn vert_c = triangle_data[thread_id + THREAD_COUNT * 2];
-    temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT * 2] = thread_id < triangle_count ? vert_c : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
+    temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT * 2] = thread_id < vertex_count ? vert_c : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
 
     barrier();
 
-    // Create aabbs and load the to shared memory.
+    //    0         64        128      192  (temp_vertices 'shared')                                        
+    //    +---------+---------+---------+                                                  
+    //    |         |         |         |                                                  
+    //    +---------+---------+---------+                                                  
+    //        ^^^                                                                               
+    //        |||                                                                                
+    //        xyz                                                                                
 
     uint thread_id2 = gl_LocalInvocationIndex * 3 + i * THREAD_COUNT * 3;
 
-    if (thread_id2 < triangle_count-2) {
+    // Load triangle.
+    const Vertex_vvvvnnnn vert_x = temp_vertices[3*gl_LocalInvocationIndex];
+    const Vertex_vvvvnnnn vert_y = temp_vertices[3*gl_LocalInvocationIndex+1];
+    const Vertex_vvvvnnnn vert_z = temp_vertices[3*gl_LocalInvocationIndex+2]; 
+    
+    // Calculate aabb.
 
-        // Load triangle.
-        const Vertex_vvvvnnnn vert_a = temp_vertices[3*gl_LocalInvocationIndex];
-        const Vertex_vvvvnnnn vert_b = temp_vertices[3*gl_LocalInvocationIndex+1];
-        const Vertex_vvvvnnnn vert_c = temp_vertices[3*gl_LocalInvocationIndex+2]; 
-        
-        // Calculate aabb.
+    const float aabb_min_x = min(vert_z.pos.x, min(vert_x.pos.x, vert_y.pos.x));
+    const float aabb_min_y = min(vert_z.pos.y, min(vert_x.pos.y, vert_y.pos.y));
+    const float aabb_min_z = min(vert_z.pos.z, min(vert_x.pos.z, vert_y.pos.z));
 
-        const float aabb_min_x = min(vert_c.pos.x, min(vert_a.pos.x, vert_b.pos.x));
-        const float aabb_min_y = min(vert_c.pos.y, min(vert_a.pos.y, vert_b.pos.y));
-        const float aabb_min_z = min(vert_c.pos.z, min(vert_a.pos.z, vert_b.pos.z));
+    //++vec3 this_coord = vec3(aabb_min_x, aabb_min_y, aabb_min_z);
+    //++initialize_char_array(this_coord);
+    //++log_vec3(this_coord, 1);
+    //++add_end_of_line();
+    //++uvec3 final_color = uvec3(255,255,100);
+    //++AABB aabb_joo = create_char_sequency_points(255, 125, 125);
+    //++AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+    //++create_output_points(aabb_joo, final_color.x, final_color.y, final_color.z);
 
-        const float aabb_max_x = max(vert_c.pos.x, max(vert_a.pos.x, vert_b.pos.x));
-        const float aabb_max_y = max(vert_c.pos.y, max(vert_a.pos.y, vert_b.pos.y));
-        const float aabb_max_z = max(vert_c.pos.z, max(vert_a.pos.z, vert_b.pos.z));
+    const float aabb_max_x = max(vert_z.pos.x, max(vert_x.pos.x, vert_y.pos.x));
+    const float aabb_max_y = max(vert_z.pos.y, max(vert_x.pos.y, vert_y.pos.y));
+    const float aabb_max_z = max(vert_z.pos.z, max(vert_x.pos.z, vert_y.pos.z));
 
-        // Add aabb to shared memory.
-        AABB aabb = AABB(vec4(aabb_min_x, aabb_min_y, aabb_min_z, 1.0), vec4(aabb_max_x, aabb_max_y, aabb_max_z, 1.0));
-        temp_aabbs[gl_LocalInvocationIndex] = aabb;
-        // create_aabb_triangles_r(aabb, 255, 255, 255, 0.01);
+    //++this_coord = vec3(aabb_max_x, aabb_max_y, aabb_max_z);
+    //++initialize_char_array(this_coord);
+    //++log_vec3(vec3(this_coord), 1);
+    //++add_end_of_line();
+    //++final_color = uvec3(255,255,100);
+    //++aabb_joo = create_char_sequency_points(255, 125, 125);
+    //++traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+    //++create_output_points(aabb_joo, final_color.x, final_color.y, final_color.z);
+
+    // Calculate extended aabb.
+    const int min_x_expanded = int(min(float(fmm_attributes.global_dimensions.x), max(0.0, floor(aabb_min_x*0.25))));
+    const int min_y_expanded = int(min(float(fmm_attributes.global_dimensions.y), max(0.0, floor(aabb_min_y*0.25))));
+    const int min_z_expanded = int(min(float(fmm_attributes.global_dimensions.z), max(0.0, floor(aabb_min_z*0.25))));
+
+    //++this_coord = vec3(min_x_expanded, min_y_expanded, min_z_expanded);
+    //++initialize_char_array(this_coord);
+    //++log_vec3(vec3(this_coord), 1);
+    //++add_end_of_line();
+    //++final_color = uvec3(255,255,100);
+    //++aabb_joo = create_char_sequency_points(255, 125, 125);
+    //++traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+    //++create_output_points(aabb_joo, final_color.x, final_color.y, final_color.z);
+
+    const int max_x_expanded = int(min(float(fmm_attributes.global_dimensions.x), max(0.0, ceil(aabb_max_x*0.25))));
+    const int max_y_expanded = int(min(float(fmm_attributes.global_dimensions.y), max(0.0, ceil(aabb_max_y*0.25))));
+    const int max_z_expanded = int(min(float(fmm_attributes.global_dimensions.z), max(0.0, ceil(aabb_max_z*0.25))));
+
+    //++this_coord = vec3(max_x_expanded, max_y_expanded, max_z_expanded);
+    //++initialize_char_array(this_coord);
+    //++log_vec3(vec3(this_coord), 1);
+    //++add_end_of_line();
+    //++final_color = uvec3(255,255,100);
+    //++aabb_joo = create_char_sequency_points(255, 125, 125);
+    //++traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+    //++create_output_points(aabb_joo, final_color.x, final_color.y, final_color.z);
+
+    // Determine the count of items in this iteration.
+    uint number_of_taken_items = min(THREAD_COUNT, items_available);
+
+    // Decrease the number of available items.
+    items_available -= number_of_taken_items;
+
+    // If there are still unprocessed triangles (not out of context).
+    if (gl_LocalInvocationIndex < number_of_taken_items) {
+
+        // Add found triangle to shared memory.
+        temp_triangles[gl_LocalInvocationIndex] =
+            Triangle(
+                //AABB(vec4(aabb_min_x, aabb_min_y, aabb_min_z, 1.0), vec4(aabb_max_x, aabb_max_y, aabb_max_z, 1.0)), 
+                AABB(vec4(min_x_expanded, min_y_expanded, min_z_expanded, 1.0), vec4(max_x_expanded, max_y_expanded, max_z_expanded, 1.0)), 
+                vert_a,
+                vert_b,
+                vert_c
+            );
+        //++create_aabb_triangles_r(AABB(vec4(aabb_min_x, aabb_min_y, aabb_min_z, 1.0), vec4(aabb_max_x, aabb_max_y, aabb_max_z, 1.0)), 255, 255, 255, 0.01);
+        //++create_aabb_triangles_r(AABB(vec4(min_x_expanded,
+        //++                                  min_y_expanded,
+        //++                                  min_z_expanded,
+        //++                                  1.0),
+        //++                             vec4(max_x_expanded,
+        //++                                  max_y_expanded,
+        //++                                  max_z_expanded,
+        //++                                  1.0)),
+        //++                        255, 255, 255, 0.01);
     }
+
+    // Make sure all triangle are stored.
     barrier();
 
-    if (thread_id >= triangle_count) { continue; }
+    // Iterate over all shared memory triangles. All fmm blocks that are inside
+    // aabb are processed. FMM block values are update if necessery.
+    for (int triangle_index=0 ; triangle_index < number_of_taken_items ; triangle_index++) {
+        barrier(); // necessery? Most likely yes.
 
-    const AABB temp_aabb = temp_aabbs[gl_LocalInvocationIndex];
+        Triangle temp_triangle = temp_triangles[triangle_index];
 
-    const int min_x_expanded = int(min(float(fmm_attributes.global_dimensions.x-1), max(0.0, floor(temp_aabb.min.x))));
-    const int min_y_expanded = int(min(float(fmm_attributes.global_dimensions.y-1), max(0.0, floor(temp_aabb.min.y))));
-    const int min_z_expanded = int(min(float(fmm_attributes.global_dimensions.z-1), max(0.0, floor(temp_aabb.min.z))));
+        uint dim_x_min = uint(temp_triangle.aabb.min.x);
+        uint dim_y_min = uint(temp_triangle.aabb.min.y);
+        uint dim_z_min = uint(temp_triangle.aabb.min.z);
+        uint dim_x_max = uint(temp_triangle.aabb.max.x);
+        uint dim_y_max = uint(temp_triangle.aabb.max.y);
+        uint dim_z_max = uint(temp_triangle.aabb.max.z);
 
-    const int max_x_expanded = int(min(float(fmm_attributes.global_dimensions.x-1), max(0.0, ceil(temp_aabb.max.x))));
-    const int max_y_expanded = int(min(float(fmm_attributes.global_dimensions.y-1), max(0.0, ceil(temp_aabb.max.y))));
-    const int max_z_expanded = int(min(float(fmm_attributes.global_dimensions.z-1), max(0.0, ceil(temp_aabb.max.z))));
+        // Triangle is atleast partly inside computation domain.
+        if (!(dim_x_max == 0 || dim_x_min >= fmm_attributes.global_dimensions.x ||
+              dim_y_max == 0 || dim_y_min >= fmm_attributes.global_dimensions.y ||
+              dim_z_max == 0 || dim_z_min >= fmm_attributes.global_dimensions.z)) { 
 
-    // Triangle is atleast partly inside computation domain.
-    if (!(max_x_expanded == 0 || min_x_expanded >= fmm_attributes.global_dimensions.x ||
-        max_y_expanded == 0 || min_y_expanded >= fmm_attributes.global_dimensions.y ||
-        max_z_expanded == 0 || min_z_expanded >= fmm_attributes.global_dimensions.z)) { 
+            // Process all sub fmm blocks for given triangle.
+            for (uint x = dim_x_min ; x < dim_x_max ; x++) { 
+            for (uint y = dim_y_min ; y < dim_y_max ; y++) { 
+            for (uint z = dim_z_min ; z < dim_z_max ; z++) { 
+                // barrier(); // Necessery?
 
-        // Add aabb to shared memory.
-        AABB aabb = AABB(vec4(min_x_expanded, min_y_expanded, min_z_expanded, 1.0), vec4(max_x_expanded, max_y_expanded, max_z_expanded, 1.0));
-        //++create_aabb_triangles_r(aabb, 255, 255, 255, 0.01);
-        //++AABB aabb = AABB(vec4(min_x_expanded, min_y_expanded, min_z_expanded, 1.0), temp_aabb.max);
-        create_aabb_triangles_r(aabb, 255, 255, 255, 0.01);
+                //uint global_index = gl_LocalInvocationIndex +
+                //                    x * 64 + y * 64 * fmm_attributes.global_dimensions.x +
+                //                    z * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
+
+                // Calculate the base index offset for the current FMM block.
+                const uint base_index = x * 64 +
+                                        y * 64 * fmm_attributes.global_dimensions.x +
+                                        z * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
+
+                const ivec3 position = shared_offset_table[gl_LocalInvocationIndex].xyz;
+                ivec3 this_coord = position + ivec3(x, y, z) * 4;
+                initialize_char_array(
+                    vec3(this_coord.x,
+                         this_coord.y,
+                         this_coord.z));
+                    //vec3(this_coord.x * 0.25,
+                    //     this_coord.y * 0.25,
+                    //     this_coord.z * 0.25));
+
+                // log_vec3(vec3(position.x, position.y, position.z), 1);
+                // add_end_of_line();
+                // log_number(gl_LocalInvocationIndex, false);
+                // add_end_of_line();
+                log_float(shared_offset_table[gl_LocalInvocationIndex].w + int(base_index), 1);
+                add_end_of_line();
+
+                uvec3 final_color = uvec3(
+                    x % 2 == 0 ?
+                        uint(float(y)/float(dim_y_max) * 255.0) :
+                        255 - uint(float(x)/float(dim_x_max) * 255.0),
+                    y % 2 == 0 ?
+                        255 - uint(float(y)/float(dim_y_max) * 255.0) :
+                        uint(float(y)/float(dim_y_max) * 255.0),
+                    z % 2 == 0 ?
+                        255 - uint(float(y)/float(dim_z_max) * 255.0) :
+                        uint(float(z)/float(dim_z_max) * 255.0)
+                );
+
+                AABB aabb = create_char_sequency_points(255, 125, 125);
+                AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+                create_output_points(aabb, final_color.x, final_color.y, final_color.z);
+
+                if (gl_LocalInvocationIndex == 0) {
+                    vec3 base_position = vec3(x, y, z) * 4;
+                    vec3 base_position2 = base_position + vec3(4.0, 4.0, 4.0);
+                    AABB base_aabb = AABB(
+                        vec4(base_position.x, base_position.y, base_position.z, 0.0) + vec4(-0.05, -0.05, -0.05, 1.0),
+                        vec4(base_position2.x, base_position2.y, base_position2.z, 0.0) + vec4(0.05, 0.05, 0.05, 1.0)
+                    );
+                    create_aabb_triangles_r(base_aabb, 0, 0, 255, 0.05);
+                    //create_aabb_triangles_r(base_aabb, final_color.x, final_color.y, final_color.z, 0.05);
+                }
+                    //create_aabb_triangles_r(AABB aabb, uint r, uint g, uint b, float t) {
+
+                // AABB aabb = AABB(vec4(x,
+                // create_output_points(aabb, 255, 255, 255);
+
+            //    const uint base_index = x * 64 +
+            //                            y * 64 * fmm_attributes.global_dimensions.x +
+            //                            z * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
+
+            }}} // fors
+        } // if
+
     }
+               
+  }
 
-  } // iterate over all triangles.
-  // barrier();
+}
 
-  // Calculate aabbs.
-  //++ for (int i=0 ; i<number_of_triangle_blocks ; i++ ) {
+void copy_offset_to_shared(uint thread_id) {
+    shared_offset_table[thread_id] = offset_hash_table[thread_id];
+}
 
-  //++   const uint thread_id = gl_LocalInvocationIndex*3 + i*3*THREAD_COUNT;
+void copy_vec_to_offset_to_shared(uint thread_id) {
+    shared_vec_to_offset[thread_id] = vec_to_offset_table[thread_id];
+}
 
-  //++   if (thread_id < triangle_count-2) {
+//void copy_fmm_data_to_shared(uint base_index) {
+//    
+//    shared_memory_nodes[thread_id] = FMM_Node(offset_hash_table[thread_id].w + int(base_index), FMM_Node(0.0, 1));
+//}
 
+// Loads offset hash table to shared memory.
+void load_offset_hash_table() {
 
-  //++       // Load triangle.
-  //++       const Vertex_vvvvnnnn vert_a = temp_vertices[thread_id];
-  //++       const Vertex_vvvvnnnn vert_b = temp_vertices[thread_id+1];
-  //++       const Vertex_vvvvnnnn vert_c = temp_vertices[thread_id+2]; 
-  //++       
-  //++       // Calculate aabb.
+  const uint number_of_offset_blocks = (fmm_attributes.offset_hash_table_size - 1) / 64 + 1;
 
-  //++       const float aabb_min_x = min(vert_c.pos.x, min(vert_a.pos.x, vert_b.pos.x)); 
-  //++       const float aabb_min_y = min(vert_c.pos.y, min(vert_a.pos.y, vert_b.pos.y)); 
-  //++       const float aabb_min_z = min(vert_c.pos.z, min(vert_a.pos.z, vert_b.pos.z)); 
+  for (int j=0 ; j < number_of_offset_blocks ; j++) {
+      const uint thread_id = j * 64 + gl_LocalInvocationIndex;
+      if (thread_id >= fmm_attributes.offset_hash_table_size) break;
+      copy_offset_to_shared(thread_id);
+  }
+}
 
-  //++       const float aabb_max_x = max(vert_c.pos.x, max(vert_a.pos.x, vert_b.pos.x)); 
-  //++       const float aabb_max_y = max(vert_c.pos.y, max(vert_a.pos.y, vert_b.pos.y)); 
-  //++       const float aabb_max_z = max(vert_c.pos.z, max(vert_a.pos.z, vert_b.pos.z)); 
+// Loads vec to offset hash table to shared memory.
+void load_vec_to_offset() {
 
-  //++       // Add aabb to shared memory.
-  //++       AABB aabb = AABB(vec4(aabb_min_x, aabb_min_y, aabb_min_z, 1.0), vec4(aabb_max_x, aabb_max_y, aabb_max_z, 1.0));
-  //++       //AABB aabb = AABB(vec4(-3.0, 0.0, 1.0, 1.0), vec4(2.0, 1.5, 0.5, 1.0));
-  //++       //++temp_aabbs[gl_LocalInvocationIndex] = aabb;
-  //++       create_aabb_triangles_r(aabb, 255, 255, 255, 0.01);
-  //++   }
-  //++   else {
-  //++       //AABB aabb = AABB(vec4(-3.0, 0.0, 1.0, 1.0), vec4(2.0, 1.5, 0.5, 1.0));
-  //++       ////temp_aabbs[thread_id] = aabb;
-  //++       //create_aabb_triangles_r(aabb, 255, 255, 255, 0.1);
-  //++       break;
-  //++   }
-  //++ }
+  const uint number_of_vec_to_offset_blocks = (fmm_attributes.vec_to_offset_table_size - 1) / 64 + 1;
+
+  for (int j=0 ; j < number_of_vec_to_offset_blocks ; j++) {
+
+      const uint thread_id = j * 64 + gl_LocalInvocationIndex;
+      if (thread_id >= fmm_attributes.vec_to_offset_table_size) break;
+      copy_vec_to_offset_to_shared(thread_id);
+  }
 }
 
 void main() {
@@ -1375,9 +1589,14 @@ void main() {
     counter[0] = atomic_counters[0];
     counter[1] = atomic_counters[1];
   }
+
+  // Load hash tables for fmm indexing.
+
+  load_offset_hash_table();
+  load_vec_to_offset();
   barrier();
 
-  add_triangles();
+  apply_triangle_mesh();
   barrier();
 
   if (local_id_to_x() == 0) {
