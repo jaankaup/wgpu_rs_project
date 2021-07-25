@@ -1156,119 +1156,6 @@ void push_chars(uint r, uint g, uint b) {
 //++}
 //++
 
-#define DBL_EPSILON 0.001
-
-float calc_u(float phi_u, float phi_v, float r) {
-    const float tol = 5.0e-3;
-    //float r = 0.1; //RAND();
-    float l = (2.0*phi_u - phi_v)/3.0;
-    const int maxIter = 20;
-    float u = 0.5;
-    int n=0;
-    while (n++ < maxIter) {
-        float u1 = 1.0-u;
-        float p  = u*(2.0-u) - l*u*u1*u1 - r;
-        float pd = max(u1*(2.0 + l*(3.0*u-1.0)), DBL_EPSILON);
-        float du = max(min(p/pd, 0.25), -0.25);
-        u -= du;
-        u = max(min(u, 1.0-DBL_EPSILON), DBL_EPSILON);
-        if (abs(du) < tol) break;
-    }
-    return u;
-}
-
-float calc_v(float u, float phi_u, float phi_v, float r) {
-    //float r = 0.1; //RAND();
-    const float epsilon = 1.0e-6;
-    if (abs(phi_v) < epsilon) return (1.0 - u)*r;
-    float tau = 1.0/3.0 - (1.0 + (u-1.0/3.0)*phi_u)/phi_v;
-    float tmp = tau + u - 1.0;
-    float q = sqrt(tau*tau*(1.0-r) + tmp*tmp*r);
-    return tau <= 0.5*(1.0-u) ? tau + q : tau - q;
-}
-
-//++void sample_triangle(vec3 a, vec3 b, vec3 c, uint n) {
-//++
-//++   //uint index_triangle = atomicAdd(counter[1], 3);
-//++   //output_points[index_triangle] = OutputVertex(a, encode_rgba_u32(0, 255, 0, 1)); 
-//++   //output_points[index_triangle+1] = OutputVertex(b, encode_rgba_u32(0, 255, 0, 1)); 
-//++   //output_points[index_triangle+2] = OutputVertex(c, encode_rgba_u32(0, 255, 0, 1)); 
-//++
-//++   vec3 ab = b - a; 
-//++   vec3 ac = c - a;
-//++   vec3 bc = c - b;
-//++
-//++   //let n = ab.cross(ac).normalize(); 
-//++   float area = 0.5 * length(cross(ab,ac));
-//++
-//++   uint samples = min(uint(area * 1000.0), 8095);  
-//++
-//++   // initialize_char_array((a+b+c)/3.0 + vec3(0.0, DEBUG_OFFSET, 0.0));
-//++   // log_float(area, 3);
-//++   // add_end_of_line();
-//++   // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-//++
-//++   // for (int i=0 ; i<samples ; i++) {
-//++   //   
-//++   // }
-//++
-//++   for (int i=0 ; i<samples ; i++) {
-//++        vec4 white_noise = imageLoad(myStorageImage, i);
-//++        float u = calc_u(white_noise.x, white_noise.y, white_noise.z);
-//++        float v = calc_v(u, white_noise.x, white_noise.y, white_noise.w);
-//++        float w = 1 - u - v;
-//++        float the_u = white_noise.x;
-//++        float the_v = white_noise.y;
-//++        float the_w = 1.0 -  white_noise.x - white_noise.y;
-//++        // const vec3 p = a * (sample_points[i].x - sample_points[i].y) +
-//++        //                b * (sample_points[i].y - (1 - sample_points[i].x -
-//++        //                sample_points[i].y)) + (1 - sample_points[i].x - sample_points[i].y);
-//++        const float x = u * (the_u - the_w) +
-//++                        v * (the_v - the_w) +
-//++                        the_w;
-//++        const vec3 p = u*a + v*b + (1-u-v)*c;
-//++        const vec3 p_minus = p - vec3(0.01, 0.01, 0.01);
-//++        const vec3 p_plus =  p + vec3(0.01, 0.01, 0.01);
-//++        //create_aabb_triangles_r(AABB(vec4(p_minus, 1.0), vec4(p_plus, 1.0)), 255, 10, 10, 0.005);
-//++
-//++        uint index = atomicAdd(counter[0], 1);
-//++
-//++        const float dist = min(max(1.0, distance(camera_pos.xyz, p)), 255);
-//++        output_points[index] = OutputVertex(
-//++            p,
-//++            encode_rgba_u32(
-//++                255,
-//++                255,
-//++                255,
-//++                uint(dist)));
-//++   }
-//++
-//++   //for (int i=0 ; i<128 ; i++) {
-//++
-//++   //     // uint index = atomicAdd(counter[0], 1);
-//++
-//++   //     vec4 white_noise = imageLoad(myStorageImage, i);
-//++   //     const float z_square = pow(white_noise.x, 0.5);
-//++   //     const vec3 p = (1.0 - z_square) * a +
-//++   //                    z_square*(1.0 - white_noise.y) * b +
-//++   //                    z_square * white_noise.y * c;
-//++   //     const vec3 p_minus = p - vec3(0.01, 0.01, 0.01);
-//++   //     const vec3 p_plus =  p + vec3(0.01, 0.01, 0.01);
-//++
-//++   //     // initialize_char_array(p + vec3(0.0, DEBUG_OFFSET, 0.0));
-//++   //     // log_float(sample_points[i].x, 3);
-//++   //     // add_end_of_line();
-//++   //     // log_float(sample_points[i].y, 3);
-//++   //     // add_end_of_line();
-//++   //     // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-//++   //                    
-//++   //     create_aabb_triangles_r(AABB(vec4(p_minus, 1.0), vec4(p_plus, 1.0)),
-//++   //                             uint(sample_points[i] * 255), 10,
-//++   //                             uint(sample_points[i] * 255), 0.005);
-//++   //     // output_points[index] = OutputVertex(p, encode_rgba_u32(255, 0, 0, 50)); 
-//++   //}
-//++}
-
 // Load FMM_Block data to shared memory.
 void load_offset_data(uint base_index) {
 
@@ -1280,6 +1167,64 @@ void load_offset_data(uint base_index) {
             shared_memory_nodes[thread_id] = fmm_cells[offset_hash_table[thread_id].w + int(base_index)];
         }
     }
+}
+
+vec3 closest_point_to_triangle(vec3 p, vec3 a, vec3 b, vec3 c) {
+
+    vec3 ab = b - a;
+    vec3 ac = c - a;
+    vec3 bc = c - b;
+
+    float d1 = dot(b-a, p-a);
+    float d2 = dot(c-a, p-a);
+    float d3 = dot(b-a, p-b);
+    float d4 = dot(c-a, p-b);
+    float d5 = dot(b-a, p-c);
+    float d6 = dot(c-a, p-c);
+
+    float va = d3*d6 - d5*d4;
+    float vb = d5*d2 - d1*d6;
+    float vc = d1*d4 - d3*d2;
+
+    float snom = d1;
+    float sdenom = -d3;
+    float tnom = d2;
+    float tdenom = -d6;
+    float unom = d4 - d3;
+    float udenom = d5 - d6;
+
+    //++float snom = dot(p-a,ab);
+    //++float sdenom = dot(p-b,a-b);
+
+    //++float tnom = dot(p-a,ac);
+    //++float tdenom = dot(p-c,a-c);
+
+    if (snom <= 0.0 && tnom <= 0.0) { return a; }
+
+    //++float unom = dot(p-b,bc);
+    //++float udenom = dot(p-c,b-c);
+
+    if (sdenom <= 0.0 && unom <= 0.0) { return b; }
+    if (tdenom <= 0.0 && udenom <= 0.0) { return c; }
+
+    vec3 n = cross(b-a, c-a);
+
+    //++float vc = dot(n,cross(a-p,b-p));
+
+    if (vc <= 0.0 && snom >= 0.0 && sdenom >= 0.0) { return a + snom / (snom + sdenom) * ab; }
+
+    //++float va = dot(n,cross(b-p, c-p));
+
+    if (va <= 0.0 && unom >= 0.0 && udenom >= 0.0) { return b + unom / (unom + udenom) * bc; }
+
+    //++float vb = dot(n, cross(c-p, a-p));
+
+    if (vb <= 0.0 && tnom >= 0.0 && tdenom >= 0.0) { return a + tnom / (tnom + tdenom) * ac; }
+
+    float u = va / (va + vb + vc);
+    float v = vb / (va + vb + vc);
+    float w = 1.0 - u - v;
+    return u * a + v * b + w * c;
 }
 
 void apply_triangle_mesh() {
@@ -1437,9 +1382,9 @@ void apply_triangle_mesh() {
             Triangle(
                 //AABB(vec4(aabb_min_x, aabb_min_y, aabb_min_z, 1.0), vec4(aabb_max_x, aabb_max_y, aabb_max_z, 1.0)), 
                 AABB(vec4(min_x_expanded, min_y_expanded, min_z_expanded, 1.0), vec4(max_x_expanded, max_y_expanded, max_z_expanded, 1.0)), 
-                vert_a,
-                vert_b,
-                vert_c
+                vert_x,
+                vert_y,
+                vert_z
             );
         //++create_aabb_triangles_r(AABB(vec4(aabb_min_x, aabb_min_y, aabb_min_z, 1.0), vec4(aabb_max_x, aabb_max_y, aabb_max_z, 1.0)), 255, 255, 255, 0.01);
         //++create_aabb_triangles_r(AABB(vec4(min_x_expanded,
@@ -1491,21 +1436,7 @@ void apply_triangle_mesh() {
                                         z * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
 
                 const ivec3 position = shared_offset_table[gl_LocalInvocationIndex].xyz;
-                ivec3 this_coord = position + ivec3(x, y, z) * 4;
-                initialize_char_array(
-                    vec3(this_coord.x,
-                         this_coord.y,
-                         this_coord.z));
-                    //vec3(this_coord.x * 0.25,
-                    //     this_coord.y * 0.25,
-                    //     this_coord.z * 0.25));
-
-                // log_vec3(vec3(position.x, position.y, position.z), 1);
-                // add_end_of_line();
-                // log_number(gl_LocalInvocationIndex, false);
-                // add_end_of_line();
-                log_float(shared_offset_table[gl_LocalInvocationIndex].w + int(base_index), 1);
-                add_end_of_line();
+                ivec3 this_coord = position + (ivec3(x, y, z) * 4);
 
                 uvec3 final_color = uvec3(
                     x % 2 == 0 ?
@@ -1519,20 +1450,68 @@ void apply_triangle_mesh() {
                         uint(float(z)/float(dim_z_max) * 255.0)
                 );
 
-                AABB aabb = create_char_sequency_points(255, 125, 125);
-                AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-                create_output_points(aabb, final_color.x, final_color.y, final_color.z);
+                vec3 closest = closest_point_to_triangle(
+                    this_coord,
+                    temp_triangle.x.pos.xyz,
+                    temp_triangle.y.pos.xyz,
+                    temp_triangle.z.pos.xyz
+                );
 
-                if (gl_LocalInvocationIndex == 0) {
-                    vec3 base_position = vec3(x, y, z) * 4;
-                    vec3 base_position2 = base_position + vec3(4.0, 4.0, 4.0);
-                    AABB base_aabb = AABB(
-                        vec4(base_position.x, base_position.y, base_position.z, 0.0) + vec4(-0.05, -0.05, -0.05, 1.0),
-                        vec4(base_position2.x, base_position2.y, base_position2.z, 0.0) + vec4(0.05, 0.05, 0.05, 1.0)
+                float dist = distance(closest, this_coord);
+
+                vec3 normal = normalize(
+                    cross(
+                        temp_triangle.y.pos.xyz - temp_triangle.x.pos.xyz,
+                        temp_triangle.z.pos.xyz - temp_triangle.x.pos.xyz
+                    )
+                );
+
+                float pah = dot(normal, closest - this_coord);
+                if (pah < 0.0) { dist = -dist; }
+
+                // float dist = udTriangle(this_coord,
+                //                         temp_triangle.x.pos.xyz,
+                //                         temp_triangle.y.pos.xyz,
+                //                         temp_triangle.z.pos.xyz
+                // );
+
+                uvec3 array_color = uvec3(255, 0, 0);
+
+                if (abs(dist) < 1.0) {
+
+                    initialize_char_array(
+                        vec3(this_coord.x,
+                             this_coord.y,
+                             this_coord.z));
+
+                    log_float(dist, 3);
+                    add_end_of_line();
+                    //++log_float(123.0, 1);
+                    //++add_end_of_line();
+                    AABB aabb = create_char_sequency_points(255, 125, 125);
+                    AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+                    create_output_points(aabb, final_color.x, final_color.y, final_color.z);
+
+                    if (dist < 0.0 ) { array_color = uvec3(0, 0, 255); }
+                    create_array(0.02,
+                                 this_coord,
+                                 closest,
+                                 array_color.x,
+                                 array_color.y,
+                                 array_color.z
                     );
-                    create_aabb_triangles_r(base_aabb, 0, 0, 255, 0.05);
-                    //create_aabb_triangles_r(base_aabb, final_color.x, final_color.y, final_color.z, 0.05);
                 }
+
+                //++if (gl_LocalInvocationIndex == 0) {
+                //++    vec3 base_position = vec3(x, y, z) * 4;
+                //++    vec3 base_position2 = base_position + vec3(3.0, 3.0, 3.0);
+                //++    AABB base_aabb = AABB(
+                //++        vec4(base_position.x, base_position.y, base_position.z, 0.0) + vec4(-0.05, -0.05, -0.05, 1.0),
+                //++        vec4(base_position2.x, base_position2.y, base_position2.z, 0.0) + vec4(0.05, 0.05, 0.05, 1.0)
+                //++    );
+                //++    create_aabb_triangles_r(base_aabb, 0, 0, 255, 0.05);
+                //++    //create_aabb_triangles_r(base_aabb, final_color.x, final_color.y, final_color.z, 0.05);
+                //++}
                     //create_aabb_triangles_r(AABB aabb, uint r, uint g, uint b, float t) {
 
                 // AABB aabb = AABB(vec4(x,

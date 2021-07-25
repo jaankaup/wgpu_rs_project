@@ -198,6 +198,15 @@ impl Application for FMM_App {
             None)
         );
 
+        buffers.insert(
+            "wood_single".to_string(),
+            buffer_from_data::<Triangle_vvvvnnnn>(
+            &configuration.device,
+            &[triangle_data[0]],
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
+            None)
+        );
+
         // Create white noise [0,1] to texture. This is used for sampling triangles.
         let test_texture_data_1d: Vec<[f32 ; 4]> = vec![[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]];
         let mut white_noise: Vec<[f32 ; 4]> = Vec::new();
@@ -424,53 +433,68 @@ impl Application for FMM_App {
             },
         };
 
-         let mut encoder = device.create_command_encoder(
-             &wgpu::CommandEncoderDescriptor {
-                 label: Some("Render Encoder"),
-         });
-         let mut clear = true;
+        let mut encoder = device.create_command_encoder(
+            &wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+        });
+        let mut clear = true;
 
-         draw(&mut encoder,
-              &frame,
-              &self.depth_texture,
-              &self.render_vvvvnnnn_bind_groups,
-              &self.render_vvvvnnnn_pipeline.get_pipeline(),
-              &self.buffers.get("wood").unwrap(),
-              //0..300,
-              //0..2036*3,
-              0..self.triangle_count * 3,
-              clear
-         );
-         clear = false;
-         
-         if self.debug_point_count > 0 {
+        if self.show_mesh {
             draw(&mut encoder,
                  &frame,
                  &self.depth_texture,
-                 &self.render_vvvc_point_bind_groups,
-                 &self.render_vvvc_point_pipeline.get_pipeline(),
-                 &self.buffers.get("debug_points_output").unwrap(),
-                 0..self.debug_point_count,
-                 //2..self.debug_point_count,
-                 //3..3000,
+                 &self.render_vvvvnnnn_bind_groups,
+                 &self.render_vvvvnnnn_pipeline.get_pipeline(),
+                 &self.buffers.get("wood").unwrap(),
+                 //0..300,
+                 //0..2036*3,
+                 0..self.triangle_count * 3,
                  clear
             );
             clear = false;
-         }
+        }
+
+        draw(&mut encoder,
+             &frame,
+             &self.depth_texture,
+             &self.render_vvvvnnnn_bind_groups,
+             &self.render_vvvvnnnn_pipeline.get_pipeline(),
+             &self.buffers.get("wood_single").unwrap(),
+             //0..300,
+             //0..2036*3,
+             0..3,
+             clear
+        );
+        if clear { clear = false; }
+        
+        if self.debug_point_count > 0 {
+           draw(&mut encoder,
+                &frame,
+                &self.depth_texture,
+                &self.render_vvvc_point_bind_groups,
+                &self.render_vvvc_point_pipeline.get_pipeline(),
+                &self.buffers.get("debug_points_output").unwrap(),
+                0..self.debug_point_count,
+                //2..self.debug_point_count,
+                //3..3000,
+                clear
+           );
+           clear = false;
+        }
 
 
-         if self.debug_triangle_draw_count > DEBUG_BUFFER_SIZE {
-            draw(&mut encoder,
-                 &frame,
-                 &self.depth_texture,
-                 &self.render_vvvc_triangle_bind_groups,
-                 &self.render_vvvc_triangle_pipeline.get_pipeline(),
-                 &self.buffers.get("debug_points_output").unwrap(),
-                 DEBUG_BUFFER_SIZE..self.debug_triangle_draw_count,
-                 clear
-            );
-         }
-         queue.submit(Some(encoder.finish()));
+        if self.debug_triangle_draw_count > DEBUG_BUFFER_SIZE {
+           draw(&mut encoder,
+                &frame,
+                &self.depth_texture,
+                &self.render_vvvc_triangle_bind_groups,
+                &self.render_vvvc_triangle_pipeline.get_pipeline(),
+                &self.buffers.get("debug_points_output").unwrap(),
+                DEBUG_BUFFER_SIZE..self.debug_triangle_draw_count,
+                clear
+           );
+        }
+        queue.submit(Some(encoder.finish()));
     }
 
     fn input(&mut self, queue: &wgpu::Queue, input_cache: &InputCache) {
@@ -491,23 +515,13 @@ impl Application for FMM_App {
         let space_pressed = input.key_state(&Key::Space);
         if !space_pressed.is_none() {
             self.show_mesh = !self.show_mesh;
-            if !self.show_mesh {
-                queue.write_buffer(
-                    &self.buffers.get("wood").unwrap(),
-                    0,
-                    bytemuck::cast_slice(&self.triangle_data)
-                );
-                self.triangle_count = self.triangle_data.len() as u32;
-            }
-            else {
-                queue.write_buffer(
-                    &self.buffers.get("wood").unwrap(),
-                    0,
-                    bytemuck::cast_slice(&[self.triangle_data[self.triangle_index as usize]])
-                );
-                self.triangle_count = 1;
-            }
         }
+
+        queue.write_buffer(
+            &self.buffers.get("wood_single").unwrap(),
+            0,
+            bytemuck::cast_slice(&[self.triangle_data[self.triangle_index as usize]])
+        );
 
         let time_offset = input.get_time_delta() as f32 / 150000000.0;
 
@@ -644,15 +658,14 @@ impl Application for FMM_App {
                     1
         ); 
 
-        if self.update_data_generator < 5 && self.show_mesh {
+        //if self.update_data_generator < 5 && self.show_mesh {
             self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
                         &mut encoder,
                         1,
                         1,
                         1
             ); 
-        }
-        
+        //}
 
         queue.submit(Some(encoder.finish()));
 
