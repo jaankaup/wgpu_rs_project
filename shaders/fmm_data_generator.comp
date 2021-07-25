@@ -1404,9 +1404,15 @@ void apply_triangle_mesh() {
     //++traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
     //++create_output_points(aabb_joo, final_color.x, final_color.y, final_color.z);
 
-    const int max_x_expanded = int(min(float(fmm_attributes.global_dimensions.x), max(0.0, ceil(aabb_max_x*0.25))));
-    const int max_y_expanded = int(min(float(fmm_attributes.global_dimensions.y), max(0.0, ceil(aabb_max_y*0.25))));
-    const int max_z_expanded = int(min(float(fmm_attributes.global_dimensions.z), max(0.0, ceil(aabb_max_z*0.25))));
+    const int max_x_expanded = int(
+        min(float(fmm_attributes.global_dimensions.x), max(0.0, ceil((aabb_max_x+1)*0.25)))
+    );
+    const int max_y_expanded = int(
+        min(float(fmm_attributes.global_dimensions.y), max(0.0, ceil((aabb_max_y+1)*0.25)))
+    );
+    const int max_z_expanded = int(
+        min(float(fmm_attributes.global_dimensions.z), max(0.0, ceil((aabb_max_z+1)*0.25)))
+    );
 
     //++this_coord = vec3(max_x_expanded, max_y_expanded, max_z_expanded);
     //++initialize_char_array(this_coord);
