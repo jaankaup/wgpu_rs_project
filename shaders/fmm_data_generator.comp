@@ -1467,7 +1467,7 @@ void apply_triangle_mesh() {
                 );
 
                 float pah = dot(normal, closest - this_coord);
-                if (pah < 0.0) { dist = -dist; }
+                if (pah >= 0.0) { dist = -dist; }
 
                 // float dist = udTriangle(this_coord,
                 //                         temp_triangle.x.pos.xyz,

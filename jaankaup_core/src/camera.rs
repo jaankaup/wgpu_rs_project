@@ -167,6 +167,7 @@ impl Camera {
         let state_up = input_cache.key_state(&Key::E);
         let state_down = input_cache.key_state(&Key::C);
         let left_mouse_button = input_cache.mouse_button_state(&MouseButton::Left);
+        let left_shift = input_cache.key_state(&Key::LShift);
 
         // Get the delta time between previous and current tick.
         let time_delta_nanos = input_cache.get_time_delta();
@@ -179,13 +180,17 @@ impl Camera {
 
         let mut movement = cgmath::Vector3::new(0.0, 0.0, 0.0);
 
+        // 1/10 speed if left shift is down.
+        let mut movement_factor = 1.0;
+        if !left_shift.is_none() { movement_factor = 0.1; }
+
         // Calculate the amount of movement based on user input.
-        if !state_forward.is_none() { movement += time_delta_milli_f32 * self.view; }
-        if !state_backward.is_none() { movement -= time_delta_milli_f32 * self.view; }
-        if !state_right.is_none() { movement += time_delta_milli_f32 * right; }
-        if !state_left.is_none() { movement -= time_delta_milli_f32 * right; }
-        if !state_up.is_none() { movement += time_delta_milli_f32 * self.up; }
-        if !state_down.is_none() { movement -= time_delta_milli_f32 * self.up; }
+        if !state_forward.is_none() { movement += movement_factor * time_delta_milli_f32 * self.view; }
+        if !state_backward.is_none() { movement -= movement_factor * time_delta_milli_f32 * self.view; }
+        if !state_right.is_none() { movement += movement_factor * time_delta_milli_f32 * right; }
+        if !state_left.is_none() { movement -= movement_factor * time_delta_milli_f32 * right; }
+        if !state_up.is_none() { movement += movement_factor * time_delta_milli_f32 * self.up; }
+        if !state_down.is_none() { movement -= movement_factor * time_delta_milli_f32 * self.up; }
 
         // Update the camera position.
         self.pos += self.movement_sensitivity * movement;

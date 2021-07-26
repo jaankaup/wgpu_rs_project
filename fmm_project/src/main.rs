@@ -34,7 +34,7 @@ use bytemuck::{Pod, Zeroable};
 //triangle points.
 static DEBUG_BUFFER_SIZE: u32   = 1024000; //4194300; // 1048575; //33554416;
 static DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
-static BLOCK_DIMENSIONS: [u32; 3] = [8, 8, 8];
+static BLOCK_DIMENSIONS: [u32; 3] = [32, 32, 32];
 //8388607
 
 // Redefine needed features for this application.
@@ -115,6 +115,7 @@ struct FMM_App {
     triangle_data: Vec<Triangle_vvvvnnnn>,
     triangle_index: f32,
     show_whole_mesh: u32,
+    changed: bool,
 }
 
 impl FMM_App {
@@ -127,6 +128,8 @@ impl Application for FMM_App {
     fn init(configuration: &WGPUConfiguration) -> Self {
 
         let mut buffers: HashMap<String, wgpu::Buffer> = HashMap::new();
+
+        let changed = true;
 
         // Create the depth texture for fmm application.
         let depth_texture = JTexture::create_depth_texture(
@@ -179,7 +182,7 @@ impl Application for FMM_App {
         );
 
         let (_, triangle_data, aabb): (Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox) =
-            load_triangles_from_obj("assets/models/wood.obj", 3.0, [5.0, -5.0, 18.0], None).unwrap();
+            load_triangles_from_obj("assets/models/wood.obj", 14.0, [50.0, -5.0, 50.0], None).unwrap();
             //load_triangles_from_obj("assets/models/wood.obj", 1.0, [5.0, -5.0, 18.0], Some(1)).unwrap();
 
         let triangle_count: u32 = triangle_data.len() as u32;
@@ -257,7 +260,7 @@ impl Application for FMM_App {
 
         // Initialize camera for fmm application.
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
-        camera.set_movement_sensitivity(0.01);
+        camera.set_movement_sensitivity(0.1);
         camera.set_rotation_sensitivity(0.2);
 
 
@@ -415,6 +418,7 @@ impl Application for FMM_App {
             triangle_data,
             triangle_index,
             show_whole_mesh,
+            changed,
         }
     }
 
@@ -514,7 +518,9 @@ impl Application for FMM_App {
         // Get the keyboard state (camera movement).
         let space_pressed = input.key_state(&Key::Space);
         if !space_pressed.is_none() {
-            self.show_mesh = !self.show_mesh;
+            self.update_data_generator = (self.update_data_generator + 1) % 10;
+            if self.update_data_generator < 5 { self.show_mesh = true; }
+            else { self.show_mesh = false; }
         }
 
         queue.write_buffer(
@@ -618,8 +624,8 @@ impl Application for FMM_App {
                 );
         }
 
-        let enter_pressed = input.key_state(&Key::Return);
-        if !enter_pressed.is_none() {self.update_data_generator = (self.update_data_generator + 1) % 10; }
+        // let enter_pressed = input.key_state(&Key::Return);
+        // if !enter_pressed.is_none() {self.update_data_generator = (self.update_data_generator + 1) % 10; }
 
         let add_pressed = input.key_state(&Key::Comma);
         let minus_pressed = input.key_state(&Key::Period);
@@ -1009,7 +1015,7 @@ impl FMM_data_generator_debug_pipeline {
 
     pub fn init(device: &wgpu::Device) -> Self {
 
-        let mut comp_module = unsafe { wgpu::include_spirv_raw!("../../shaders/spirv/fmm_data_generator.comp.spv") };
+        let mut comp_module = wgpu::include_spirv_raw!("../../shaders/spirv/fmm_data_generator.comp.spv");
 
         // GLSL, validation disabled.
         //comp_module.flags = wgpu::ShaderFlags::empty();

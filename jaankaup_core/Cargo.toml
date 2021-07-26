@@ -36,7 +36,7 @@ version = "0.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 #wasm-bindgen = "=0.2.73" # remember to change version in wiki as well
-wasm-bindgen = "0.2.73" # remember to change version in wiki as well
+wasm-bindgen = "0.2.74" # remember to change version in wiki as well
 web-sys = { version = "=0.3.51", features = [
     "Document",
     "Navigator",
