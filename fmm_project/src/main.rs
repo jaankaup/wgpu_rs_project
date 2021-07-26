@@ -264,8 +264,8 @@ impl Application for FMM_App {
         // Initialize camera for fmm application.
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
         camera.set_movement_sensitivity(0.1);
-        camera.set_rotation_sensitivity(2.0);
-        //camera.set_rotation_sensitivity(0.2);
+        //camera.set_rotation_sensitivity(2.0);
+        camera.set_rotation_sensitivity(0.2);
 
 
         // Create buffers for fmm alogrithm.

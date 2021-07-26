@@ -388,19 +388,19 @@ uint update_counter() {
     return counter_now;
 }
 
-void create_point_ball(vec3 pos, uint r, uint b, uint g, float dist) {
+void create_point_ball(vec3 pos, uint r, uint g, uint b, float dist) {
     
-    uint index = atomicAdd(counter[0], 1);
+    uint index = atomicAdd(counter[0], 7);
     output_points[index] = OutputVertex(pos, encode_rgba_u32(r, g, b, 1)); 
-    //++output_points[index+1] = OutputVertex(pos + vec3(dist , 0.0, 0.0), encode_rgba_u32(r, g, b, 1)); 
-    //++output_points[index+2] = OutputVertex(pos + vec3(-dist , 0.0, 0.0), encode_rgba_u32(r, g, b, 1)); 
-    //++output_points[index+3] = OutputVertex(pos + vec3(0.0 , dist , 0.0), encode_rgba_u32(r, g, b, 1)); 
-    //++output_points[index+4] = OutputVertex(pos + vec3(0.0 , -dist, 0.0), encode_rgba_u32(r, g, b, 1)); 
-    //++output_points[index+5] = OutputVertex(pos + vec3(0.0 , dist , dist ), encode_rgba_u32(r, g, b, 1)); 
-    //++output_points[index+6] = OutputVertex(pos + vec3(0.0 , -dist, -dist), encode_rgba_u32(r, g, b, 1)); 
+    output_points[index+1] = OutputVertex(pos + vec3(dist , 0.0, 0.0), encode_rgba_u32(r, g, b, 1)); 
+    output_points[index+2] = OutputVertex(pos + vec3(-dist , 0.0, 0.0), encode_rgba_u32(r, g, b, 1)); 
+    output_points[index+3] = OutputVertex(pos + vec3(0.0 , dist , 0.0), encode_rgba_u32(r, g, b, 1)); 
+    output_points[index+4] = OutputVertex(pos + vec3(0.0 , -dist, 0.0), encode_rgba_u32(r, g, b, 1)); 
+    output_points[index+5] = OutputVertex(pos + vec3(0.0 , dist , dist ), encode_rgba_u32(r, g, b, 1)); 
+    output_points[index+6] = OutputVertex(pos + vec3(0.0 , -dist, -dist), encode_rgba_u32(r, g, b, 1)); 
 }
 
-void create_aabb_triangles(AABB aabb, uint r, uint b, uint g) {
+void create_aabb_triangles(AABB aabb, uint r, uint g, uint b) {
 
     uint aabb_index = atomicAdd(counter[1], 24);
 
@@ -1662,12 +1662,16 @@ void render_fmm_nodes() {
             vec3 this_coord = pos_and_offset.xyz + ivec3(i, j, k) * 4;
             uint factor = 100 + uint(abs(node.value * 150.0)); 
             uvec3 final_color = node.value < 0.0 ? uvec3(0,0,factor) : uvec3(factor,0,0);
-            create_point_ball(this_coord, 255, 0, 0, 0.01);
+            create_point_ball(this_coord, 0, 255, 0, 0.01);
         }
         if (node.tag == 1) {
             vec3 this_coord = pos_and_offset.xyz + ivec3(i, j, k) * 4;
-            create_point_ball(this_coord, 0, 255, 0, 0.01);
+            create_point_ball(this_coord, 255, 0, 0, 0.01);
         }
+        //if (node.tag == 0) {
+        //    vec3 this_coord = pos_and_offset.xyz + ivec3(i, j, k) * 4;
+        //    create_point_ball(this_coord, 0, 0, 255, 0.01);
+        //}
     }}}
 }
 
