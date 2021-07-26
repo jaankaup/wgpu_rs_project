@@ -50,6 +50,7 @@ impl WGPUFeatures for FMM_Features {
     fn required_limits() -> wgpu::Limits {
         let mut limits = wgpu::Limits::default();
         limits.max_storage_buffers_per_shader_stage = 8;
+        //limits.max_storage_buffer_binding_size = 3193724;
         limits
     }
 }
@@ -268,7 +269,7 @@ impl Application for FMM_App {
         create_buffers(&configuration.device,
                        BLOCK_DIMENSIONS, // block_dimension: [u32 ; 3],
                        [4, 4, 4], //local_dimension: [u32 ; 3],
-                       DEBUG_BUFFER_SIZE, //debug_point_output_size: u32,
+                       DEBUG_BUFFER_SIZE, // 3193724
                        &mut buffers
         );
 
@@ -880,7 +881,7 @@ impl FMM_debug_pipeline {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
-                            min_binding_size: None, //wgpu::BufferSize::new(points_out_size),
+                            min_binding_size: None, //wgpu::BufferSize::new(3193724),
                         },
                         count: None,
                     },
