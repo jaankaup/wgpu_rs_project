@@ -317,7 +317,7 @@ impl TestLayoutEntry {
                 buffers: &[
                     wgpu::VertexBufferLayout {
                         array_stride: stride,
-                        step_mode: wgpu::InputStepMode::Vertex, 
+                        step_mode: wgpu::VertexStepMode::Vertex, 
                         attributes: &attributes,
                     }],
             },

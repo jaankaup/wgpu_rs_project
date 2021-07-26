@@ -414,6 +414,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "d3d12"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "091ed1b25fe47c7ff129fc440c23650b6114f36aa00bc7212cc8041879294428"
+dependencies = [
+ "bitflags",
+ "libloading 0.7.0",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "darling"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1112,7 +1123,7 @@ dependencies = [
 [[package]]
 name = "naga"
 version = "0.5.0"
-source = "git+https://github.com/gfx-rs/naga?rev=0b9af95793e319817e74a30601cbcd4bad9bb3e6#0b9af95793e319817e74a30601cbcd4bad9bb3e6"
+source = "git+https://github.com/gfx-rs/naga?rev=bbfa9a0#bbfa9a0f9e0599fe09ad9428bf359e6dea2664c6"
 dependencies = [
  "bit-set",
  "bitflags",
@@ -1465,6 +1476,12 @@ checksum = "ca3129af7b92a17112d59ad498c6f81eaf463253766b90396d39ea7a39d6613c"
 dependencies = [
  "rand_core",
 ]
+
+[[package]]
+name = "range-alloc"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63e935c45e09cc6dcf00d2f0b2d630a58f4095320223d47fc68918722f0538b6"
 
 [[package]]
 name = "raw-window-handle"
@@ -2046,7 +2063,7 @@ dependencies = [
 [[package]]
 name = "wgpu"
 version = "0.9.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=d6e386df2d5446d55d27cc8bcc73660352077ed6#d6e386df2d5446d55d27cc8bcc73660352077ed6"
+source = "git+https://github.com/gfx-rs/wgpu?rev=3eb3eed8cfd5c581509a36aec1c7875a0f776840#3eb3eed8cfd5c581509a36aec1c7875a0f776840"
 dependencies = [
  "arrayvec 0.7.1",
  "js-sys",
@@ -2066,7 +2083,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.9.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=d6e386df2d5446d55d27cc8bcc73660352077ed6#d6e386df2d5446d55d27cc8bcc73660352077ed6"
+source = "git+https://github.com/gfx-rs/wgpu?rev=3eb3eed8cfd5c581509a36aec1c7875a0f776840#3eb3eed8cfd5c581509a36aec1c7875a0f776840"
 dependencies = [
  "arrayvec 0.7.1",
  "bitflags",
@@ -2087,13 +2104,15 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.9.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=d6e386df2d5446d55d27cc8bcc73660352077ed6#d6e386df2d5446d55d27cc8bcc73660352077ed6"
+source = "git+https://github.com/gfx-rs/wgpu?rev=3eb3eed8cfd5c581509a36aec1c7875a0f776840#3eb3eed8cfd5c581509a36aec1c7875a0f776840"
 dependencies = [
  "arrayvec 0.7.1",
  "ash",
+ "bit-set",
  "bitflags",
  "block",
  "core-graphics-types",
+ "d3d12",
  "foreign-types",
  "fxhash",
  "glow",
@@ -2107,6 +2126,7 @@ dependencies = [
  "naga",
  "objc",
  "parking_lot",
+ "range-alloc",
  "raw-window-handle",
  "renderdoc-sys",
  "thiserror",
@@ -2130,7 +2150,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.9.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=d6e386df2d5446d55d27cc8bcc73660352077ed6#d6e386df2d5446d55d27cc8bcc73660352077ed6"
+source = "git+https://github.com/gfx-rs/wgpu?rev=3eb3eed8cfd5c581509a36aec1c7875a0f776840#3eb3eed8cfd5c581509a36aec1c7875a0f776840"
 dependencies = [
  "bitflags",
 ]

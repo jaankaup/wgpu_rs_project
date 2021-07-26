@@ -61,11 +61,11 @@ fn vs_main([[location(0)]] pos: vec4<f32>, [[location(1)]] nor: vec4<f32>) -> Ve
 
 // Ligth/material properties.
 let light_pos: vec3<f32> = vec3<f32>(3.0, 28.0, 3.0);
-let light_color: vec3<f32> = vec3<f32>(0.8, 0.4, 0.4);
-let material_spec_color: vec3<f32> = vec3<f32>(0.1, 0.5, 0.1);
-let material_shininess: f32 = 205.0;
+let light_color: vec3<f32> = vec3<f32>(0.8, 0.3, 0.3);
+let material_spec_color: vec3<f32> = vec3<f32>(0.5, 0.1, 0.1);
+let material_shininess: f32 = 55.0;
 let ambient_coeffience: f32 = 0.15;
-let attentuation_factor: f32 = 0.005;
+let attentuation_factor: f32 = 0.013;
 
 [[stage(fragment)]]
 
