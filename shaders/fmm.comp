@@ -1675,7 +1675,7 @@ void main() {
         if (node.tag == 2) {
             vec3 this_coord = pos_and_offset.xyz + ivec3(i, j, k) * 4;
             //create_point_ball(this_coord, 255, 0, 0, 0.01);
-            uint factor = 5 + uint(abs(node.value * 250.0)); 
+            uint factor = 100 + uint(abs(node.value * 150.0)); 
             uvec3 final_color = node.value < 0.0 ? uvec3(0,0,factor) : uvec3(factor,0,0);
             vec3 pah = vec3(0.1,0.1,0.1);
             AABB aabb = AABB(vec4(this_coord - pah, 1.0), vec4(this_coord + pah, 1.0)); 
