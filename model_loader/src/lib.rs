@@ -65,7 +65,7 @@ pub fn load_triangles_from_obj(file_name: &'static str,
                         nc: vec_nc,
                     };
 
-                    println!("{:?}", tr);
+                    //println!("{:?}", tr);
 
                     result_vvvvnnnn.push(tr);
                 }

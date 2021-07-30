@@ -1,3 +1,10 @@
+//#[macro_use]
+use jaankaup_core::impl_convert;
+use jaankaup_core::misc::Convert2Vec;
+//extern crate jaankaup_core;//::mics::impl_convert;
+//extern crate jaankaup_core::mics::impl_convert;
+
+use std::mem;
 use std::borrow::Cow;
 use rand::prelude::*;
 pub use winit::event::VirtualKeyCode as Key;
@@ -32,16 +39,44 @@ use bytemuck::{Pod, Zeroable};
 //static DEBUG_BUFFER_SIZE: u32 = 33554432;
 //TODO: rename. This is not the buffer size. It's the number on poinst, and the number of line
 //triangle points.
-static DEBUG_BUFFER_SIZE: u32   = 1024000; //4194300; // 1048575; //33554416;
-static DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
-static BLOCK_DIMENSIONS: [u32; 3] = [32, 32, 32];
-//8388607
+const DEBUG_BUFFER_SIZE: u32   = 1024000; //4194300; // 1048575; //33554416;
+const DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
+const BLOCK_DIMENSIONS: [u32; 3] = [32, 32, 32];
+const TIME_STAMP_COUNT: u32 = 2;
+
+// TODO: add Queries to jaankaup_core.
+  
+struct QuerySets {
+    timestamp: wgpu::QuerySet,
+    timestamp_period: f32,
+    //pipeline_statistics: wgpu::QuerySet,
+    query_buffer: wgpu::Buffer,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable,Debug)]
+struct TimestampData {
+    start: u64,
+    end: u64,
+}
+
+impl_convert!{TimestampData}
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable,Debug)]
+struct QueryData {
+    timestamps: [TimestampData; TIME_STAMP_COUNT as usize],
+    // pipeline_queries: [u64; MIP_PASS_COUNT as usize],
+}
+
+impl_convert!{QueryData}
 
 // Redefine needed features for this application.
 struct FMM_Features {}
 impl WGPUFeatures for FMM_Features {
     fn optional_features() -> wgpu::Features {
-        wgpu::Features::empty()
+        wgpu::Features::TIMESTAMP_QUERY
+        // wgpu::Features::empty()
     }
     fn required_features() -> wgpu::Features {
         wgpu::Features::SPIRV_SHADER_PASSTHROUGH
@@ -118,6 +153,7 @@ struct FMM_App {
     show_whole_mesh: u32,
     changed: bool,
     data_loaded: bool,
+    query_sets: Option<QuerySets>,
 }
 
 impl FMM_App {
@@ -128,6 +164,36 @@ impl Application for FMM_App {
 
     /// Initialize fmm application.
     fn init(configuration: &WGPUConfiguration) -> Self {
+
+        // Create queries for time stamps.
+        let query_sets = if configuration.device
+            .features()
+            .contains(wgpu::Features::TIMESTAMP_QUERY) {
+
+            let timestamp = configuration.device.create_query_set(&wgpu::QuerySetDescriptor {
+                label: Some("timestamppi"),
+                count: TIME_STAMP_COUNT * 2, // count * numb(begining/end)
+                ty: wgpu::QueryType::Timestamp,
+            });
+            let timestamp_period = configuration.queue.get_timestamp_period();
+
+            println!("mem::size_of::<QueryData>() == {}", mem::size_of::<QueryData>());
+            // TODO: Try to implement buffer reading without 'wgpu::BufferUsages::COPY_SRC'
+            let query_buffer = configuration.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("query buffer"),
+                size: mem::size_of::<QueryData>() as wgpu::BufferAddress,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_SRC,
+                mapped_at_creation: false,
+            });
+
+            Some(QuerySets {
+                timestamp,
+                timestamp_period,
+                query_buffer,
+            })
+        } else {
+            None
+        };
 
         let mut buffers: HashMap<String, wgpu::Buffer> = HashMap::new();
 
@@ -424,6 +490,7 @@ impl Application for FMM_App {
             show_whole_mesh,
             changed,
             data_loaded,
+            query_sets,
         }
     }
 
@@ -663,20 +730,129 @@ impl Application for FMM_App {
         if !self.data_loaded {
             let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("FMM update encoder.") });
 
-                self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
-                            &mut encoder,
-                            1,
-                            1,
-                            1
-                ); 
-                self.fmm_debug_pipeline.dispatch(&self.fmm_debug_bind_groups,
-                            &mut encoder,
-                            1,
-                            1,
-                            1
-                ); 
+            if let Some(ref query_sets) = self.query_sets {
+                println!("HEKO 1");
+                encoder.write_timestamp(&query_sets.timestamp, 0);
+            }
+
+            self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
+                        &mut encoder,
+                        1,
+                        1,
+                        1
+            ); 
+
+            if let Some(ref query_sets) = self.query_sets {
+                println!("HEKO 2");
+                encoder.write_timestamp(&query_sets.timestamp, 1);
+            }
+
+            if let Some(ref query_sets) = self.query_sets {
+                println!("HEKO 3");
+                encoder.write_timestamp(&query_sets.timestamp, 2);
+            }
+
+            self.fmm_debug_pipeline.dispatch(&self.fmm_debug_bind_groups,
+                        &mut encoder,
+                        1,
+                        1,
+                        1
+            ); 
+
+            if let Some(ref query_sets) = self.query_sets {
+                println!("HEKO 4");
+                encoder.write_timestamp(&query_sets.timestamp, 3);
+            }
+
+            
+            if let Some(ref query_sets) = self.query_sets {
+                let timestamp_query_count = 4;
+                encoder.resolve_query_set(
+                        &query_sets.timestamp,
+                        0..timestamp_query_count,
+                        &query_sets.query_buffer,
+                        0,
+                        );
+            }
+
+            //if let Some(ref query_sets) = self.query_sets {
+            //    // We can ignore the future as we're about to wait for the device.
+            //    //
+            //    let result = to_vec::<QueryData>(&device,
+            //            &queue,
+            //            &query_sets.query_buffer,
+            //            0 as wgpu::BufferAddress,
+            //            (std::mem::size_of::<QueryData>() as usize) as wgpu::BufferAddress);
+
+            //    // let _ = query_sets
+            //    //     .query_buffer
+            //    //     .slice(..)
+            //    //     .map_async(wgpu::MapMode::Read);
+            //    // // Wait for device to be done rendering mipmaps
+            //    // device.poll(wgpu::Maintain::Wait);
+            //    // // This is guaranteed to be ready.
+            //    // let view = query_sets.query_buffer.slice(..).get_mapped_range();
+            //    // // Convert the raw data into a useful structure
+            //    // let data: &QueryData = bytemuck::from_bytes(&*view);
+
+            //    println!("result == {:?}. Result.len() == {:?}", result,result.len());
+
+            //    //++for (i, time_stamp_data) in result.timestamps.iter().enumerate() {
+
+            //    //++    // Figure out the timestamp differences and multiply by the period to get nanoseconds
+            //    //++    let nanoseconds =
+            //    //++        (time_stamp_data.end - time_stamp_data.start) as f32 * query_sets.timestamp_period;
+            //    //++    // Nanoseconds is a bit small, so lets use microseconds.
+            //    //++    let microseconds = nanoseconds / 1000.0;
+
+            //    //++    println!("{:?} = {:?} micro seconds.", i, microseconds);
+
+            //    //++}
+            //    //// Iterate over the data
+            //    //for (idx, (timestamp, pipeline)) in data
+            //    //    .timestamps
+            //    //        .iter()
+            //    //        .zip(data.pipeline_queries.iter())
+            //    //        .enumerate()
+            //    //        {
+            //    //            // Figure out the timestamp differences and multiply by the period to get nanoseconds
+            //    //            let nanoseconds =
+            //    //                (timestamp.end - timestamp.start) as f32 * query_sets.timestamp_period;
+            //    //            // Nanoseconds is a bit small, so lets use microseconds.
+            //    //            let microseconds = nanoseconds / 1000.0;
+            //    //            // Print the data!
+            //    //            println!(
+            //    //                    "Generating mip level {} took {:.3} μs and called the fragment shader {} times",
+            //    //                    idx + 1,
+            //    //                    microseconds,
+            //    //                    pipeline
+            //    //                    );
+            //    //        }
+            //}
+
+
 
             queue.submit(Some(encoder.finish()));
+
+            if let Some(ref query_sets) = self.query_sets {
+                // We can ignore the future as we're about to wait for the device.
+                //
+                let result = to_vec::<QueryData>(&device,
+                        &queue,
+                        &query_sets.query_buffer,
+                        0 as wgpu::BufferAddress,
+                        (std::mem::size_of::<QueryData>() as usize) as wgpu::BufferAddress);
+                println!("result :: {:?}", result);
+                for (i, elem) in result[0].timestamps.iter().enumerate() {
+                    let nanoseconds =
+                        (elem.end - elem.start) as f32 * query_sets.timestamp_period;
+                    let microseconds = nanoseconds / 1000.0;
+                    let milli = microseconds / 1000.0;
+                    println!("{:?} time is {:?} micro seconds.", i, microseconds);
+                    println!("{:?} time is {:?} milli seconds.", i, milli);
+    
+                }
+            }
 
             // Get the counter values.
             let histogram = self.histogram.get_values(device, queue);

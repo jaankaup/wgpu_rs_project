@@ -21,6 +21,7 @@ pub struct OutputVertex {
 /// number type. Note that the type must implement from_ne_bytes.
 /// This works only in async functions. This cannot be used
 /// in winit event_loop! Use it before entering event_loop.
+#[macro_export]
 macro_rules! impl_convert {
   ($to_type:ty) => {
     impl Convert2Vec for $to_type {
@@ -40,6 +41,7 @@ impl_convert!{Vertex_vvvvnnnn}
 impl_convert!{f32}
 impl_convert!{u32}
 impl_convert!{u8}
+impl_convert!{u64}
 impl_convert!{OutputVertex}
 
 #[repr(C)]
