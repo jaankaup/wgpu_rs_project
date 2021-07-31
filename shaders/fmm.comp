@@ -3,10 +3,10 @@
 
 #version 450
 
-#define MAX_NUM_CHARS 40 // 32 
+#define MAX_NUM_CHARS 2 // 32 
 
 #define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 1
+#define LOCAL_Y_DIM 16 
 #define LOCAL_Z_DIM 1
 //#define LOCAL_X_DIM 4 
 //#define LOCAL_Y_DIM 4
@@ -22,17 +22,13 @@
 #define ACTIVE_FMM_BLOCKS_OFFSET 512 // TODO: from uniform
 
 // Fast marching method cell node.
-// 1 => Far.
-// 2 => Band.
-// 4 => Known.
+// 0 => Far.
+// 1 => Band.
+// 2 => Known.
+// 5 => Out of context.
 struct FMM_Node {
     float value;
     uint tag;
-};
-
-struct FMM_Temp_Node {
-    int index;
-    FMM_Node node;
 };
 
 //shared FMM_Node[160] shared_fmm_nodes;
@@ -48,6 +44,10 @@ struct FMM_Block {
     uint index;
     uint band_points_count;
 };
+
+//struct FMM_Block {
+//    bool has_band_points;
+//};
 
 struct OutputVertex {
     vec3 pos;
@@ -1145,7 +1145,8 @@ uint global_solver() {
   // Number of data chunks. There must be at least one iteration.
   // neeeded. TODO: check number_of_blocks == 0. Return immediatelly if it
   // true.
-  const int number_of_scan_blocks = (number_of_blocks - 1) / 128 + 1;
+  //const int number_of_scan_blocks = (number_of_blocks - 1) / 128 + 1; const int number_of_scan_blocks = (number_of_blocks - 1) / 128 + 1;
+  const int number_of_scan_blocks = (number_of_blocks - 1) / (THREAD_COUNT*2) + 1;
 
   // Available items count.
   uint items_available = number_of_blocks;
@@ -1521,20 +1522,11 @@ void render_fmm_nodes() {
 
   const uint offset = all_dimension_length/LOCAL_Y_DIM;
 
-  // uint b = fmm_attributes.current_block.x * 64 + 
-  //          fmm_attributes.current_block.y * 64 * fmm_attributes.global_dimensions.x + 
-  //          fmm_attributes.current_block.z * 64 * fmm_attributes.global_dimensions.x *
-  //          fmm_attributes.global_dimensions.y;
-
-
   for (int b = 0; b<offset ; b++) {
-        //barrier();
 
         uvec3 ijk = index_to_uvec3(b + offset * gl_LocalInvocationID.y,
                                    fmm_attributes.global_dimensions.x,
                                    fmm_attributes.global_dimensions.y);
-
-        // if (ijk.x == fmm_attributes.current_block.x && ijk.y == fmm_attributes.current_block.y && ijk.z == fmm_attributes.current_block.z) {
 
             uint i = ijk.x;
             uint j = ijk.y;
@@ -1546,7 +1538,6 @@ void render_fmm_nodes() {
 
             // Load FMM nodes to the shared memory.
             load_fmm_data(base_index, ivec3(i, j, k) * 4, false);
-            //groupMemoryBarrier();
             barrier();
 
             ivec4 pos_and_offset = shared_offset_table[gl_LocalInvocationID.x];
@@ -1572,73 +1563,6 @@ void render_fmm_nodes() {
             //     create_point_ball(this_coord, 0, 0, 255, 0.01);
             // }
 
-            //++for (int p=0 ; p<3 ; p++) {
-
-            //++    uint pi =  gl_LocalInvocationID.x + p * 64;
-            //++    if (pi < 160) {
-            //++        //FMM_Node node = shared_fmm_nodes[gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y];
-            //++        ivec4 pos_and_offset = shared_offset_table[pi];
-            //++        // FMM_Node node = shared_fmm_nodes[pi + 160 * gl_LocalInvocationID.y];
-            //++        FMM_Node node = shared_fmm_nodes[pi];
-
-            //++        ivec3 this_coord_oho = pos_and_offset.xyz + ivec3(i, j, k) * 4;
-            //++        vec3 this_coord = vec3(this_coord_oho.x, this_coord_oho.y, this_coord_oho.z) ;
-            //++        //vec3 this_coord = vec3(pos_and_offset.xyz) ;
-            //++        initialize_char_array(this_coord);
-
-            //++        uvec3 final_color = uvec3(255, 100, 100);
-
-            //++        //++//log_vec3(this_coord, 1);
-            //++        log_number(gl_LocalInvocationIndex, false);
-            //++        add_end_of_line();
-            //++        AABB aabb = create_char_sequency_points(255, 125, 125);
-            //++        //aabb.max = vec4(aabb.max.x * 5, aabb.max.y * 5, aabb.max.z *5 , 1.0);
-            //++        AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-            //++        create_output_points(aabb, final_color.x, final_color.y, final_color.z);
-
-            //++        //bool outside = ijk.x < 0 ||
-            //++        //               ijk.y < 0 ||
-            //++        //               ijk.z < 0 ||
-            //++        //               ijk.x >= fmm_attributes.global_dimensions.x*4 ||
-            //++        //               ijk.y >= fmm_attributes.global_dimensions.y*4 ||
-            //++        //               ijk.z >= fmm_attributes.global_dimensions.z*4;
-            //++        //if (outside) {
-            //++        //    create_point_ball(vec3(ijk), 50, 255, 133, 0.01);
-            //++        //}
-
-            //++        if (node.tag == 2) {
-            //++            uint factor = 100 + uint(abs(node.value * 150.0));
-            //++            uvec3 final_color = node.value < 0.0 ? uvec3(0,0,factor) : uvec3(factor,0,0);
-            //++            create_point_ball(this_coord, 0, 255, 0, 0.01);
-            //++        }
-            //++        //++if (node.tag == 1) {
-            //++        //++    vec3 this_coord = pos_and_offset.xyz + ivec3(i, j, k) * 4;
-            //++        //++    create_point_ball(this_coord, 255, 0, 0, 0.01);
-            //++        //++}
-            //++        if (node.tag == 5) {
-            //++            create_point_ball(this_coord, 255, 255, 255, 0.01);
-            //++        }
-            //++        // if (node.tag == 6) {
-            //++        //     vec3 this_coord = pos_and_offset.xyz + ivec3(i, j, k) * 4;
-            //++        //     create_point_ball(this_coord, 0, 0, 255, 0.01);
-            //++        // }
-            //++    }
-            //++    // else {
-            //++    //     vec3 this_coord = vec3(-3.0, -3.0, -2.0);
-            //++    //     initialize_char_array(this_coord);
-
-            //++    //     uvec3 final_color = uvec3(255, 100, 100);
-
-            //++    //     log_number(gl_LocalInvocationIndex, false);
-            //++    //     add_end_of_line();
-            //++    //     AABB aabb = create_char_sequency_points(255, 125, 125);
-            //++    //     //aabb.max = vec4(aabb.max.x * 5, aabb.max.y * 5, aabb.max.z *5 , 1.0);
-            //++    //     AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-            //++    //     create_output_points(aabb, final_color.x, final_color.y, final_color.z);
-
-            //++    // }
-            //++}
-        //} // if
         barrier();
     } // for
 }
@@ -1683,14 +1607,13 @@ void main() {
 
   /* RENDER NODES. DEBUGGING. */
 
-  render_fmm_nodes();
-  //groupMemoryBarrier();
-  barrier();
+  //render_fmm_nodes();
+  ////groupMemoryBarrier();
+  //barrier();
 
   /* UPDATE COUNTERS. DEBUGGING. */
   if (local_id_to_x() == 0) {
     atomic_counters[0] = counter[0];
     atomic_counters[1] = counter[1];
   }
-
 }
