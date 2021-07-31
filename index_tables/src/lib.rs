@@ -1,7 +1,7 @@
 // For given block index,
 pub fn work_x_index_to_uvec3(work_index: u32, dim_x: u32, dim_y: u32, dim_z: u32) -> [i32;3] {
 
-    let mut result: [i32;3] = [0;3];
+    //let mut result: [i32;3] = [0;3];
     let mut index = work_index;
     let wh = dim_x * dim_y;
     let z = index / wh;
@@ -132,7 +132,8 @@ pub fn create_hash_table(x_dim: u32,
     //     vec![0 ; x_dim as usize * y_dim as usize * z_dim as usize + xy_size + xz_size + yz_size];
     let mut thread_id_mapping: Vec<u32> = vec![777 ; x_offset as usize * y_offset as usize * z_offset as usize];
 
-    let mut indices: Vec<i32> = Vec::new();
+    //let mut indices: Vec<i32> = Vec::new();
+    let mut indices: Vec<i32> = vec![0 ; 216];
 
     for coordinate in table.iter() {
 
@@ -144,42 +145,58 @@ pub fn create_hash_table(x_dim: u32,
 
     // Define regions: center and ghost zones for each side. Ignore corners.
 
-    for coordinate in table.iter() {
 
-        // let mut found_index = 0;
-        for i in 0..table.len() {
-            let temp = table[i]; 
-            if temp[0] == coordinate[0] && temp[1] == coordinate[1] && temp[2] == coordinate[2] {
-                let translated_coordinate = [temp[0] + 1, temp[1] + 1, temp[2] + 1, temp[3]];
-                // if (translated_coordinase[0] == 0 && translated_coordinase[2] == 0) || 
-                //    (translated_coordinase[x_offset-1] == 0 && translated_coordinase[y_offset-1] == 0) || 
-                //    (translated_coordinase[0] == 0 && translated_coordinase[2] == 0) || 
-                //    (translated_coordinase[x_offset-1] == 0 && translated_coordinase[y_offset-1] == 0) || 
-                let translated_hash_index = translated_coordinate[0] + translated_coordinate[1] * x_offset as i32  + translated_coordinate[2] * x_offset as i32 * y_offset as i32; 
-                indices.push(translated_hash_index);
-                thread_id_mapping[translated_hash_index as usize] = i as u32;
+    for i in 0..x_offset as u32 {
+    for j in 0..y_offset as u32 {
+    for k in 0..z_offset as u32 {
+        let index = [i,j,k];
+        let translated_hash_index = i + j * x_offset  + k * x_offset * y_offset; 
+        for v in 0..table.len() {
+            let temp = [i as i32 - 1, j as i32 - 1, k as i32 - 1];
+            if table[v][0] == temp[0] && table[v][1] == temp[1] && table[v][2] == temp[2] {
+                println!("Found index. Adding {:?} to translated index {:?}", v, translated_hash_index);
+                thread_id_mapping[translated_hash_index as usize] = v as u32;
                 break;
             }
         }
-        // let result = table_3.find(|&x| x[0] == coordinate[0] && x[1] == coordinate[1] && x[2] == coordinate[2]).unwrap(); 
+    }}}
 
-        // let translated_coordinate = [result[0] + 1, result[1] + 1, result[2] + 1, result[3]];
-        // let translated_hash_index = translated_coordinate[0] + translated_coordinate[1] * x_offset as i32  + translated_coordinate[2] * x_offset as i32 * y_offset as i32; 
-        // indices.push(translated_hash_index);
-        // println!("translated_hash_index {:?}", translated_hash_index);
+    // for coordinate in table.iter() {
 
-        // // Center.
-        // if (translated_coordinate[0] >= 1 && translated_coordinate[0] <= x_dim as i32)
-        //     && (translated_coordinate[1] >= 1 && translated_coordinate[1] <= y_dim as i32)
-        //     && (translated_coordinate[2] >= 1 && translated_coordinate[2] <= z_dim as i32) {
-        //     println!("{:?} is insider", translated_coordinate);
-        // }
-        // else {
-        //     println!("{:?} is outsider", translated_coordinate);
-        // }
-    }
+    //     // let mut found_index = 0;
+    //     for i in 0..table.len() {
+    //         let temp = table[i]; 
+    //         if temp[0] == coordinate[0] && temp[1] == coordinate[1] && temp[2] == coordinate[2] {
+    //             let translated_coordinate = [temp[0] + 1, temp[1] + 1, temp[2] + 1, temp[3]];
+    //             // if (translated_coordinase[0] == 0 && translated_coordinase[2] == 0) || 
+    //             //    (translated_coordinase[x_offset-1] == 0 && translated_coordinase[y_offset-1] == 0) || 
+    //             //    (translated_coordinase[0] == 0 && translated_coordinase[2] == 0) || 
+    //             //    (translated_coordinase[x_offset-1] == 0 && translated_coordinase[y_offset-1] == 0) || 
+    //             let translated_hash_index = translated_coordinate[0] + translated_coordinate[1] * x_offset as i32  + translated_coordinate[2] * x_offset as i32 * y_offset as i32; 
+    //             indices.push(translated_hash_index);
+    //             thread_id_mapping[translated_hash_index as usize] = i as u32;
+    //             break;
+    //         }
+    //     }
+    //     // let result = table_3.find(|&x| x[0] == coordinate[0] && x[1] == coordinate[1] && x[2] == coordinate[2]).unwrap(); 
 
-    indices.sort();
+    //     // let translated_coordinate = [result[0] + 1, result[1] + 1, result[2] + 1, result[3]];
+    //     // let translated_hash_index = translated_coordinate[0] + translated_coordinate[1] * x_offset as i32  + translated_coordinate[2] * x_offset as i32 * y_offset as i32; 
+    //     // indices.push(translated_hash_index);
+    //     // println!("translated_hash_index {:?}", translated_hash_index);
+
+    //     // // Center.
+    //     // if (translated_coordinate[0] >= 1 && translated_coordinate[0] <= x_dim as i32)
+    //     //     && (translated_coordinate[1] >= 1 && translated_coordinate[1] <= y_dim as i32)
+    //     //     && (translated_coordinate[2] >= 1 && translated_coordinate[2] <= z_dim as i32) {
+    //     //     println!("{:?} is insider", translated_coordinate);
+    //     // }
+    //     // else {
+    //     //     println!("{:?} is outsider", translated_coordinate);
+    //     // }
+    // }
+
+    // indices.sort();
 
     let mut max_index = 0;
 
@@ -192,6 +209,10 @@ pub fn create_hash_table(x_dim: u32,
         let translated_coordinate = [temp[0] + 1, temp[1] + 1, temp[2] + 1, temp[3]];
         let translated_hash_index = translated_coordinate[0] + translated_coordinate[1] * x_offset as i32  + translated_coordinate[2] * x_offset as i32 * y_offset as i32; 
         //println!("temp (table) == {:?} table[thread_id_mapping[{:?}] == {:?}", temp, translated_hash_index, table[thread_id_mapping[translated_hash_index as usize] as usize]);
+    }
+
+    for (i, temp) in thread_id_mapping.iter().enumerate() {
+        println!("{:?} :: {:?}", i, temp);
     }
 
     (mapping, thread_id_mapping, table)

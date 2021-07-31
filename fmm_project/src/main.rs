@@ -614,14 +614,16 @@ impl Application for FMM_App {
 
         let mut global_dimensions = self.current_global_dimensions;
 
-        if !key1_pressed.is_none() {global_dimensions = [global_dimensions[0] - time_offset, global_dimensions[1], global_dimensions[2]]; }
-        if !key2_pressed.is_none() {global_dimensions = [global_dimensions[0] + time_offset, global_dimensions[1], global_dimensions[2]]; }
-        if !key3_pressed.is_none() {global_dimensions = [global_dimensions[0] , global_dimensions[1] - time_offset, global_dimensions[2]]; }
-        if !key4_pressed.is_none() {global_dimensions = [global_dimensions[0] , global_dimensions[1] + time_offset, global_dimensions[2]]; }
-        if !key5_pressed.is_none() {global_dimensions = [global_dimensions[0] , global_dimensions[1], global_dimensions[2] - time_offset]; }
-        if !key6_pressed.is_none() {global_dimensions = [global_dimensions[0] , global_dimensions[1], global_dimensions[2] + time_offset]; }
+        let mut pressed: bool = false;
 
-        if global_dimensions[0] > 1.0 && global_dimensions[1] > 1.0 &&  global_dimensions[2] > 1.0 {
+        if !key1_pressed.is_none() {global_dimensions = [global_dimensions[0] - time_offset, global_dimensions[1], global_dimensions[2]]; pressed = true; }
+        if !key2_pressed.is_none() {global_dimensions = [global_dimensions[0] + time_offset, global_dimensions[1], global_dimensions[2]];  pressed = true;}
+        if !key3_pressed.is_none() {global_dimensions = [global_dimensions[0] , global_dimensions[1] - time_offset, global_dimensions[2]];  pressed = true;}
+        if !key4_pressed.is_none() {global_dimensions = [global_dimensions[0] , global_dimensions[1] + time_offset, global_dimensions[2]];  pressed = true;}
+        if !key5_pressed.is_none() {global_dimensions = [global_dimensions[0] , global_dimensions[1], global_dimensions[2] - time_offset];  pressed = true;}
+        if !key6_pressed.is_none() {global_dimensions = [global_dimensions[0] , global_dimensions[1], global_dimensions[2] + time_offset];  pressed = true;}
+
+        if global_dimensions[0] > 1.0 && global_dimensions[1] > 1.0 &&  global_dimensions[2] > 1.0 && pressed {
 
                 self.fmm_attributes.global_dimensions = [global_dimensions[0] as u32, global_dimensions[1] as u32, global_dimensions[2] as u32];
 
@@ -731,7 +733,6 @@ impl Application for FMM_App {
             let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("FMM update encoder.") });
 
             if let Some(ref query_sets) = self.query_sets {
-                println!("HEKO 1");
                 encoder.write_timestamp(&query_sets.timestamp, 0);
             }
 
@@ -743,12 +744,10 @@ impl Application for FMM_App {
             ); 
 
             if let Some(ref query_sets) = self.query_sets {
-                println!("HEKO 2");
                 encoder.write_timestamp(&query_sets.timestamp, 1);
             }
 
             if let Some(ref query_sets) = self.query_sets {
-                println!("HEKO 3");
                 encoder.write_timestamp(&query_sets.timestamp, 2);
             }
 
@@ -760,7 +759,6 @@ impl Application for FMM_App {
             ); 
 
             if let Some(ref query_sets) = self.query_sets {
-                println!("HEKO 4");
                 encoder.write_timestamp(&query_sets.timestamp, 3);
             }
 
@@ -775,63 +773,6 @@ impl Application for FMM_App {
                         );
             }
 
-            //if let Some(ref query_sets) = self.query_sets {
-            //    // We can ignore the future as we're about to wait for the device.
-            //    //
-            //    let result = to_vec::<QueryData>(&device,
-            //            &queue,
-            //            &query_sets.query_buffer,
-            //            0 as wgpu::BufferAddress,
-            //            (std::mem::size_of::<QueryData>() as usize) as wgpu::BufferAddress);
-
-            //    // let _ = query_sets
-            //    //     .query_buffer
-            //    //     .slice(..)
-            //    //     .map_async(wgpu::MapMode::Read);
-            //    // // Wait for device to be done rendering mipmaps
-            //    // device.poll(wgpu::Maintain::Wait);
-            //    // // This is guaranteed to be ready.
-            //    // let view = query_sets.query_buffer.slice(..).get_mapped_range();
-            //    // // Convert the raw data into a useful structure
-            //    // let data: &QueryData = bytemuck::from_bytes(&*view);
-
-            //    println!("result == {:?}. Result.len() == {:?}", result,result.len());
-
-            //    //++for (i, time_stamp_data) in result.timestamps.iter().enumerate() {
-
-            //    //++    // Figure out the timestamp differences and multiply by the period to get nanoseconds
-            //    //++    let nanoseconds =
-            //    //++        (time_stamp_data.end - time_stamp_data.start) as f32 * query_sets.timestamp_period;
-            //    //++    // Nanoseconds is a bit small, so lets use microseconds.
-            //    //++    let microseconds = nanoseconds / 1000.0;
-
-            //    //++    println!("{:?} = {:?} micro seconds.", i, microseconds);
-
-            //    //++}
-            //    //// Iterate over the data
-            //    //for (idx, (timestamp, pipeline)) in data
-            //    //    .timestamps
-            //    //        .iter()
-            //    //        .zip(data.pipeline_queries.iter())
-            //    //        .enumerate()
-            //    //        {
-            //    //            // Figure out the timestamp differences and multiply by the period to get nanoseconds
-            //    //            let nanoseconds =
-            //    //                (timestamp.end - timestamp.start) as f32 * query_sets.timestamp_period;
-            //    //            // Nanoseconds is a bit small, so lets use microseconds.
-            //    //            let microseconds = nanoseconds / 1000.0;
-            //    //            // Print the data!
-            //    //            println!(
-            //    //                    "Generating mip level {} took {:.3} μs and called the fragment shader {} times",
-            //    //                    idx + 1,
-            //    //                    microseconds,
-            //    //                    pipeline
-            //    //                    );
-            //    //        }
-            //}
-
-
-
             queue.submit(Some(encoder.finish()));
 
             if let Some(ref query_sets) = self.query_sets {
@@ -842,13 +783,13 @@ impl Application for FMM_App {
                         &query_sets.query_buffer,
                         0 as wgpu::BufferAddress,
                         (std::mem::size_of::<QueryData>() as usize) as wgpu::BufferAddress);
-                println!("result :: {:?}", result);
+                //println!("result :: {:?}", result);
                 for (i, elem) in result[0].timestamps.iter().enumerate() {
                     let nanoseconds =
                         (elem.end - elem.start) as f32 * query_sets.timestamp_period;
                     let microseconds = nanoseconds / 1000.0;
                     let milli = microseconds / 1000.0;
-                    println!("{:?} time is {:?} micro seconds.", i, microseconds);
+                    //println!("{:?} time is {:?} micro seconds.", i, microseconds);
                     println!("{:?} time is {:?} milli seconds.", i, milli);
     
                 }
