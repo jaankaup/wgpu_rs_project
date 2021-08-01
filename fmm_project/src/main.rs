@@ -901,7 +901,6 @@ fn create_buffers(device: &wgpu::Device,
             buffer_from_data::<[u32; 4]>(
             &device,
             &[[2036, 0, 0, 0]],
-            //&[[2036, 0, 0, 0]],
             wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             None)
         );

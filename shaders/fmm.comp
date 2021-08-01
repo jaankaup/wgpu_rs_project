@@ -6,7 +6,7 @@
 #define MAX_NUM_CHARS 2 // 32 
 
 #define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 16 
+#define LOCAL_Y_DIM 1 
 #define LOCAL_Z_DIM 1
 //#define LOCAL_X_DIM 4 
 //#define LOCAL_Y_DIM 4
@@ -1285,34 +1285,9 @@ void load_fmm_data(uint base_index, ivec3 global_base_coord, bool center_data_on
                            global_index.y >= fmm_attributes.global_dimensions.y*4 ||
                            global_index.z >= fmm_attributes.global_dimensions.z*4;
 
-            //shared_fmm_nodes[thread_id + gl_LocalInvocationID.y * 160] = 
             shared_fmm_nodes[thread_id + gl_LocalInvocationID.y * 160] = 
                 outside ? FMM_Node(0.0, 5) : fmm_nodes[pos_and_offset.w + int(base_index)];
 
-            //++ vec3 this_coord = vec3(global_index);
-            //++ initialize_char_array(this_coord);
-
-            //++ uvec3 final_color = uvec3(255, 100, 100);
-
-            //++ log_vec3(this_coord, 1);
-            //++ //log_number(thread_id, false);
-            //++ add_end_of_line();
-            //++ AABB aabb = create_char_sequency_points(255, 125, 125);
-            //++ AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-            //++ create_output_points(aabb, final_color.x, final_color.y, final_color.z);
-
-            // if (outside) {
-            //     create_point_ball(global_index, 30, 255, 0, 0.01);
-            //     // initialize_char_array(global_index);
-            //     // log_uvec3(global_index);
-            //     // add_end_of_line();
-            //     // push_chars(255,255,20);
-            // }
-
-            // if (pos_and_offset.w + int(base_index) < 0) {
-            //     shared_fmm_nodes[thread_id + gl_LocalInvocationID.y * 160] =
-            //         FMM_Node(0.0, 6);
-            // }
         }
     }
 }
@@ -1350,17 +1325,16 @@ void save_fmm_data(uint base_index, ivec3 global_base_index, bool center_data_on
 //  |  0     |   1    |   2    |   3    |   4    |   5    | 
 //  +--------+--------+--------+--------+--------+--------+
 // 
-//void get_neighbors(ivec4 pos_and_offset, out FMM_Node[6] neighbors, out uint[6] neighbor_indices) {
 void get_neighbors(uint cell_index, uint work_index, out FMM_Node[6] neighbors, out uint[6] neighbor_indices) {
 
-        ivec4 pos_and_offset = shared_offset_table[cell_index];
+        const ivec4 pos_and_offset = shared_offset_table[cell_index];
 
-        uint right = get_transformed_index(pos_and_offset.xyz + ivec3(1,0,0));
-        uint left  = get_transformed_index(pos_and_offset.xyz + ivec3(-1,0,0));
-        uint up    = get_transformed_index(pos_and_offset.xyz + ivec3(0,1,0));
-        uint down  = get_transformed_index(pos_and_offset.xyz + ivec3(0,-1,0));
-        uint front = get_transformed_index(pos_and_offset.xyz + ivec3(0,0,1));
-        uint back  = get_transformed_index(pos_and_offset.xyz + ivec3(0,0,-1));
+        const uint right = get_transformed_index(pos_and_offset.xyz + ivec3(1,0,0));
+        const uint left  = get_transformed_index(pos_and_offset.xyz + ivec3(-1,0,0));
+        const uint up    = get_transformed_index(pos_and_offset.xyz + ivec3(0,1,0));
+        const uint down  = get_transformed_index(pos_and_offset.xyz + ivec3(0,-1,0));
+        const uint front = get_transformed_index(pos_and_offset.xyz + ivec3(0,0,1));
+        const uint back  = get_transformed_index(pos_and_offset.xyz + ivec3(0,0,-1));
 
         neighbors[0] = shared_fmm_nodes[left + 160 * work_index]; // LEFT
         neighbors[1] = shared_fmm_nodes[right + 160 * work_index]; // RIGHT
@@ -1460,20 +1434,16 @@ void add_initial_band_points() {
 
   for (int b = 0; b<offset ; b++) {
 
-        uvec3 ijk = index_to_uvec3(b + offset * gl_LocalInvocationID.y,
-                                   fmm_attributes.global_dimensions.x,
-                                   fmm_attributes.global_dimensions.y);
+        const uvec3 ijk = index_to_uvec3(b + offset * gl_LocalInvocationID.y,
+                                         fmm_attributes.global_dimensions.x,
+                                         fmm_attributes.global_dimensions.y);
                                    
-        uint i = ijk.x;
-        uint j = ijk.y;
-        uint k = ijk.z;
-
-        const uint base_index = i * 64 +
-                                j * 64 * fmm_attributes.global_dimensions.x +
-                                k * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
+        const uint base_index = ijk.x * 64 +
+                                ijk.y * 64 * fmm_attributes.global_dimensions.x +
+                                ijk.z * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
 
         // Load FMM nodes to the shared memory.
-        load_fmm_data(base_index, ivec3(i, j, k) * 4, false);
+        load_fmm_data(base_index, ivec3(ijk.x, ijk.y, ijk.z) * 4, false);
         barrier();
 
         FMM_Node node = shared_fmm_nodes[gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y];
@@ -1484,6 +1454,8 @@ void add_initial_band_points() {
             FMM_Node[6] neighbors;
             uint[6] neighbor_indices;
             get_neighbors(gl_LocalInvocationID.x, gl_LocalInvocationID.y, neighbors, neighbor_indices);
+
+            // TODO: out side of context fmm nodes.
 
             shared_fmm_nodes[neighbor_indices[0]].tag =  
                 neighbors[0].tag != 2 ? 1 : shared_fmm_nodes[neighbor_indices[0]].tag;
@@ -1507,7 +1479,7 @@ void add_initial_band_points() {
         barrier();
 
         // Update both center data and ghost region band points.
-        save_fmm_data(base_index, ivec3(i, j, k) * 4, false);
+        save_fmm_data(base_index, ivec3(ijk.x, ijk.y, ijk.z) * 4, false);
 
         barrier();
 
@@ -1528,40 +1500,33 @@ void render_fmm_nodes() {
                                    fmm_attributes.global_dimensions.x,
                                    fmm_attributes.global_dimensions.y);
 
-            uint i = ijk.x;
-            uint j = ijk.y;
-            uint k = ijk.z;
+        const uint base_index = ijk.x * 64 +
+                                ijk.y * 64 * fmm_attributes.global_dimensions.x +
+                                ijk.z * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
 
-            const uint base_index = i * 64 +
-                                    j * 64 * fmm_attributes.global_dimensions.x +
-                                    k * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
+        // Load FMM nodes to the shared memory.
+        load_fmm_data(base_index, ivec3(ijk.x, ijk.y, ijk.z) * 4, false);
+        barrier();
 
-            // Load FMM nodes to the shared memory.
-            load_fmm_data(base_index, ivec3(i, j, k) * 4, false);
-            barrier();
+        vec3 this_coord = vec3(shared_offset_table[gl_LocalInvocationID.x].xyz + ivec3(ijk.x, ijk.y, ijk.z) * 4);
+        
+        FMM_Node node = shared_fmm_nodes[gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y];
 
-            ivec4 pos_and_offset = shared_offset_table[gl_LocalInvocationID.x];
-            ivec3 this_coord_oho = pos_and_offset.xyz + ivec3(i, j, k) * 4;
-            vec3 this_coord = vec3(this_coord_oho.x, this_coord_oho.y, this_coord_oho.z) ;
-            
-            FMM_Node node = shared_fmm_nodes[gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y];
-
-            if (node.tag == 2) {
-                uint factor = 100 + uint(abs(node.value * 150.0));
-                uvec3 final_color = node.value < 0.0 ? uvec3(0,0,factor) : uvec3(factor,0,0);
-                create_point_ball(this_coord, 0, 255, 0, 0.01);
-            }
-            if (node.tag == 1) {
-                vec3 this_coord = pos_and_offset.xyz + ivec3(i, j, k) * 4;
-                create_point_ball(this_coord, 255, 0, 0, 0.01);
-            }
-            if (node.tag == 5) {
-                create_point_ball(this_coord, 255, 255, 255, 0.01);
-            }
-            // if (node.tag == 6) {
-            //     vec3 this_coord = pos_and_offset.xyz + ivec3(i, j, k) * 4;
-            //     create_point_ball(this_coord, 0, 0, 255, 0.01);
-            // }
+        if (node.tag == 2) {
+            uint factor = 100 + uint(abs(node.value * 150.0));
+            uvec3 final_color = node.value < 0.0 ? uvec3(0,0,factor) : uvec3(factor,0,0);
+            create_point_ball(this_coord, 0, 255, 0, 0.01);
+        }
+        if (node.tag == 1) {
+            create_point_ball(this_coord, 255, 0, 0, 0.01);
+        }
+        if (node.tag == 5) {
+            create_point_ball(this_coord, 255, 255, 255, 0.01);
+        }
+        // if (node.tag == 6) {
+        //     vec3 this_coord = pos_and_offset.xyz + ivec3(i, j, k) * 4;
+        //     create_point_ball(this_coord, 0, 0, 255, 0.01);
+        // }
 
         barrier();
     } // for
@@ -1607,9 +1572,9 @@ void main() {
 
   /* RENDER NODES. DEBUGGING. */
 
-  //render_fmm_nodes();
+  render_fmm_nodes();
   ////groupMemoryBarrier();
-  //barrier();
+  barrier();
 
   /* UPDATE COUNTERS. DEBUGGING. */
   if (local_id_to_x() == 0) {
