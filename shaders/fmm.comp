@@ -3,23 +3,13 @@
 
 #version 450
 
-#define MAX_NUM_CHARS 2 // 32 
+#define MAX_NUM_CHARS 1 // 32 
 
 #define LOCAL_X_DIM 64 
 #define LOCAL_Y_DIM 16 
 #define LOCAL_Z_DIM 1
-//#define LOCAL_X_DIM 4 
-//#define LOCAL_Y_DIM 4
-//#define LOCAL_Z_DIM 4
-#define GLOBAL_DIM_X 3
-#define GLOBAL_DIM_Y 3
-#define GLOBAL_DIM_Z 3
-#define INDEX_OFFSET_Z (64 * GLOBAL_DIM_X * GLOBAL_DIM_Y - 48)
-#define INDEX_OFFSET_Y (64 * GLOBAL_DIM_X - 12)
-#define INDEX_OFFSET_X 61
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
-#define SCAN_BLOCK_SIZE (THREAD_COUNT * 2 + (THREAD_COUNT * 2 >> 4)) //136 // 128 + (128 >> 4)
-#define ACTIVE_FMM_BLOCKS_OFFSET 512 // TODO: from uniform
+#define SCAN_BLOCK_SIZE (THREAD_COUNT * 2 + (THREAD_COUNT * 2 >> 4))
 
 // Fast marching method cell node.
 // 0 => Far.
@@ -35,11 +25,12 @@ struct Block_Band_Info {
     uint tag; // 0 :: Center, 1 :: Back, 2 :: Front, 4 :: Right, 8 :: Left, 16 :: Top, 32 :: Bottom 
     bool has_band;
 };
+//shared Block_Band_Info[7 * LOCAL_Y_DIM] shared_band_info;
 
 //shared FMM_Node[160] shared_fmm_nodes;
 shared FMM_Node[160*LOCAL_Y_DIM] shared_fmm_nodes;
+shared uint[LOCAL_Y_DIM] band_counts;
 
-shared Block_Band_Info[7 * LOCAL_Y_DIM] shared_band_info;
 
 // Load from application.
 shared ivec4[160] shared_offset_table;
@@ -51,10 +42,6 @@ struct FMM_Block {
     uint index;
     uint band_points_count;
 };
-
-//struct FMM_Block {
-//    bool has_band_points;
-//};
 
 struct OutputVertex {
     vec3 pos;
@@ -118,7 +105,7 @@ layout(local_size_x = LOCAL_X_DIM, local_size_y = LOCAL_Y_DIM, local_size_z = LO
 
 const float FONT_SIZE = 0.02;
 const float FONT_OFFSET_Y = 1.2;
-const uint MAX_NUM_OF_POINTS = 150;
+const uint MAX_NUM_OF_POINTS = 1500;
 
 //// Super clever hack to avoid if :).
 const uint blah[2] = {0, 0xffffffff};
@@ -160,11 +147,9 @@ shared uint[SCAN_BLOCK_SIZE] shared_prefix_sum;
 //// The counter for active fmm blocks.
 shared uint stream_compaction_count;
 
-// TODO: define a buffer for active scan blocks.
-//shared FMM_Block[SCAN_BLOCK_SIZE * SCAN_BLOCK_COUNT] shared_stream_compaction;
-
 // Debugging.
-shared CharInformation[THREAD_COUNT] char_arrays;
+//shared CharInformation[THREAD_COUNT] char_arrays;
+shared CharInformation[1] char_arrays;
 
 const uvec3 local_dimension = uvec3(4,4,4);
 const uvec3 group_dimension = uvec3(4,4,4);
@@ -405,8 +390,13 @@ uint update_counter() {
 
 void create_point_ball(vec3 pos, uint r, uint g, uint b, float dist) {
     
+    uint index = atomicAdd(counter[0], 1);
+    output_points[index] = OutputVertex(pos, encode_rgba_u32(r, g, b, 1)); 
+}
+
+void create_point_ball7(vec3 pos, uint r, uint g, uint b, float dist) {
+    
     uint index = atomicAdd(counter[0], 7);
-    //++uint index = atomicAdd(counter[0], 1);
     output_points[index] = OutputVertex(pos, encode_rgba_u32(r, g, b, 1)); 
     output_points[index+1] = OutputVertex(pos + vec3(dist , 0.0, 0.0), encode_rgba_u32(r, g, b, 1)); 
     output_points[index+2] = OutputVertex(pos + vec3(-dist , 0.0, 0.0), encode_rgba_u32(r, g, b, 1)); 
@@ -924,26 +914,6 @@ void copy_block_to_temp(uint chunck_id, uint number_of_items) {
 
     shared_prefix_sum[ai_bcf] = uint((ai < number_of_items) && (a.band_points_count > 0));
     shared_prefix_sum[bi_bcf] = uint((bi < number_of_items) && (b.band_points_count > 0));
-
-    // const vec3 this_coord  = vec3((ai + chunck_id*(THREAD_COUNT * 2)) * DEBUG_OFFSET, 0.0, 0.0);
-    // const vec3 this_coord2 = vec3((bi + chunck_id*(THREAD_COUNT * 2)) * DEBUG_OFFSET, 0.0, 0.0);
-    // const vec3 this_coord  = vec3(ai * DEBUG_OFFSET, 0.0, 0.0);
-    // const vec3 this_coord2 = vec3(bi * DEBUG_OFFSET, 0.0, 0.0);
-
-    // initialize_char_array(this_coord + vec3(0.0, DEBUG_OFFSET * (chunck_id+4), 0.0));
-    // log_number(ai + chunck_id*(THREAD_COUNT * 2), false);
-    // add_end_of_line();
-    // log_number(shared_prefix_sum[ai_bcf], false);
-    // add_end_of_line();
-    // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
-
-    // initialize_char_array(this_coord2 + vec3(0.0, DEBUG_OFFSET * (chunck_id+4), 0.0));
-
-    // log_number(bi + chunck_id*(THREAD_COUNT * 2), false);
-    // add_end_of_line();
-    // log_number(shared_prefix_sum[bi_bcf], false);
-    // add_end_of_line();
-    // push_chars(255 - local_id_to_x() * 4, local_id_to_x() * 4, 20);
 }
 
 void copy_prefix_sum_to_temp(uint chunck_id) {
@@ -1103,9 +1073,13 @@ void solve_active_fmm_block(uint number_of_scan_blocks) {
     
       uint ai = local_id_x + j * THREAD_COUNT * 2;
       uint bi = (local_id_x + THREAD_COUNT) + j * THREAD_COUNT * 2;
+
+      const uint active_fmm_blocks_offset = fmm_attributes.global_dimensions.x *
+                                            fmm_attributes.global_dimensions.y *
+                                            fmm_attributes.global_dimensions.z;
     
-      uint ai_active = ai + ACTIVE_FMM_BLOCKS_OFFSET;
-      uint bi_active = bi + ACTIVE_FMM_BLOCKS_OFFSET;
+      uint ai_active = ai + active_fmm_blocks_offset;
+      uint bi_active = bi + active_fmm_blocks_offset;
     
       FMM_Block a = fmm_block[ai];
       FMM_Block b = fmm_block[bi];
@@ -1115,19 +1089,20 @@ void solve_active_fmm_block(uint number_of_scan_blocks) {
     
       if (add_a) {
           uint index_to_add = temp_prefix_sum[ai];
-          fmm_block[index_to_add + ACTIVE_FMM_BLOCKS_OFFSET] = a;
+          fmm_block[index_to_add + active_fmm_blocks_offset] = a;
       }
       if (add_b) {
           uint index_to_add = temp_prefix_sum[bi];
-          fmm_block[index_to_add + ACTIVE_FMM_BLOCKS_OFFSET] = b;
+          fmm_block[index_to_add + active_fmm_blocks_offset] = b;
       }
     }
 }
 
 uint global_solver() {
 
-  // This should come from the host program.
-  const int number_of_blocks = 512; 
+  uint number_of_blocks = fmm_attributes.global_dimensions.x *
+                          fmm_attributes.global_dimensions.y *
+                          fmm_attributes.global_dimensions.z;
 
   // Convert 4x4x4 index to uint.
   uint local_id_x = local_id_to_x();
@@ -1139,7 +1114,7 @@ uint global_solver() {
   // neeeded. TODO: check number_of_blocks == 0. Return immediatelly if it
   // true.
   //const int number_of_scan_blocks = (number_of_blocks - 1) / 128 + 1; const int number_of_scan_blocks = (number_of_blocks - 1) / 128 + 1;
-  const int number_of_scan_blocks = (number_of_blocks - 1) / (THREAD_COUNT*2) + 1;
+  const uint number_of_scan_blocks = (number_of_blocks - 1) / (THREAD_COUNT*2) + 1;
 
   // Available items count.
   uint items_available = number_of_blocks;
@@ -1347,7 +1322,7 @@ void get_neighbors(uint cell_index, uint work_index, out FMM_Node[6] neighbors, 
 float solve_quadratic(uint cell_index) {
 
         // Band cell to be processed.
-        FMM_Node node = shared_fmm_nodes[gl_LocalInvocationIndex];
+        FMM_Node node = shared_fmm_nodes[cell_index];
 
         // Surrounding neighbors.
         FMM_Node[6] neighbors;
@@ -1501,6 +1476,52 @@ void add_initial_band_points() {
   } // for
 }
 
+void render_active_blocks() {
+
+  //if (gl_LocalInvocationIndex == 0) {
+  //  initialize_char_array(vec3(-1.0, -1.0, -1.0));
+  //  log_number(stream_compaction_count, false);
+  //  add_end_of_line();
+  //  push_chars(255, 255, 255);
+  //}
+
+  const uint number_of_active_blocks = stream_compaction_count;
+  const uint item_blocks = (number_of_active_blocks - 1) / THREAD_COUNT + 1;
+  uint items_available = number_of_active_blocks;
+
+  for (int i=0 ; i<item_blocks ; i++) {
+
+    uint number_of_taken_items = min(THREAD_COUNT, items_available);
+    items_available -= number_of_taken_items;
+
+    uint all_dimension_length = fmm_attributes.global_dimensions.x *
+                                fmm_attributes.global_dimensions.y *
+                                fmm_attributes.global_dimensions.z;
+
+    if (gl_LocalInvocationIndex < number_of_taken_items) {
+        
+        uint b = fmm_block[all_dimension_length + gl_LocalInvocationIndex + i*THREAD_COUNT].index;
+
+        const uvec3 ijk = index_to_uvec3(b,
+                                         fmm_attributes.global_dimensions.x,
+                                         fmm_attributes.global_dimensions.y) * 4;
+        create_point_ball7(vec3(ijk), 255, 255, 255, 0.03);
+
+        //AABB scene_aabb = AABB(vec4(ijk, 1.0),
+        //                       vec4(ijk.x + 1,
+        //                            ijk.y + 1,
+        //                            ijk.z + 1,
+        //                            1.0));
+        //create_aabb_triangles_r(scene_aabb,
+        //                  255,
+        //                  255,
+        //                  200,
+        //                  0.15
+        //);
+    }
+  }
+}
+
 void render_fmm_nodes() {
 
   uint all_dimension_length = fmm_attributes.global_dimensions.x *
@@ -1535,21 +1556,62 @@ void render_fmm_nodes() {
         if (node.tag == 1) {
             create_point_ball(this_coord, 255, 0, 0, 0.01);
         }
-        if (node.tag == 5) {
-            create_point_ball(this_coord, 255, 255, 255, 0.01);
-        }
-        // if (node.tag == 6) {
-        //     vec3 this_coord = pos_and_offset.xyz + ivec3(i, j, k) * 4;
-        //     create_point_ball(this_coord, 0, 0, 255, 0.01);
+        // if (node.tag == 5) {
+        //     create_point_ball(this_coord, 255, 255, 255, 0.01);
         // }
+        if (node.tag == 7) {
+            create_point_ball(this_coord, 0, 0, 255, 0.01);
+        }
 
         barrier();
     } // for
 }
 
-void calculate_initial_band_values() {
+void calculate_initial_band_count() {
     
+  uint all_dimension_length = fmm_attributes.global_dimensions.x *
+                              fmm_attributes.global_dimensions.y *
+                              fmm_attributes.global_dimensions.z;
+
+  const uint offset = all_dimension_length/LOCAL_Y_DIM;
+
+  for (int b = 0; b<offset ; b++) {
+
+    uvec3 ijk = index_to_uvec3(b + offset * gl_LocalInvocationID.y,
+                               fmm_attributes.global_dimensions.x,
+                               fmm_attributes.global_dimensions.y);
+
+    const uint base_index = ijk.x * 64 +
+                            ijk.y * 64 * fmm_attributes.global_dimensions.x +
+                            ijk.z * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
+
+    // Load FMM nodes to the shared memory.
+    load_fmm_data(base_index, ivec3(ijk.x, ijk.y, ijk.z) * 4, false);
+    band_counts[gl_LocalInvocationID.y] = 0;
+    barrier();
+
+    FMM_Node node = shared_fmm_nodes[gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y];
+
+    // BAND found.
+    if (node.tag == 1) {
+        atomicAdd(band_counts[gl_LocalInvocationID.y], 1);
+        node.value = solve_quadratic(gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y);
+        node.tag = 7;
+        shared_fmm_nodes[gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y] = node; 
+    }
+    barrier();
+
+    // Update both center data and ghost region band points.
+    save_fmm_data(base_index, ivec3(ijk.x, ijk.y, ijk.z) * 4, true);
+
+    // Update band point count to the corresponding FMM_Block.
+    if (gl_LocalInvocationID.x == 0) {
+        fmm_block[b + offset * gl_LocalInvocationID.y].band_points_count = band_counts[gl_LocalInvocationID.y]; 
+    }
+    barrier();
+  }
 }
+
 
 void main() {
 
@@ -1575,7 +1637,6 @@ void main() {
   barrier();
 
   // solve_active_fmm_blocks();
-  ////global_solver();
 
   /* LOAD HASH TABLES TO SHARED MEMORY. */
 
@@ -1589,11 +1650,18 @@ void main() {
   add_initial_band_points();
   barrier();
 
-  /* RENDER NODES. DEBUGGING. */
+  calculate_initial_band_count();
+  barrier();
 
-  //render_fmm_nodes();
-  //////groupMemoryBarrier();
-  //barrier();
+  uint joooo = global_solver();
+  barrier();
+
+  /* RENDER NODES. DEBUGGING. */
+  render_fmm_nodes();
+  barrier();
+
+  render_active_blocks();
+  barrier();
 
   /* UPDATE COUNTERS. DEBUGGING. */
   if (local_id_to_x() == 0) {

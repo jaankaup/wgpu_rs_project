@@ -3,7 +3,7 @@
 #define MAX_NUM_CHARS 1 
 
 #define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 16
+#define LOCAL_Y_DIM 6
 #define LOCAL_Z_DIM 1
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
 #define BLOCK_SIZE 192
@@ -1394,18 +1394,6 @@ void apply_triangle_mesh() {
         uint dim_x_max = uint(temp_triangle.aabb.max.x);
         uint dim_y_max = uint(temp_triangle.aabb.max.y);
         uint dim_z_max = uint(temp_triangle.aabb.max.z);
-
-        // vec3 this_coord = vec3(-3.0, float(gl_LocalInvocationIndex), -1.0);
-        // uvec3 final_color = uvec3(155,255,200);
-        // initialize_char_array(this_coord);
-        // log_uvec3(uvec3(dim_x_min, dim_y_min, dim_z_min));
-        // add_end_of_line();
-        // log_uvec3(uvec3(dim_x_max, dim_y_max, dim_z_max));
-        // add_end_of_line();
-        // AABB aabb = create_char_sequency_points(255, 5, 0);
-        // AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-        // create_output_points(aabb, final_color.x, final_color.y, final_color.z);
-        //++barrier();
 
         // Triangle is atleast partly inside computation domain.
         if (!(dim_x_max == 0 || dim_x_min >= fmm_attributes.global_dimensions.x ||

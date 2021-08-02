@@ -41,7 +41,7 @@ use bytemuck::{Pod, Zeroable};
 //triangle points.
 const DEBUG_BUFFER_SIZE: u32   = 1024000; //4194300; // 1048575; //33554416;
 const DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
-const BLOCK_DIMENSIONS: [u32; 3] = [32, 32, 32];
+const BLOCK_DIMENSIONS: [u32; 3] = [24, 30, 24];
 const TIME_STAMP_COUNT: u32 = 2;
 
 // TODO: add Queries to jaankaup_core.
@@ -802,38 +802,14 @@ fn create_buffers(device: &wgpu::Device,
             None)
         );
 
-        //let active_block_ids: Vec<u32> = vec![0, 2, 124, 127, 128, 168, 300];
-        let mut active_block_ids: Vec<u32> = Vec::new();
-
-        for i in 0..512 {
-            active_block_ids.push(i);
-        }
-
         println!("CREATING BLOCKS");
 
-        let mut test_blocks: Vec<FMM_Block> = Vec::new();
+        let mut test_blocks: Vec<FMM_Block> = vec![FMM_Block{ index: 0, band_points_count: 0} ; number_of_blocks as usize * 2];
 
         let mut index_counter: u32 = 0;
-        for k in 0..block_dimension[0] {
-        for j in 0..block_dimension[1] {
-        for i in 0..block_dimension[2] {
-            if index_counter < 8*8*8 {
-                //if k == 1 || (j == 1 || i == 0) { 
-                if active_block_ids.contains(&index_counter) {
-                    test_blocks.push(FMM_Block{ index: index_counter, band_points_count: 3});  
-                    // println!("{}", index_counter);
-                }
-                else {
-                    test_blocks.push(FMM_Block{ index: index_counter, band_points_count: 0});  
-                }
-            }
-            index_counter = index_counter + 1;
-        }}};
-
-        // Populate the 'Active FMM_Blocks'.
-        for i in 0..number_of_blocks {
-            test_blocks.push(FMM_Block{ index: 777, band_points_count: 0});  
-        }
+        for i in 0..number_of_blocks as usize {
+            test_blocks[i] = FMM_Block{ index: i as u32, band_points_count: 0};
+        };
 
         buffers.insert(
             "fmm_blocks".to_string(),
