@@ -6,7 +6,7 @@
 #define MAX_NUM_CHARS 2 // 32 
 
 #define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 1 
+#define LOCAL_Y_DIM 6 
 #define LOCAL_Z_DIM 1
 //#define LOCAL_X_DIM 4 
 //#define LOCAL_Y_DIM 4

@@ -3,9 +3,11 @@
 #define MAX_NUM_CHARS 1 
 
 #define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 4
+#define LOCAL_Y_DIM 6
 #define LOCAL_Z_DIM 1
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
+#define BLOCK_SIZE 192
+//#define BLOCK_SIZE 128
 
 #define DEBUG_OFFSET 0.07
 
@@ -52,8 +54,10 @@ struct FMM_Temp_Node {
     FMM_Node node;
 };
 
-shared Vertex_vvvvnnnn temp_vertices[THREAD_COUNT * 3]; 
-shared Triangle temp_triangles[THREAD_COUNT]; 
+shared Vertex_vvvvnnnn temp_vertices[BLOCK_SIZE * 3]; 
+shared Triangle temp_triangles[BLOCK_SIZE]; 
+//++shared Vertex_vvvvnnnn temp_vertices[THREAD_COUNT * 3]; 
+//++shared Triangle temp_triangles[THREAD_COUNT]; 
 
 //shared FMM_Node[160] shared_fmm_nodes;
 //shared FMM_Node[160*LOCAL_Y_DIM] shared_fmm_nodes;
@@ -1315,7 +1319,8 @@ void apply_triangle_mesh() {
   const uint vertex_count = custom_data.x*3;
 
   // The number of triangle blocks divided among the all threads.
-  const uint number_of_triangle_blocks = (triangle_count - 1) / THREAD_COUNT + 1;
+  //++const uint number_of_triangle_blocks = (triangle_count - 1) / THREAD_COUNT + 1;
+  const uint number_of_triangle_blocks = (triangle_count - 1) / BLOCK_SIZE + 1;
   
   // PLAN.
   // 1. Load triangle data in blocks to the shared memory.
@@ -1328,9 +1333,8 @@ void apply_triangle_mesh() {
   uint items_available = triangle_count;
 
   for (int i=0 ; i<number_of_triangle_blocks ; i++) {
-    //barrier(); // Remove?
 
-    uint thread_id = i * 3 * THREAD_COUNT + gl_LocalInvocationIndex;
+    uint thread_id = i * 3 * BLOCK_SIZE + gl_LocalInvocationIndex;
     
     //    0         64        128       192      256       320       384       ....  (triangle_data 'Global') 
     //    +---------+---------+---------+---------+---------+---------+---------+---------+
@@ -1341,10 +1345,14 @@ void apply_triangle_mesh() {
     //        a0        b0        c0          a1        b2        c1                             
     //
 
+    //KESKEN
+
     // Load triangle vertices to shared memory.
-    temp_vertices[gl_LocalInvocationIndex] = thread_id < vertex_count ? triangle_data[thread_id] : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
-    temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT] = thread_id < vertex_count ? triangle_data[thread_id + THREAD_COUNT] : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
-    temp_vertices[gl_LocalInvocationIndex + THREAD_COUNT * 2] = thread_id < vertex_count ? triangle_data[thread_id + THREAD_COUNT * 2] : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
+    if (gl_LocalInvocationIndex < BLOCK_SIZE) { 
+        temp_vertices[gl_LocalInvocationIndex] = thread_id < vertex_count ? triangle_data[thread_id] : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
+        temp_vertices[gl_LocalInvocationIndex + BLOCK_SIZE] = thread_id < vertex_count ? triangle_data[thread_id + BLOCK_SIZE] : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
+        temp_vertices[gl_LocalInvocationIndex + BLOCK_SIZE * 2] = thread_id < vertex_count ? triangle_data[thread_id + BLOCK_SIZE * 2] : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
+    }
 
     barrier();
 
@@ -1357,14 +1365,16 @@ void apply_triangle_mesh() {
     //        xyz                                                                                
 
     // Determine the count of items in this iteration.
-    uint number_of_taken_items = min(THREAD_COUNT, items_available);
+    uint number_of_taken_items = min(BLOCK_SIZE, items_available);
 
     // Decrease the number of available items.
     items_available -= number_of_taken_items;
 
     // If there are still unprocessed triangles (not out of context).
     if (gl_LocalInvocationIndex < number_of_taken_items) {
-        add_triangle();
+        if (gl_LocalInvocationIndex < BLOCK_SIZE) { 
+            add_triangle();
+        }
     }
 
     // Make sure all triangle are stored.
