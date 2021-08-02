@@ -3,7 +3,7 @@
 #define MAX_NUM_CHARS 1 
 
 #define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 6
+#define LOCAL_Y_DIM 16
 #define LOCAL_Z_DIM 1
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
 #define BLOCK_SIZE 192
@@ -1424,7 +1424,7 @@ void apply_triangle_mesh() {
             for (uint ind = 0 ; ind<offset ; ind++) {
 
                 uint actual_index = ind + offset * gl_LocalInvocationID.y;
-                if (actual_index > xyz_count) break;
+                if (actual_index >= xyz_count) break;
 
                 uvec3 local_ind = index_to_uvec3(actual_index, delta_x, delta_y);
                 uvec3 transformed_ind = uvec3(dim_x_min + local_ind.x, dim_y_min + local_ind.y, dim_z_min + local_ind.z);

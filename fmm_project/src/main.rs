@@ -137,7 +137,6 @@ struct FMM_App {
     histogram: Histogram, 
     debug_point_count: u32,
     debug_triangle_draw_count: u32,
-    white_noise_texture: JTexture,
     fmm_data_generator: FMM_data_generator_debug_pipeline,
     fmm_data_generator_bind_groups: Vec<wgpu::BindGroup>,
     render_vvvvnnnn_pipeline: Render_vvvvnnnn,
@@ -279,54 +278,6 @@ impl Application for FMM_App {
             None)
         );
 
-        // Create white noise [0,1] to texture. This is used for sampling triangles.
-        let test_texture_data_1d: Vec<[f32 ; 4]> = vec![[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]];
-        let mut white_noise: Vec<[f32 ; 4]> = Vec::new();
-
-        let mut rng = thread_rng();
-        for _i in 0..8192 {
-            let mut cont = true;
-            while cont {
-                let w0 = rng.gen();
-                let w1 = rng.gen();
-                if w0 + w1 <= 1.0 {
-                    cont = false;
-                    let w2 = rng.gen();
-                    let w3 = rng.gen();
-                    white_noise.push([w0, w1, w2, w3]);
-                }
-            }
-        }
-        // w0 = 0.0
-        // w1 = 1.0
-        ////for i in 1..25  { 
-        ////println!("0 .. {}", i*128);
-        // for j in 0..8096 {
-        //     //let mut cont = true;
-        //     //let w0 = rng.get(); //j as f32/1024.0;
-        //     //let w1 = 1.0 - w0;
-        //     //let w2 = rng.gen();
-        //     //let w3 = rng.gen();
-        //     //white_noise.push([w0, w1, w2, w3]);
-        //     while cont {
-        //         let w0 = rng.gen();
-        //         let w1 = rng.gen();
-        //         let w2 = rng.gen();
-        //         let w3 = rng.gen();
-        //         if w0 + w1 <= 1.0 {
-        //             cont = false;
-        //             white_noise.push([w0, w1, w2, w3]);
-        //         }
-        //     }
-        // }
-        let white_noise_texture = JTexture::create_texture_array(
-                &configuration.queue,
-                &configuration.device,
-                &white_noise,
-                //wgpu::TextureFormat::R32Float
-                wgpu::TextureFormat::Rgba32Float
-        );
-
         // Initialize camera for fmm application.
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
         camera.set_movement_sensitivity(0.1);
@@ -449,12 +400,10 @@ impl Application for FMM_App {
                             &buffers.get("debug_points_output").unwrap().as_entire_binding(),
                             &buffers.get("fmm_nodes").unwrap().as_entire_binding(),
                             &buffers.get("wood").unwrap().as_entire_binding(),
-                            //&wgpu::BindingResource::TextureView(&white_noise_texture.view),
                             &buffers.get("index_hash_table").unwrap().as_entire_binding(),
                             &buffers.get("vec_to_offset").unwrap().as_entire_binding(),
                             &buffers.get("fmm_attributes").unwrap().as_entire_binding(),
                             &buffers.get("fmm_data_gen_params").unwrap().as_entire_binding(),
-                            //&wgpu::BindingResource::Sampler(&white_noise_texture.sampler),
                         ], 
                     ]
         );
@@ -474,7 +423,6 @@ impl Application for FMM_App {
             histogram,
             debug_point_count,
             debug_triangle_draw_count,
-            white_noise_texture, 
             fmm_data_generator,
             fmm_data_generator_bind_groups,
             render_vvvvnnnn_pipeline,
