@@ -1418,8 +1418,8 @@ void apply_triangle_mesh() {
 
             uint xyz_count = delta_x * delta_y * delta_z;
 
-            //const uint rounded_offset = xyz_count/LOCAL_Y_DIM;
-            const uint offset = uint(ceil(xyz_count/LOCAL_Y_DIM));
+            //const uint offset = uint(ceil(xyz_count/LOCAL_Y_DIM));
+            const uint offset = uint(xyz_count/LOCAL_Y_DIM + 1);
 
             for (uint ind = 0 ; ind<offset ; ind++) {
 
