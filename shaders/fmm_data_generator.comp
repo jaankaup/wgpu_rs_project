@@ -897,327 +897,6 @@ void push_chars(uint r, uint g, uint b) {
                     );
 }
 
-//++void copy_prefix_sum_to_temp(uint chunck_id) {
-//++
-//++    // Create the local indices.
-//++    const uint ai = local_id_to_x(); 
-//++    const uint bi = ai + THREAD_COUNT;
-//++
-//++    // Create the bank conflict free local indices.
-//++    const uint ai_bcf = ai + (ai >> 4); 
-//++    const uint bi_bcf = bi + (bi >> 4);
-//++
-//++    // Create the global indices to access the global memory.
-//++    const uint global_ai = ai + chunck_id * (THREAD_COUNT * 2);
-//++    const uint global_bi = bi + chunck_id * (THREAD_COUNT * 2);
-//++
-//++    temp_prefix_sum[global_ai] = shared_prefix_sum[ai_bcf];
-//++    temp_prefix_sum[global_bi] = shared_prefix_sum[bi_bcf];
-//++}
-//++
-//++// Perform prefix sum. Return the exclusive part of the prefix sum.
-//++// NOTE: only the thread 0 returns the actual exclusive part.
-//++uint local_prefix_sum() {
-//++
-//++    // Create the local indices.
-//++    const uint ai = local_id_to_x(); 
-//++    const uint bi = ai + THREAD_COUNT;
-//++
-//++    // Create the bank conflict free local indices.
-//++    const uint ai_bcf = ai + (ai >> 4); 
-//++    const uint bi_bcf = bi + (bi >> 4);
-//++
-//++    uint exclusive_part = 0;
-//++
-//++    // Up sweep.
-//++
-//++    const int n = THREAD_COUNT*2;
-//++    int offset = 1;
-//++    for (int d = n>>1 ; d > 0; d >>= 1) {
-//++      barrier();
-//++      //if (local_id_x < d) {
-//++      if (ai < d) {
-//++
-//++          int ai_temp = offset*(int(ai*2)+1)-1; // 0, 2, 4, 6
-//++          int bi_temp = offset*(int(ai*2)+2)-1; // 1, 3, 5, 7
-//++
-//++          ai_temp += (ai_temp >> 4);
-//++          bi_temp += (bi_temp >> 4);
-//++
-//++          shared_prefix_sum[bi_temp] += shared_prefix_sum[ai_temp];
-//++      }
-//++      offset *= 2;
-//++    }
-//++    barrier();
-//++      
-//++    // Clear the last item. 
-//++    if (ai == 0) {
-//++
-//++        // Global last index.
-//++        uint last_index = (THREAD_COUNT * 2) -1 + ((THREAD_COUNT * 2 - 1) >> 4);
-//++
-//++        // Copy the last prefix sum to the shared_aux. 
-//++        exclusive_part = shared_prefix_sum[last_index];
-//++
-//++        // Add zero to the last index.
-//++        shared_prefix_sum[last_index] = 0;
-//++    }
-//++    
-//++    // Down sweep.
-//++    for (int d = 1; d < n ; d *=2) {
-//++      offset >>= 1;
-//++      barrier();
-//++      if (ai < d) {
-//++          int ai_temp = offset*(int(ai*2)+1)-1;
-//++          int bi_temp = offset*(int(ai*2)+2)-1;
-//++          ai_temp += (ai_temp >> 4);
-//++          bi_temp += (bi_temp >> 4);
-//++          uint t = shared_prefix_sum[ai_temp];
-//++
-//++          shared_prefix_sum[ai_temp] = shared_prefix_sum[bi_temp];
-//++          shared_prefix_sum[bi_temp] += t;
-//++      }
-//++  }
-//++  return exclusive_part;
-//++}
-//++
-//++// Perform prefix sum for shared_aux. Return the exclusive part of the prefix sum.
-//++uint local_prefix_sum_aux() {
-//++
-//++    // Create the local indices.
-//++    const uint ai = local_id_to_x(); 
-//++    const uint bi = ai + THREAD_COUNT;
-//++
-//++    // Create the bank conflict free local indices.
-//++    const uint ai_bcf = ai + (ai >> 4); 
-//++    const uint bi_bcf = bi + (bi >> 4);
-//++
-//++    uint exclusive_part = 0;
-//++
-//++    // Up sweep.
-//++
-//++    const int n = THREAD_COUNT*2;
-//++    int offset = 1;
-//++    for (int d = n>>1 ; d > 0; d >>= 1) {
-//++      barrier();
-//++      if (ai < d) {
-//++
-//++          int ai_temp = offset*(int(ai*2)+1)-1; // 0, 2, 4, 6
-//++          int bi_temp = offset*(int(ai*2)+2)-1; // 1, 3, 5, 7
-//++
-//++          ai_temp += (ai_temp >> 4);
-//++          bi_temp += (bi_temp >> 4);
-//++
-//++          shared_aux[bi_temp] += shared_aux[ai_temp];
-//++      }
-//++      offset *= 2;
-//++    }
-//++    barrier();
-//++      
-//++    // Clear the last item. 
-//++    if (ai == 0) {
-//++
-//++        // Global last index.
-//++        uint last_index = (THREAD_COUNT * 2) -1 + ((THREAD_COUNT * 2 - 1) >> 4);
-//++
-//++        // Copy the last prefix sum to the shared_aux. 
-//++        stream_compaction_count = shared_aux[last_index];
-//++
-//++        // Add zero to the last index.
-//++        shared_aux[last_index] = 0;
-//++    }
-//++    
-//++    // Down sweep.
-//++    for (int d = 1; d < n ; d *=2) {
-//++      offset >>= 1;
-//++      barrier();
-//++      if (ai < d) {
-//++          int ai_temp = offset*(int(ai*2)+1)-1;
-//++          int bi_temp = offset*(int(ai*2)+2)-1;
-//++          ai_temp += (ai_temp >> 4);
-//++          bi_temp += (bi_temp >> 4);
-//++          uint t = shared_aux[ai_temp];
-//++
-//++          shared_aux[ai_temp] = shared_aux[bi_temp];
-//++          shared_aux[bi_temp] += t;
-//++      }
-//++  }
-//++  return exclusive_part;
-//++}
-
-////++ // Stream compation.
-////++ void solve_active_fmm_block(uint number_of_scan_blocks) {
-////++ 
-////++     uint local_id_x = local_id_to_x(); 
-////++ 
-////++     for (int j=0 ; j < number_of_scan_blocks ; j++) {
-////++     
-////++       uint ai = local_id_x + j * THREAD_COUNT * 2;
-////++       uint bi = (local_id_x + THREAD_COUNT) + j * THREAD_COUNT * 2;
-////++     
-////++       uint ai_active = ai + ACTIVE_FMM_BLOCKS_OFFSET;
-////++       uint bi_active = bi + ACTIVE_FMM_BLOCKS_OFFSET;
-////++     
-////++       FMM_Block a = fmm_block[ai];
-////++       FMM_Block b = fmm_block[bi];
-////++     
-////++       bool add_a = a.band_points_count > 0;
-////++       bool add_b = b.band_points_count > 0;
-////++     
-////++       if (add_a) {
-////++           uint index_to_add = temp_prefix_sum[ai];
-////++           fmm_block[index_to_add + ACTIVE_FMM_BLOCKS_OFFSET] = a;
-////++       }
-////++       if (add_b) {
-////++           uint index_to_add = temp_prefix_sum[bi];
-////++           fmm_block[index_to_add + ACTIVE_FMM_BLOCKS_OFFSET] = b;
-////++       }
-////++     }
-////++ }
-
-//++uint global_solver() {
-//++
-//++  // This should come from the host program.
-//++  const int number_of_blocks = 512; 
-//++
-//++  // Convert 4x4x4 index to uint.
-//++  uint local_id_x = local_id_to_x();
-//++
-//++  // Reset the counter for active blocks. 
-//++  if (local_id_x == 0) stream_compaction_count = 0;
-//++  
-//++  // Number of data chunks. There must be at least one iteration.
-//++  // neeeded. TODO: check number_of_blocks == 0. Return immediatelly if it
-//++  // true.
-//++  const int number_of_scan_blocks = (number_of_blocks - 1) / 128 + 1;
-//++
-//++  // Available items count.
-//++  uint items_available = number_of_blocks;
-//++
-//++  // The number of items on current chunk.
-//++  uint number_of_taken_items = 0; 
-//++
-//++  // Create the local indices.
-//++  const uint ai = local_id_to_x(); 
-//++  const uint bi = ai + THREAD_COUNT;
-//++
-//++  // Create the local indices.
-//++  const uint ai_bcf = ai + (ai >> 4); 
-//++  const uint bi_bcf = bi + (bi >> 4);
-//++  
-//++  // Add zeroes to the shared_aux (the conflict free indexes).
-//++  shared_aux[ai_bcf] = 0;
-//++  shared_aux[bi_bcf] = 0;
-//++  shared_prefix_sum[ai_bcf] = 8;
-//++  shared_prefix_sum[bi_bcf] = 3;
-//++  // barrier();
-//++
-//++  // FMM_Blocks are converted to boolean array.
-//++  // FMM_Block.band_points_count >  0 :: 1
-//++  // FMM_Block.band_points_count == 0 :: 0
-//++  // Perfom prefix sum on boolean array.
-//++  for (int j=0 ; j < number_of_scan_blocks ; j++) {
-//++
-//++      // Determine the count of items in this iteration.
-//++      number_of_taken_items = min(THREAD_COUNT * 2, items_available);
-//++
-//++      // Decrease the number of available items.
-//++      items_available -= number_of_taken_items;
-//++
-//++      // Copy data from global FMM_Block array to
-//++      // shared_prefix_sum. [{0,1}]
-//++      ////++ copy_block_to_temp(j, number_of_taken_items);
-//++
-//++      // Perform the prefix_sum.
-//++      uint exclusive_part = local_prefix_sum();
-//++
-//++      // Add the exclusive part to the shared aux.
-//++      if (local_id_x == 0) shared_aux[j + (j >> 4)] = exclusive_part; 
-//++
-//++      // Copy local prefix sum data to 'temp_prefix_sum' buffer.
-//++      copy_prefix_sum_to_temp(j);
-//++  }
-//++
-//++  // Perform the prefix_sum for shared_aux.
-//++  uint aux_exclusive_part = local_prefix_sum_aux();
-//++
-//++  // Add the shared_aux to the final result.
-//++  for (int j=0 ; j < number_of_scan_blocks ; j++) {
-//++    uint value_to_add = shared_aux[j + (j >> 4)]; 
-//++
-//++    // Create the global indices to access the global memory.
-//++    const uint global_ai = ai + j * (THREAD_COUNT * 2);
-//++    const uint global_bi = bi + j * (THREAD_COUNT * 2);
-//++
-//++    temp_prefix_sum[global_ai] += value_to_add; 
-//++    temp_prefix_sum[global_bi] += value_to_add; 
-//++  }
-//++
-//++  // Finally. Update the number of active FMM_Blocks.
-//++
-//++  ////++ solve_active_fmm_block(number_of_scan_blocks);
-//++
-//++  return 777;
-//++}
-//++
-
-// Load fmm node data to shared memory. Does not get data from outside
-// global computational context.
-//++ void load_fmm_data(uint base_index, ivec3 global_base_coord, bool center_data_only) {
-//++ 
-//++     const uint number_of_blocks =
-//++         center_data_only ? 1 : (fmm_attributes.offset_hash_table_size - 1) / 64 + 1;
-//++ 
-//++     for (int x=0 ; x < number_of_blocks ; x++) {
-//++ 
-//++         const uint thread_id = x * 64 + gl_LocalInvocationID.x;
-//++ 
-//++         if (thread_id < fmm_attributes.offset_hash_table_size) {
-//++ 
-//++             const ivec4 pos_and_offset = shared_offset_table[thread_id];
-//++             ivec3 global_index = pos_and_offset.xyz + global_base_coord;
-//++ 
-//++             bool outside = global_index.x < 0 ||
-//++                            global_index.y < 0 ||
-//++                            global_index.z < 0 ||
-//++                            global_index.x >= fmm_attributes.global_dimensions.x*4 ||
-//++                            global_index.y >= fmm_attributes.global_dimensions.y*4 ||
-//++                            global_index.z >= fmm_attributes.global_dimensions.z*4;
-//++ 
-//++             shared_fmm_nodes[thread_id + gl_LocalInvocationID.y * 160] = 
-//++                 outside ? FMM_Node(0.0, 5) : fmm_nodes[pos_and_offset.w + int(base_index)];
-//++ 
-//++         }
-//++     }
-//++ }
-
-//++void save_fmm_data(uint base_index, ivec3 global_base_index, bool center_data_only) {
-//++
-//++    const uint number_of_blocks =
-//++        center_data_only ? 1 : (fmm_attributes.offset_hash_table_size - 1) / 64 + 1;
-//++
-//++    for (int x=0 ; x < number_of_blocks ; x++) {
-//++
-//++        const uint thread_id = x * 64 + gl_LocalInvocationID.x;
-//++
-//++        if (thread_id < fmm_attributes.offset_hash_table_size) {
-//++
-//++            const ivec4 pos_and_offset = offset_hash_table[thread_id];
-//++            ivec3 global_index = pos_and_offset.xyz + global_base_index;
-//++
-//++            bool outside = global_index.x < 0 ||
-//++                           global_index.y < 0 ||
-//++                           global_index.z < 0 ||
-//++                           global_index.x >= fmm_attributes.global_dimensions.x*4 ||
-//++                           global_index.y >= fmm_attributes.global_dimensions.y*4 ||
-//++                           global_index.z >= fmm_attributes.global_dimensions.z*4;
-//++            if (!outside) {
-//++                fmm_nodes[pos_and_offset.w + int(base_index)] = shared_fmm_nodes[thread_id + gl_LocalInvocationID.y * 160]; 
-//++            }
-//++        }
-//++    }
-//++}
-
 vec3 closest_point_to_triangle(vec3 p, vec3 a, vec3 b, vec3 c) {
 
     vec3 ab = b - a;
@@ -1345,8 +1024,6 @@ void apply_triangle_mesh() {
     //        a0        b0        c0          a1        b2        c1                             
     //
 
-    //KESKEN
-
     // Load triangle vertices to shared memory.
     if (gl_LocalInvocationIndex < BLOCK_SIZE) { 
         temp_vertices[gl_LocalInvocationIndex] = thread_id < vertex_count ? triangle_data[thread_id] : Vertex_vvvvnnnn(vec4(0.0), vec4(0.0));
@@ -1407,11 +1084,13 @@ void apply_triangle_mesh() {
             uint xyz_count = delta_x * delta_y * delta_z;
 
             //const uint offset = uint(ceil(xyz_count/LOCAL_Y_DIM));
-            const uint offset = uint(xyz_count/LOCAL_Y_DIM + 1);
+            //const uint offset = uint(xyz_count/LOCAL_Y_DIM + 1);
 
-            for (uint ind = 0 ; ind<offset ; ind++) {
+            //for (uint ind = 0 ; ind<offset ; ind++) {
+            for (uint ind = 0 ; ind<xyz_count ; ind = ind + LOCAL_Y_DIM) {
 
-                uint actual_index = ind + offset * gl_LocalInvocationID.y;
+                //uint actual_index = ind + offset * gl_LocalInvocationID.y;
+                uint actual_index = ind + gl_LocalInvocationID.y;
                 if (actual_index >= xyz_count) break;
 
                 uvec3 local_ind = index_to_uvec3(actual_index, delta_x, delta_y);
@@ -1454,7 +1133,8 @@ void apply_triangle_mesh() {
 
                     node.tag = 2;
                     // Update node value if a smaller distance if found.
-                    node.value = abs(dist) < abs(node.value) ? dist : node.value;
+                    node.value = abs(dist) < abs(node.value) ? abs(dist) : node.value;
+                    //node.value = abs(dist) < abs(node.value) ? dist : node.value;
 
                     // Save updated fmm node.
                     fmm_nodes[base_index + pos_and_offset.w] = node;

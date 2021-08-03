@@ -41,7 +41,7 @@ use bytemuck::{Pod, Zeroable};
 //triangle points.
 const DEBUG_BUFFER_SIZE: u32   = 1024000; //4194300; // 1048575; //33554416;
 const DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
-const BLOCK_DIMENSIONS: [u32; 3] = [24, 30, 24];
+const BLOCK_DIMENSIONS: [u32; 3] = [8, 12, 8];
 const TIME_STAMP_COUNT: u32 = 2;
 
 // TODO: add Queries to jaankaup_core.
@@ -250,7 +250,7 @@ impl Application for FMM_App {
         );
 
         let (_, triangle_data, aabb): (Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox) =
-            load_triangles_from_obj("assets/models/wood.obj", 14.0, [50.0, -5.0, 50.0], None).unwrap();
+            load_triangles_from_obj("assets/models/wood.obj", 6.0, [10.0, -5.0, 0.0], None).unwrap();
             //load_triangles_from_obj("assets/models/wood.obj", 1.0, [5.0, -5.0, 18.0], Some(1)).unwrap();
 
         let triangle_count: u32 = triangle_data.len() as u32;
@@ -280,7 +280,7 @@ impl Application for FMM_App {
 
         // Initialize camera for fmm application.
         let mut camera = Camera::new(configuration.size.width as f32, configuration.size.height as f32);
-        camera.set_movement_sensitivity(0.1);
+        camera.set_movement_sensitivity(0.01);
         //camera.set_rotation_sensitivity(2.0);
         camera.set_rotation_sensitivity(0.2);
 
@@ -677,7 +677,7 @@ impl Application for FMM_App {
         //++ }
 
 
-        if !self.data_loaded {
+        //if !self.data_loaded {
             let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("FMM update encoder.") });
 
             if let Some(ref query_sets) = self.query_sets {
@@ -738,7 +738,7 @@ impl Application for FMM_App {
                     let microseconds = nanoseconds / 1000.0;
                     let milli = microseconds / 1000.0;
                     //println!("{:?} time is {:?} micro seconds.", i, microseconds);
-                    println!("{:?} time is {:?} milli seconds.", i, milli);
+                    //println!("{:?} time is {:?} milli seconds.", i, milli);
     
                 }
             }
@@ -748,7 +748,7 @@ impl Application for FMM_App {
             self.debug_point_count = histogram[0];
             self.debug_triangle_draw_count = histogram[1];
             self.data_loaded = true;
-        }
+        //}
     }
 }
 
@@ -797,7 +797,7 @@ fn create_buffers(device: &wgpu::Device,
             "fmm_nodes".to_string(),
             buffer_from_data::<FMM_Node>(
             &device,
-            &vec![FMM_Node {value: 0.0, tag: 0} ; number_of_nodes as usize],
+            &vec![FMM_Node {value: 1000000.0, tag: 0} ; number_of_nodes as usize],
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             None)
         );

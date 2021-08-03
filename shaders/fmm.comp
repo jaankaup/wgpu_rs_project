@@ -3,10 +3,10 @@
 
 #version 450
 
-#define MAX_NUM_CHARS 1 // 32 
+#define MAX_NUM_CHARS 16 // 32 
 
 #define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 16 
+#define LOCAL_Y_DIM 1 
 #define LOCAL_Z_DIM 1
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
 #define SCAN_BLOCK_SIZE (THREAD_COUNT * 2 + (THREAD_COUNT * 2 >> 4))
@@ -15,10 +15,16 @@
 // 0 => Far.
 // 1 => Band.
 // 2 => Known.
+// 3 => Band unknow.
 // 5 => Out of context.
 struct FMM_Node {
     float value;
     uint tag;
+};
+
+struct FMM_Node_Reduce {
+    FMM_Node node;
+    uint original_index;
 };
 
 struct Block_Band_Info {
@@ -29,6 +35,7 @@ struct Block_Band_Info {
 
 //shared FMM_Node[160] shared_fmm_nodes;
 shared FMM_Node[160*LOCAL_Y_DIM] shared_fmm_nodes;
+shared uint[THREAD_COUNT] shared_fmm_indices;
 shared uint[LOCAL_Y_DIM] band_counts;
 
 
@@ -105,7 +112,7 @@ layout(local_size_x = LOCAL_X_DIM, local_size_y = LOCAL_Y_DIM, local_size_z = LO
 
 const float FONT_SIZE = 0.02;
 const float FONT_OFFSET_Y = 1.2;
-const uint MAX_NUM_OF_POINTS = 1500;
+const uint MAX_NUM_OF_POINTS = 150;
 
 //// Super clever hack to avoid if :).
 const uint blah[2] = {0, 0xffffffff};
@@ -149,7 +156,7 @@ shared uint stream_compaction_count;
 
 // Debugging.
 //shared CharInformation[THREAD_COUNT] char_arrays;
-shared CharInformation[1] char_arrays;
+shared CharInformation[THREAD_COUNT] char_arrays;
 
 const uvec3 local_dimension = uvec3(4,4,4);
 const uvec3 group_dimension = uvec3(4,4,4);
@@ -954,7 +961,6 @@ uint local_prefix_sum() {
     int offset = 1;
     for (int d = n>>1 ; d > 0; d >>= 1) {
       barrier();
-      //if (local_id_x < d) {
       if (ai < d) {
 
           int ai_temp = offset*(int(ai*2)+1)-1; // 0, 2, 4, 6
@@ -1113,7 +1119,6 @@ uint global_solver() {
   // Number of data chunks. There must be at least one iteration.
   // neeeded. TODO: check number_of_blocks == 0. Return immediatelly if it
   // true.
-  //const int number_of_scan_blocks = (number_of_blocks - 1) / 128 + 1; const int number_of_scan_blocks = (number_of_blocks - 1) / 128 + 1;
   const uint number_of_scan_blocks = (number_of_blocks - 1) / (THREAD_COUNT*2) + 1;
 
   // Available items count.
@@ -1137,9 +1142,6 @@ uint global_solver() {
   shared_prefix_sum[bi_bcf] = 3;
   // barrier();
 
-  // FMM_Blocks are converted to boolean array.
-  // FMM_Block.band_points_count >  0 :: 1
-  // FMM_Block.band_points_count == 0 :: 0
   // Perfom prefix sum on boolean array.
   for (int j=0 ; j < number_of_scan_blocks ; j++) {
 
@@ -1182,9 +1184,8 @@ uint global_solver() {
 
   solve_active_fmm_block(number_of_scan_blocks);
 
-  return 777;
+  return stream_compaction_count;
 }
-
 
 void copy_offset_to_shared(uint thread_id) {
     shared_offset_table[thread_id] = offset_hash_table[thread_id];
@@ -1206,11 +1207,11 @@ uint get_transformed_index(ivec3 position) {
 // Loads offset hash table to shared memory.
 void load_offset_hash_table() {
 
-  const uint number_of_threads = LOCAL_X_DIM * LOCAL_Y_DIM;  
-  const uint number_of_offset_blocks = (fmm_attributes.offset_hash_table_size - 1) / number_of_threads + 1;
+  //const uint number_of_threads = LOCAL_X_DIM * LOCAL_Y_DIM;  
+  const uint number_of_offset_blocks = (fmm_attributes.offset_hash_table_size - 1) / THREAD_COUNT + 1;
 
   for (int j=0 ; j < number_of_offset_blocks ; j++) {
-      const uint thread_id = j * number_of_threads + gl_LocalInvocationIndex;
+      const uint thread_id = j * THREAD_COUNT + gl_LocalInvocationIndex;
       if (thread_id >= fmm_attributes.offset_hash_table_size) break;
       copy_offset_to_shared(thread_id);
   }
@@ -1219,12 +1220,12 @@ void load_offset_hash_table() {
 // Loads vec to offset hash table to shared memory.
 void load_vec_to_offset() {
 
-  const uint number_of_threads = LOCAL_X_DIM * LOCAL_Y_DIM;  
-  const uint number_of_vec_to_offset_blocks = (fmm_attributes.vec_to_offset_table_size - 1) / number_of_threads + 1;
+  //const uint number_of_threads = LOCAL_X_DIM * LOCAL_Y_DIM;  
+  const uint number_of_vec_to_offset_blocks = (fmm_attributes.vec_to_offset_table_size - 1) / THREAD_COUNT + 1;
 
   for (int j=0 ; j < number_of_vec_to_offset_blocks ; j++) {
 
-      const uint thread_id = j * number_of_threads + gl_LocalInvocationIndex;
+      const uint thread_id = j * THREAD_COUNT + gl_LocalInvocationIndex;
       if (thread_id >= fmm_attributes.vec_to_offset_table_size) break;
       copy_vec_to_offset_to_shared(thread_id);
   }
@@ -1333,10 +1334,9 @@ float solve_quadratic(uint cell_index) {
         // Best cell values in x-y-z directions. Values are calculated 
         // from known cell neighbors only.
 
-        vec3 phis = vec3(0.0, 0.0, 0.0);
+        float phis[3] = {0.0, 0.0, 0.0};
 
         // Deltas. 
-        //let mut hs: [f32; 3] = [0.0, 0.0, 0.0];
         float hs[3] = {0.0, 0.0, 0.0};
 
         //The grid x-length. ???
@@ -1345,40 +1345,48 @@ float solve_quadratic(uint cell_index) {
         // X-DIRECTION
 
         // x dir.
-        hs[0] = neighbors[0].tag == 2 && neighbors[1].tag == 2 ? min(neighbors[0].value, neighbors[1].value) : 0.0;
-        hs[0] = neighbors[0].tag == 2 && neighbors[1].tag != 2 ? neighbors[0].value : 0.0;
-        hs[0] = neighbors[0].tag != 2 && neighbors[1].tag == 2 ? neighbors[1].value : 0.0;
+        phis[0] = neighbors[0].tag == 2 && neighbors[1].tag == 2 ? min(neighbors[0].value, neighbors[1].value) : 0.0;
+        phis[0] = neighbors[0].tag == 2 && neighbors[1].tag != 2 ? neighbors[0].value : phis[0];
+        phis[0] = neighbors[0].tag != 2 && neighbors[1].tag == 2 ? neighbors[1].value : phis[0];
 
         // y dir.
-        hs[1] = neighbors[2].tag == 2 && neighbors[3].tag == 2 ? min(neighbors[2].value, neighbors[3].value) : 0.0;
-        hs[1] = neighbors[2].tag == 2 && neighbors[3].tag != 2 ? neighbors[2].value : 0.0;
-        hs[1] = neighbors[2].tag != 2 && neighbors[3].tag == 2 ? neighbors[3].value : 0.0;
+        phis[1] = neighbors[2].tag == 2 && neighbors[3].tag == 2 ? min(neighbors[2].value, neighbors[3].value) : 0.0;
+        phis[1] = neighbors[2].tag == 2 && neighbors[3].tag != 2 ? neighbors[2].value : phis[1];
+        phis[1] = neighbors[2].tag != 2 && neighbors[3].tag == 2 ? neighbors[3].value : phis[1];
 
         // z dir.
-        hs[2] = neighbors[4].tag == 2 && neighbors[5].tag == 2 ? min(neighbors[4].value, neighbors[5].value) : 0.0;
-        hs[2] = neighbors[4].tag == 2 && neighbors[5].tag != 2 ? neighbors[4].value : 0.0;
-        hs[2] = neighbors[4].tag != 2 && neighbors[5].tag == 2 ? neighbors[5].value : 0.0;
+        phis[2] = neighbors[4].tag == 2 && neighbors[5].tag == 2 ? min(neighbors[4].value, neighbors[5].value) : 0.0;
+        phis[2] = neighbors[4].tag == 2 && neighbors[5].tag != 2 ? neighbors[4].value : phis[2];
+        phis[2] = neighbors[4].tag != 2 && neighbors[5].tag == 2 ? neighbors[5].value : phis[2];
+
+        if (phis[0] != 0.0) hs[0] = 1;
+        if (phis[1] != 0.0) hs[1] = 1;
+        if (phis[2] != 0.0) hs[2] = 1;
 
         float a = 0.0;
         float b = 0.0;
         float c = 0.0;
 
         for (int i=0 ; i<3 ; i++) {
-            float oho = pow(hs[i], 2.0);
+            float oho = hs[i] * hs[i];
             a += oho;
             b += oho * phis[i];
-            c += oho * pow(phis[i],2.0);
+            c += oho * phis[i] * phis[i];
         }
+        b *= -2.0;
 
         c -= 1.0; // Speed function 1/(f_i,j,k)^2 
 
         float final_distance = 777.0;
+
         float discriminant = pow(b, 2.0) - (4.0*a*c);
 
         if (discriminant >= 0.0) {
             float t_phi = (-1.0*b + sqrt(discriminant)) / (2.0*a); 
+            //float t_phi = (-1.0*b + sqrt(discriminant)) / (2.0*a); 
+            final_distance = t_phi;
             if (phis[0] < t_phi && phis[1] < t_phi && phis[2] < t_phi) {
-                final_distance = t_phi; 
+                final_distance = t_phi;
             }
         }
 
@@ -1403,6 +1411,102 @@ uint neighbor_band_index(uvec3 center, uint hash_index) {
   result |= uint(hash_index >= 144 && hash_index < 160) << 6;
 
   return result;
+}
+
+// Prequisities: shared_fmm_nodes must be loaded (center).
+void reduce(uint number_of_blocks) {
+    shared_fmm_indices[gl_LocalInvocationIndex] = gl_LocalInvocationIndex;
+    barrier();
+
+    if (gl_LocalInvocationID.y < number_of_blocks) {
+        for (uint s = LOCAL_X_DIM/2 ; s > 0 ; s >>= 1) {
+            if (gl_LocalInvocationID.x < s) {
+                FMM_Node a = shared_fmm_nodes[gl_LocalInvocationIndex];
+                FMM_Node b = shared_fmm_nodes[gl_LocalInvocationIndex + s];
+                shared_fmm_indices[gl_LocalInvocationIndex] =
+                    a.value < b.value ? shared_fmm_indices[gl_LocalInvocationIndex] : shared_fmm_indices[gl_LocalInvocationIndex + s];
+                barrier();
+            }
+        }
+    }
+}
+
+// Find smallest BAND point, change it to KNOWN point. Update neighbors to
+// BAND points. Synchronize ghost points.
+//void find_smallest(uint block_index, uint group_id) {
+void find_smallest() {
+
+    uint xyz_count = stream_compaction_count;
+
+        for (uint ind = 0 ; ind<xyz_count ; ind = ind + LOCAL_Y_DIM) {
+
+            uint actual_index = ind + gl_LocalInvocationID.y;
+            if (actual_index >= xyz_count) break;
+
+            uint all_dimension_length = fmm_attributes.global_dimensions.x *
+                                        fmm_attributes.global_dimensions.y *
+                                        fmm_attributes.global_dimensions.z;
+
+            FMM_Block block = fmm_block[all_dimension_length + actual_index];
+
+            const uvec3 ijk = index_to_uvec3(block.index + LOCAL_Y_DIM * gl_LocalInvocationID.y,
+                                             fmm_attributes.global_dimensions.x,
+                                             fmm_attributes.global_dimensions.y);
+                                       
+            const uint base_index = ijk.x * 64 +
+                                    ijk.y * 64 * fmm_attributes.global_dimensions.x +
+                                    ijk.z * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
+
+            load_fmm_data(base_index, ivec3(ijk.x, ijk.y, ijk.z) * 4, false);
+            barrier();
+
+            // Implement reduce!
+
+        }
+
+  // const uint number_of_active_blocks = stream_compaction_count;
+  // const uint item_blocks = (number_of_active_blocks - 1) / THREAD_COUNT + 1;
+  // uint items_available = number_of_active_blocks;
+
+  // for (int i=0 ; i<item_blocks ; i++) {
+
+  //   uint number_of_taken_items = min(THREAD_COUNT, items_available);
+  //   items_available -= number_of_taken_items;
+
+  //   uint all_dimension_length = fmm_attributes.global_dimensions.x *
+  //                               fmm_attributes.global_dimensions.y *
+  //                               fmm_attributes.global_dimensions.z;
+
+  //   if (gl_LocalInvocationIndex < number_of_taken_items) {
+
+
+
+  //   
+  // uint global_dimension_length = fmm_attributes.global_dimensions.x *
+  //                                fmm_attributes.global_dimensions.y *
+  //                                fmm_attributes.global_dimensions.z;
+
+  // const uvec3 ijk = index_to_uvec3(b + offset * gl_LocalInvocationID.y,
+  //                                  fmm_attributes.global_dimensions.x,
+  //                                  fmm_attributes.global_dimensions.y);
+  //                            
+  // const uint base_index = ijk.x * 64 +
+  //                         ijk.y * 64 * fmm_attributes.global_dimensions.x +
+  //                         ijk.z * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
+
+  // load_fmm_data(base_index, ivec3(ijk.x, ijk.y, ijk.z) * 4, false);
+  // barrier();
+
+  //           uint xyz_count = delta_x * delta_y * delta_z;
+
+  //           //const uint offset = uint(ceil(xyz_count/LOCAL_Y_DIM));
+  //           const uint offset = uint(xyz_count/LOCAL_Y_DIM + 1);
+
+  //           for (uint ind = 0 ; ind<offset ; ind++) {
+
+  //               uint actual_index = ind + offset * gl_LocalInvocationID.y;
+  //               if (actual_index >= xyz_count) break;
+
 }
 
 void add_initial_band_points() {
@@ -1612,6 +1716,77 @@ void calculate_initial_band_count() {
   }
 }
 
+void render_block(uint b, bool ghost_zone) {
+
+        uvec3 ijk = index_to_uvec3(fmm_block[b].index,
+                                   fmm_attributes.global_dimensions.x,
+                                   fmm_attributes.global_dimensions.y);
+
+        const uint base_index = ijk.x * 64 +
+                                ijk.y * 64 * fmm_attributes.global_dimensions.x +
+                                ijk.z * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
+
+        // Load FMM nodes to the shared memory.
+        // load_fmm_data(base_index, ivec3(ijk.x, ijk.y, ijk.z) * 4, false);
+        // barrier();
+
+        uint count = ghost_zone ? 160 : 64;
+        if (gl_LocalInvocationID.x < count) {
+            vec3 this_coord = vec3(shared_offset_table[gl_LocalInvocationID.x].xyz + ivec3(ijk.x, ijk.y, ijk.z) * 4);
+            FMM_Node fmm_b = shared_fmm_nodes[gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y];
+
+            const uvec3 known = uvec3(0,200,0);
+            const uvec3 band = uvec3(200,0,0);
+            const uvec3 band_new = uvec3(200,200,0);
+            const uvec3 far = uvec3(0,0,200);
+            const uvec3 error = uvec3(255,0,255);
+
+            uvec3 final_color = uvec3(255,255,255);
+
+            if (fmm_b.tag == 0) { final_color = far; }
+            if (fmm_b.tag == 1) { final_color = band; }
+            if (fmm_b.tag == 2) { final_color = known; }
+            if (fmm_b.tag == 7) { final_color = band_new; }
+            if (fmm_b.value == 777.0) { final_color = error; }
+
+            if (fmm_b.tag != 0) { 
+                initialize_char_array(
+                  vec3(this_coord.x,
+                       this_coord.y,
+                       this_coord.z));
+
+                // log_vec3(vec3(this_coord), 1);
+                // add_end_of_line();
+                //log_number(123, false);
+                // log_number(position_index, false);
+                log_float(fmm_b.value, 2);
+                add_end_of_line();
+                ////  log_number(shared_vec_to_offset[thread_id], false);
+                //++log_number(mapping_to_offset, false);
+                //++add_end_of_line();
+
+                ////++ log_vec3(vec3(this_coord), 1);
+                ////++ add_end_of_line();
+                ////++ //log_number(123, false);
+                ////++ log_number(thread_id, false);
+                ////++ //log_number(joopajoo.index, false);
+                ////++ add_end_of_line();
+                ////++ ////  log_number(shared_vec_to_offset[thread_id], false);
+                ////++ log_number(joopajoo.index, false);
+                ////++ add_end_of_line();
+
+
+                // if (thread_id < 64) { final_color = center_color; }
+                // else if (in_domain) { final_color = ghost_color; }
+                // else { final_color = outside_color; }
+
+                AABB aabb = create_char_sequency_points(final_color.x, final_color.y, final_color.z);
+                AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+                create_output_points(aabb, final_color.x, final_color.y, final_color.z);
+                //shared_memory_nodes[thread_id] = thread_id < 160 ?
+            }
+        }
+}
 
 void main() {
 
@@ -1653,15 +1828,53 @@ void main() {
   calculate_initial_band_count();
   barrier();
 
-  uint joooo = global_solver();
+  global_solver();
   barrier();
+  //++ while (global_solver() > 0) {
+  //++   barrier();
+  //++   
+  //++   // Itetare active blocks. Add smallest value to KNOWN, update neighbors to
+  //++   // band. Points. Update band those band points. 
+
+  //++ }
 
   /* RENDER NODES. DEBUGGING. */
-  render_fmm_nodes();
-  barrier();
+  //render_fmm_nodes();
+  //barrier();
 
-  render_active_blocks();
-  barrier();
+  // render_active_blocks();
+  // barrier();
+
+  // render_block(1, false);
+  // barrier();
+  for (int i=0 ; i<stream_compaction_count ; i += LOCAL_Y_DIM) {
+
+    uint actual_index = gl_LocalInvocationID.y + i;
+    //if (actual_index >= stream_compaction_count) break;
+
+    uint all_dimension_length = fmm_attributes.global_dimensions.x *
+                                fmm_attributes.global_dimensions.y *
+                                fmm_attributes.global_dimensions.z;
+
+    uvec3 ijk = index_to_uvec3(fmm_block[all_dimension_length + actual_index].index,
+                               fmm_attributes.global_dimensions.x,
+                               fmm_attributes.global_dimensions.y);
+
+    const uint base_index = ijk.x * 64 +
+                            ijk.y * 64 * fmm_attributes.global_dimensions.x +
+                            ijk.z * 64 * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
+
+    // Load FMM nodes to the shared memory.
+    if (actual_index < stream_compaction_count) {
+        load_fmm_data(base_index, ivec3(ijk.x, ijk.y, ijk.z) * 4, false);
+    }
+    barrier();
+
+    if (actual_index < stream_compaction_count) {
+        render_block(actual_index + all_dimension_length, false);
+    }
+    barrier();
+  }
 
   /* UPDATE COUNTERS. DEBUGGING. */
   if (local_id_to_x() == 0) {
