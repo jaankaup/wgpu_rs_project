@@ -250,7 +250,7 @@ impl Application for FMM_App {
         );
 
         let (_, triangle_data, aabb): (Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox) =
-            load_triangles_from_obj("assets/models/wood.obj", 6.0, [10.0, -5.0, 0.0], None).unwrap();
+            load_triangles_from_obj("assets/models/wood.obj", 6.0, [10.0, -5.0, -10.0], None).unwrap();
             //load_triangles_from_obj("assets/models/wood.obj", 1.0, [5.0, -5.0, 18.0], Some(1)).unwrap();
 
         let triangle_count: u32 = triangle_data.len() as u32;
@@ -808,7 +808,7 @@ fn create_buffers(device: &wgpu::Device,
 
         let mut index_counter: u32 = 0;
         for i in 0..number_of_blocks as usize {
-            test_blocks[i] = FMM_Block{ index: i as u32, band_points_count: 0};
+            test_blocks[i] = FMM_Block{ index: i as u32, band_points_count: 0 as u32};
         };
 
         buffers.insert(
