@@ -6,7 +6,7 @@
 #define MAX_NUM_CHARS 16 
 
 #define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 2 
+#define LOCAL_Y_DIM 4
 #define LOCAL_Z_DIM 1
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
 #define SCAN_BLOCK_SIZE (THREAD_COUNT * 2 + ((THREAD_COUNT * 2) >> 4))
@@ -15,6 +15,7 @@
 #define BAND 1
 #define KNOWN 2
 #define KNOWN_NEW 7
+#define NEW_BAND 8
 
 shared uint[THREAD_COUNT] thread_check_table;
 
@@ -1462,7 +1463,7 @@ void update_band_points() {
 
 }
 
-uint neighbor_band_index(uvec3 center, uint hash_index) {
+uint neighbor_block_index(uvec3 center, uint hash_index) {
 
   uint result = 0;
 
@@ -1542,7 +1543,34 @@ void find_smallest() {
 
       // Change the found band node to known.
       if (actual_block_index < last_index && gl_LocalInvocationID.x == 0) {
-        shared_fmm_nodes[shared_fmm_indices[gl_LocalInvocationIndex] + 160*gl_LocalInvocationID.y].tag = KNOWN_NEW;
+        FMM_Node new_known =
+            shared_fmm_nodes[shared_fmm_indices[gl_LocalInvocationIndex] + 160*gl_LocalInvocationID.y];
+
+        new_known.tag = KNOWN_NEW;
+
+        shared_fmm_nodes[shared_fmm_indices[gl_LocalInvocationIndex] + 160*gl_LocalInvocationID.y] = new_known;
+
+        FMM_Node[6] neighbors;
+        uint[6] neighbor_indices;
+        get_neighbors(shared_fmm_indices[gl_LocalInvocationIndex], gl_LocalInvocationID.y, neighbors, neighbor_indices);
+
+        shared_fmm_nodes[neighbor_indices[0]].tag =  
+            neighbors[0].tag != KNOWN ? NEW_BAND : shared_fmm_nodes[neighbor_indices[0]].tag;
+
+        shared_fmm_nodes[neighbor_indices[1]].tag =  
+            neighbors[1].tag != KNOWN ? NEW_BAND : shared_fmm_nodes[neighbor_indices[1]].tag;
+
+        shared_fmm_nodes[neighbor_indices[2]].tag =  
+            neighbors[2].tag != KNOWN ? NEW_BAND : shared_fmm_nodes[neighbor_indices[2]].tag;
+
+        shared_fmm_nodes[neighbor_indices[3]].tag =  
+            neighbors[3].tag != KNOWN ? NEW_BAND : shared_fmm_nodes[neighbor_indices[3]].tag;
+
+        shared_fmm_nodes[neighbor_indices[4]].tag =  
+            neighbors[4].tag != KNOWN ? NEW_BAND : shared_fmm_nodes[neighbor_indices[4]].tag;
+
+        shared_fmm_nodes[neighbor_indices[5]].tag =  
+            neighbors[5].tag != KNOWN ? NEW_BAND : shared_fmm_nodes[neighbor_indices[5]].tag;
       }
       barrier();
       // else {
@@ -1725,6 +1753,7 @@ void render_block(uint b, bool ghost_zone) {
     const uvec3 band = uvec3(200,0,0);
     const uvec3 band_new = uvec3(200,200,0);
     const uvec3 far = uvec3(0,0,200);
+    const uvec3 new_band = uvec3(185,130,130);
     const uvec3 error = uvec3(255,0,255);
     
     uvec3 final_color = uvec3(255,255,255);
@@ -1736,7 +1765,7 @@ void render_block(uint b, bool ghost_zone) {
     // if (fmm_b.value == 777.0) { final_color = error; }
     
     //if (fmm_b.tag != FAR) { 
-    if (fmm_b.tag == BAND || fmm_b.tag == KNOWN_NEW) { 
+    if (fmm_b.tag == BAND || fmm_b.tag == KNOWN_NEW || fmm_b.tag == NEW_BAND) { 
     //if (fmm_b.tag == KNOWN_NEW) { 
         initialize_char_array(
           vec3(this_coord.x,
