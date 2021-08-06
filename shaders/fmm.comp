@@ -6,7 +6,7 @@
 #define MAX_NUM_CHARS 16 
 
 #define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 4 
+#define LOCAL_Y_DIM 2 
 #define LOCAL_Z_DIM 1
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
 #define SCAN_BLOCK_SIZE (THREAD_COUNT * 2 + ((THREAD_COUNT * 2) >> 4))
@@ -120,9 +120,9 @@ layout(set=0, binding=8) uniform FMM_Attributes {
 
 layout(local_size_x = LOCAL_X_DIM, local_size_y = LOCAL_Y_DIM, local_size_z = LOCAL_Z_DIM) in;
 
-const float FONT_SIZE = 0.12;
+const float FONT_SIZE = 0.06;
 const float FONT_OFFSET_Y = 1.2;
-const uint MAX_NUM_OF_POINTS = 150;
+const uint MAX_NUM_OF_POINTS = 300;
 
 //// Super clever hack to avoid if :).
 const uint blah[2] = {0, 0xffffffff};
@@ -1145,34 +1145,9 @@ void solve_active_fmm_block(uint number_of_scan_blocks) {
 
       if (add_a && bi < active_fmm_blocks_offset) {
           fmm_block[index_to_add_a + active_fmm_blocks_offset] = a;
-
-          // //vec3 this_pah = vec3(0, 5, 0);
-          // vec3 this_pah = vec3(mod(ai,THREAD_COUNT) , 5 - ai / THREAD_COUNT, 0);
-          // initialize_char_array(this_pah);
-          // //log_number(index_to_add, false);
-          // //log_number(index_to_add_a + active_fmm_blocks_offset, false);
-          // log_number(ai, false);
-          // add_end_of_line();
-          // log_number(active_fmm_blocks_offset, false);
-          // //log_number(stream_compaction_count, false);
-          // add_end_of_line();
-          // AABB aabb = create_char_sequency_points(255,25,25);
-          // AABB traslated = AABB(vec4(this_pah, 1.0), vec4(this_pah + vec3(1.0, 1.0, 1.0), 1.0));
-          // create_output_points(aabb, 0,125,255);
       }
       if (add_b && bi < active_fmm_blocks_offset) {
           fmm_block[index_to_add_b + active_fmm_blocks_offset] = b;
-
-          // vec3 this_pah = vec3(mod(bi,THREAD_COUNT) , 5 - bi / THREAD_COUNT, 0);
-          // initialize_char_array(this_pah);
-          // //log_number(index_to_add, false);
-          // //log_number(index_to_add_b, false);
-          // //log_number(bi, false);
-          // log_number(active_fmm_blocks_offset, false);
-          // add_end_of_line();
-          // AABB aabb = create_char_sequency_points(255,25,25);
-          // AABB traslated = AABB(vec4(this_pah, 1.0), vec4(this_pah + vec3(1.0, 1.0, 1.0), 1.0));
-          // create_output_points(aabb, 0,125,255);
       }
     }
 }
@@ -1772,9 +1747,9 @@ void render_block(uint b, bool ghost_zone) {
         // add_end_of_line();
         //log_number(123, false);
         // log_number(position_index, false);
-        //log_float(fmm_b.value, 2);
+        log_float(fmm_b.value, 2);
         //log_number(b - global_data_length(), false);
-        log_number(stream_compaction_count, false);
+        //log_number(stream_compaction_count, false);
         add_end_of_line();
         ////  log_number(shared_vec_to_offset[thread_id], false);
         //++log_number(mapping_to_offset, false);
@@ -1852,8 +1827,6 @@ void main() {
   //groupMemoryBarrier();
   barrier();
 
-
-
   /* CREATE FIRST BAND FOR INITIAL FMM NODES. */
 
   add_initial_band_points();
@@ -1863,58 +1836,6 @@ void main() {
   barrier();
 
   global_solver();
-  barrier();
-
-  // if (gl_LocalInvocationIndex == 65) {
-  //   vec3 this_pah = vec3(0, 5, 0);
-  //   //vec3 this_pah = vec3(mod(ai,THREAD_COUNT) , 5 - ai / THREAD_COUNT, 0);
-  //   initialize_char_array(this_pah);
-  //   //log_number(index_to_add, false);
-  //   //log_number(index_to_add_a + active_fmm_blocks_offset, false);
-  //   log_number(777, false);
-  //   add_end_of_line();
-  //   log_number(1234, false);
-  //   //log_number(stream_compaction_count, false);
-  //   add_end_of_line();
-  //   AABB aabb = create_char_sequency_points(255,25,25);
-  //   AABB traslated = AABB(vec4(this_pah, 1.0), vec4(this_pah + vec3(1.0, 1.0, 1.0), 1.0));
-  //   create_output_points(aabb, 0,125,255);
-  // }
-
-//shared uint shared_aux[SCAN_BLOCK_SIZE];
-  // if (local_id_to_x() == 0) {
-  //   //for (uint i=0; i<SCAN_BLOCK_SIZE; i++) {
-  //   //    vec3 this_pah = vec3(i, -9, 0);
-  //   //    initialize_char_array(this_pah);
-  //   //    //log_number(shared_aux[i], false);
-  //   //    //log_number(temp_prefix_sum[i], false);
-  //   //    //log_number(fmm_block[i].band_points_count, false);
-  //   //    /log_number(fmm_block[i].band_points_count, false);
-  //   //    add_end_of_line();
-  //   //    AABB aabb = create_char_sequency_points(255,25,25);
-  //   //    AABB traslated = AABB(vec4(this_pah, 1.0), vec4(this_pah + vec3(1.0, 1.0, 1.0), 1.0));
-  //   //    create_output_points(aabb, 0,125,255);
-  //   //}
-  //   //for (uint i=global_data_length(); i<global_data_length() + stream_compaction_count; i++) {
-  //   //    vec3 this_pah = vec3(i - global_data_length(), -7, 0);
-  //   //    initialize_char_array(this_pah);
-  //   //    log_number(fmm_block[i].index, false);
-  //   //    //log_number(fmm_block[i].band_points_count, false);
-  //   //    add_end_of_line();
-  //   //    AABB aabb = create_char_sequency_points(255,25,25);
-  //   //    AABB traslated = AABB(vec4(this_pah, 1.0), vec4(this_pah + vec3(1.0, 1.0, 1.0), 1.0));
-  //   //    create_output_points(aabb, 0,125,255);
-  //   //}
-  // }
-  //if (local_id_to_x() == 1) {
-  //          vec3 this_pah = vec3(0, -9, 0);
-  //          initialize_char_array(this_pah);
-  //          log_number(fmm_block[0].band_points_count, false);
-  //          add_end_of_line();
-  //      AABB aabb = create_char_sequency_points(255,25,25);
-  //      AABB traslated = AABB(vec4(this_pah, 1.0), vec4(this_pah + vec3(1.0, 1.0, 1.0), 1.0));
-  //      create_output_points(aabb, 0,125,255);
-  //}
   barrier();
 
   find_smallest();
@@ -1944,9 +1865,7 @@ void main() {
   const uint offset = stream_compaction_count == 0 ? 0 : (stream_compaction_count - 1) / LOCAL_Y_DIM + 1;
 
   for (int i=0 ; i<stream_compaction_count ; i += LOCAL_Y_DIM) {
-  //for (int i=0 ; i<offset ; i++) {
 
-    //uint actual_index = gl_LocalInvocationID.y * offset + i + all_dimension_length;
     uint actual_index = gl_LocalInvocationID.y + i + all_dimension_length;
 
     BlockData ijk = get_block_pos_index(fmm_block[actual_index].index);
@@ -1962,8 +1881,7 @@ void main() {
     }
     barrier();
   }
-
-
+  //  check_all_threads();
   /* UPDATE COUNTERS. DEBUGGING. */
   if (local_id_to_x() == 0) {
     atomic_counters[0] = counter[0];
