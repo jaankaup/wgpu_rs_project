@@ -44,6 +44,11 @@ const DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
 const BLOCK_DIMENSIONS: [u32; 3] = [8, 12, 8];
 const TIME_STAMP_COUNT: u32 = 2;
 
+const FAR: u32 =  4;
+const BAND: u32 = 3;
+const KNOWN: u32 = 0;
+const KNOWN_NEW: u32 = 1;
+const NEW_BAND: u32 = 2;
 // TODO: add Queries to jaankaup_core.
   
 struct QuerySets {
@@ -797,7 +802,7 @@ fn create_buffers(device: &wgpu::Device,
             "fmm_nodes".to_string(),
             buffer_from_data::<FMM_Node>(
             &device,
-            &vec![FMM_Node {value: 1000000.0, tag: 0} ; number_of_nodes as usize],
+            &vec![FMM_Node {value: 1000000.0, tag: FAR} ; number_of_nodes as usize],
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
             None)
         );

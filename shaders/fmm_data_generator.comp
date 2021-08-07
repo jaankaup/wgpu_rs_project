@@ -9,6 +9,11 @@
 #define BLOCK_SIZE 192
 //#define BLOCK_SIZE 128
 
+#define FAR 4
+#define BAND 3
+#define KNOWN 0
+#define KNOWN_NEW 1
+#define NEW_BAND 2
 #define DEBUG_OFFSET 0.07
 
 struct FMM_Node {
@@ -1131,7 +1136,7 @@ void apply_triangle_mesh() {
 
                 if (abs(dist) < 1.0) {
 
-                    node.tag = 2;
+                    node.tag = KNOWN;
                     // Update node value if a smaller distance if found.
                     node.value = abs(dist) < abs(node.value) ? abs(dist) : node.value;
                     //node.value = abs(dist) < abs(node.value) ? dist : node.value;
