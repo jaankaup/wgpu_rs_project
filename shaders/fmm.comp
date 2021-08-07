@@ -48,6 +48,7 @@ struct Block_Band_Info {
 struct FMM_Block_Shared {
     uint tag;
     uint global_index;
+    int block_index;
 };
 
 /* Data integrity/synchronization */
@@ -1472,85 +1473,6 @@ void update_band_points() {
 
 }
 
-// const ivec3[32] neighbor_block_positions = {
-//     ivec3(0,0,0), // Center
-//     ivec3(0,0,-1), // Back
-//     ivec3(0,0,1), // Front
-//     ivec3(0,0,0), 
-//     ivec3(1,0,0), // Right
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(-1,0,0), // Left 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,1,0), // Top 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,0,0), 
-//     ivec3(0,-1,0) // Borrom 
-// };
-// 
-// uint neighbor_block_index(uint hash_index, uint block_index) {
-// 
-//   uint result = 0;
-// 
-//   // Center.
-//   result |= uint(hash_index >= 0 && hash_index < 64);
-// 
-//   // Back.
-//   result |= uint(hash_index >= 64 && hash_index < 80) << 1;
-// 
-//   // Front.
-//   result |= uint(hash_index >= 80 && hash_index < 96) << 2;
-// 
-//   // Right.
-//   result |= uint(hash_index >= 96 && hash_index < 112) << 3;
-// 
-//   // Left.
-//   result |= uint(hash_index >= 112 && hash_index < 128) << 4;
-// 
-//   // Top.
-//   result |= uint(hash_index >= 128 && hash_index < 144) << 5;
-// 
-//   // Bottom.
-//   result |= uint(hash_index >= 144 && hash_index < 160) << 6;
-// 
-//   BlockData ijk = get_block_pos_index(block_index);
-// 
-//   ivec3 neighbor_position = ijk.base_position + neighbor_block_positions[result]*4;
-// 
-//   bool outside = neighbor_position.x < 0 ||
-//                  neighbor_position.y < 0 ||
-//                  neighbor_position.z < 0 ||
-//                  neighbor_position.x >= fmm_attributes.global_dimensions.x ||
-//                  neighbor_position.y >= fmm_attributes.global_dimensions.y ||
-//                  neighbor_position.z >= fmm_attributes.global_dimensions.z;
-//   
-//   uint neighbor_block_index = neighbor_position.x +  
-//                               neighbor_position.y * fmm_attributes.global_dimensions.x +  
-//                               neighbor_position.z * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y ;  
-// 
-//   int final_block_index = outside ? -1 : int(neighbor_block_index);
-// 
-//   return final_block_index;
-// }
 
 // Prequisities: shared_fmm_nodes must be loaded (center).
 void reduce(bool process) {
@@ -1585,12 +1507,98 @@ void reduce(bool process) {
     }
 }
 
+const ivec3[33] neighbor_block_positions = {
+    ivec3(0,0,0), // Center
+    ivec3(0,0,-1), // Back
+    ivec3(0,0,1), // Front
+    ivec3(0,0,0), 
+    ivec3(1,0,0), // Right
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(-1,0,0), // Left 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,-1,0), // Bottom 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,0,0), 
+    ivec3(0,1,0) // Top 
+};
+
+int neighbor_block_index(uint hash_index, ivec3 block_pos) {
+
+  uint result = 0;
+
+  // Center.
+  //result |= uint(hash_index >= 0 && hash_index < 64);
+
+  // Back.
+  result |= uint(hash_index >= 64 && hash_index < 80);
+
+  // Front.
+  result |= uint(hash_index >= 80 && hash_index < 96) << 1;
+
+  // Right.
+  result |= uint(hash_index >= 96 && hash_index < 112) << 2;
+
+  // Left.
+  result |= uint(hash_index >= 112 && hash_index < 128) << 3;
+
+  // Bottom.
+  result |= uint(hash_index >= 128 && hash_index < 144) << 4;
+
+  // Up.
+  result |= uint(hash_index >= 144 && hash_index < 160) << 5;
+
+  // BlockData ijk = get_block_pos_index(block_index);
+  // ivec3 neighbor_position = ijk.base_position + neighbor_block_positions[result]*4;
+
+  ivec3 this_position = block_pos + neighbor_block_positions[result];
+
+  bool outside = this_position.x < 0 ||
+                 this_position.y < 0 ||
+                 this_position.z < 0 ||
+                 this_position.x >= fmm_attributes.global_dimensions.x ||
+                 this_position.y >= fmm_attributes.global_dimensions.y ||
+                 this_position.z >= fmm_attributes.global_dimensions.z;
+  
+  uint new_block_index = this_position.x +  
+                         this_position.y * fmm_attributes.global_dimensions.x +  
+                         this_position.z * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y ;  
+
+  int final_block_index = outside ? -1 : int(new_block_index);
+
+  return final_block_index;
+}
+
 void synchronize_fmm() {
 
     if (gl_LocalInvocationIndex == 0) {
         for (int i=0 ; i<shared_changed_fmm_counter; i++) {
             FMM_Block_Shared temp = shared_changed_fmm_info[i];
-            atomicMin(fmm_nodes[temp.global_index].tag, temp.tag);
+            if (temp.block_index != -1) {
+                // int value_to_add = temp.tag == KNOWN_NEW ? -1 : 1;
+                // atomicAdd(fmm_block[temp.block_index], temp.tag == KNOWN_NEW ? -1 : 1);
+                atomicMin(fmm_nodes[temp.global_index].tag, temp.tag);
+            }
         }
     }
 }
@@ -1625,7 +1633,6 @@ void find_smallest() {
       if (gl_LocalInvocationIndex == 0) { shared_changed_fmm_counter = 0; }
       barrier();
 
-
       // Calculate the position of the current active block.
       const uint actual_block_index = i + offset * gl_LocalInvocationID.y + all_dimension_length;
       BlockData ijk = get_block_pos_index(fmm_block[actual_block_index].index);
@@ -1655,7 +1662,7 @@ void find_smallest() {
 
         // Data is inside computing context.
         if (!is_outside(global_pos)) {
-            FMM_Block_Shared sync_data = FMM_Block_Shared(KNOWN_NEW, global_index);
+            FMM_Block_Shared sync_data = FMM_Block_Shared(KNOWN_NEW, global_index, int(ijk.base_index));
             uint index = atomicAdd(shared_changed_fmm_counter, 1);
             shared_changed_fmm_info[index] = sync_data;
         }
@@ -1663,17 +1670,20 @@ void find_smallest() {
         FMM_Node[6] neighbors;
         uint[6] neighbor_indices;
 
-        get_neighbors(data_index.w, gl_LocalInvocationID.y, neighbors, neighbor_indices);
+        //get_neighbors(data_index.w, gl_LocalInvocationID.y, neighbors, neighbor_indices);
+        get_neighbors(data_index.w, 0, neighbors, neighbor_indices);
 
         for (int i=0 ; i<6; i++) {
 
-            const ivec4 data_ind = shared_offset_table[neighbor_indices[i] - 160 * gl_LocalInvocationID.y];
+            //const uint basic_hash_index = neighbor_indices[i] - 160 * gl_LocalInvocationID.y;
+            const uint basic_hash_index = neighbor_indices[i];
+            const ivec4 data_ind = shared_offset_table[basic_hash_index];
             const uint global_ind = data_ind.w + ijk.base_index;
             const ivec3 global_p = data_ind.xyz + ijk.base_position;
 
             // The neighbor data is inside computing context.
             if (!is_outside(global_p)) {
-                FMM_Block_Shared sync_d = FMM_Block_Shared(NEW_BAND, global_ind);
+                FMM_Block_Shared sync_d = FMM_Block_Shared(NEW_BAND, global_ind, neighbor_block_index(basic_hash_index, ijk.base_position));
                 uint ind = atomicAdd(shared_changed_fmm_counter, 1);
                 shared_changed_fmm_info[ind] = sync_d;
             }
