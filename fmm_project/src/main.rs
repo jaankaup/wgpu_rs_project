@@ -763,7 +763,7 @@ impl Application for FMM_App {
                     let microseconds = nanoseconds / 1000.0;
                     let milli = microseconds / 1000.0;
                     //println!("{:?} time is {:?} micro seconds.", i, microseconds);
-                    println!("{:?} time is {:?} milli seconds.", i, milli);
+                    //println!("{:?} time is {:?} milli seconds.", i, milli);
     
                 }
             }

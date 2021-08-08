@@ -1603,38 +1603,12 @@ void synchronize_fmm() {
 
                 // A new band found. Increase band count by one.
                 if (old_tag == FAR && temp.tag == BAND) {
-                    atomicAdd(fmm_block[temp.block_index].band_points_count, 1);
-
-                    //++vec3 this_coord = vec3(temp.global_pos);
-                    //++//vec3 this_coord = vec3(temp.global_pos);
-
-                    //++initialize_char_array(vec3(this_coord.x, this_coord.y, this_coord.z) + vec3(0.0,0.1,0.0));
-    
-                    //++log_number(temp.block_index, false);
-                    //++add_end_of_line();
-    
-                    //++AABB aabb = create_char_sequency_points(255, 255, 255);
-                    //++AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-                    //++create_output_points(aabb, 155, 255, 155);
-
-                    //++AABB jebulis = AABB(
-                    //++    vec4(
-                    //++        this_coord + vec3(-0.1, -0.1, -0.01),
-                    //++        1.0),
-                    //++    vec4(
-                    //++        this_coord + vec3(0.25, 0.25, 0.0),
-                    //++        1.0)
-                    //++);
-                    //++create_aabb_triangles_r(jebulis, 200, 100, 0, 0.01);
-                }
-
-                // A new known found. Decrease band count by one.
-                if (old_tag == BAND && temp.tag == KNOWN) {
-                    atomicAdd(fmm_block[temp.block_index].band_points_count, -1);
+                    //++ atomicAdd(fmm_block[temp.block_index].band_points_count, 1);
 
                     //++ vec3 this_coord = vec3(temp.global_pos);
+                    //++ //vec3 this_coord = vec3(temp.global_pos);
 
-                    //++ initialize_char_array( vec3(this_coord.x, this_coord.y, this_coord.z) + vec3(0.0,0.1,0.0));
+                    //++ initialize_char_array(vec3(this_coord.x, this_coord.y, this_coord.z) + vec3(0.0,0.1,0.0));
     
                     //++ log_number(temp.block_index, false);
                     //++ add_end_of_line();
@@ -1651,7 +1625,33 @@ void synchronize_fmm() {
                     //++         this_coord + vec3(0.25, 0.25, 0.0),
                     //++         1.0)
                     //++ );
-                    //++ create_aabb_triangles_r(jebulis, 100, 200, 0, 0.02);
+                    //++ create_aabb_triangles_r(jebulis, 200, 100, 0, 0.01);
+                }
+
+                // A new known found. Decrease band count by one.
+                if (old_tag == BAND && temp.tag == KNOWN) {
+                    atomicAdd(fmm_block[temp.block_index].band_points_count, -1);
+
+                     //++ vec3 this_coord = vec3(temp.global_pos);
+
+                     //++ initialize_char_array( vec3(this_coord.x, this_coord.y, this_coord.z) + vec3(0.0,0.1,0.0));
+    
+                     //++ log_number(temp.block_index, false);
+                     //++ add_end_of_line();
+    
+                     //++ AABB aabb = create_char_sequency_points(255, 255, 255);
+                     //++ AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+                     //++ create_output_points(aabb, 155, 255, 155);
+
+                     //++ AABB jebulis = AABB(
+                     //++     vec4(
+                     //++         this_coord + vec3(-0.1, -0.1, -0.01),
+                     //++         1.0),
+                     //++     vec4(
+                     //++         this_coord + vec3(0.25, 0.25, 0.0),
+                     //++         1.0)
+                     //++ );
+                     //++ create_aabb_triangles_r(jebulis, 100, 200, 0, 0.02);
                 }
             //}
         }
