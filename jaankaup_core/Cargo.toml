@@ -14,7 +14,8 @@ edition = "2018"
 #wgpu = { git = "https://github.com/gfx-rs/wgpu" }
 #wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="d6e386df2d5446d55d27cc8bcc73660352077ed6", features = ["spirv"] }
 #wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="3eb3eed8cfd5c581509a36aec1c7875a0f776840", features = ["spirv"] }
-wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="07cd75a36b7abe3b009b434fb2cefc7353487df4", features = ["spirv"] }
+#wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="07cd75a36b7abe3b009b434fb2cefc7353487df4", features = ["spirv"] }
+wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="9310f264f1c3d70cd8665fc7e7e15d810577c3f5", features = ["spirv"] }
 
 winit = { version = "0.24.0", features = ["web-sys"] }
 async-executor = "1.0"
