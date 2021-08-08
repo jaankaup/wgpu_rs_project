@@ -54,7 +54,7 @@ struct FMM_Block_Shared {
 /* Data integrity/synchronization */
 shared uint shared_changed_fmm_counter;
 shared FMM_Block_Shared[8 * LOCAL_Y_DIM] shared_changed_fmm_info;
-shared BlockData[LOCAL_Y_DIM] shared_block_sync_info;
+//shared BlockData[LOCAL_Y_DIM] shared_block_sync_info; // not used.
 
 shared FMM_Node[160*LOCAL_Y_DIM] shared_fmm_nodes;
 shared uint[THREAD_COUNT] shared_fmm_indices;
@@ -1583,7 +1583,7 @@ int neighbor_block_index(uint hash_index, ivec3 block_pos) {
   
   uint new_block_index = this_position.x +
                          this_position.y * fmm_attributes.global_dimensions.x +  
-                         this_position.z * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y ;  
+                         this_position.z * fmm_attributes.global_dimensions.x * fmm_attributes.global_dimensions.y;
 
   //++ int final_block_index = outside ? -1 : int(new_block_index);
 
@@ -1596,7 +1596,7 @@ void synchronize_fmm() {
     if (gl_LocalInvocationIndex == 0) {
         for (int i=0 ; i<shared_changed_fmm_counter; i++) {
             FMM_Block_Shared temp = shared_changed_fmm_info[i];
-            if (temp.block_index != -1) {
+            //if (temp.block_index != -1) {
 
                 uint old_tag = atomicMin(fmm_nodes[temp.global_index].tag, temp.tag);
 
@@ -1609,7 +1609,7 @@ void synchronize_fmm() {
                 if (old_tag == BAND && temp.tag == KNOWN) {
                     atomicAdd(fmm_block[temp.block_index].band_points_count, -1);
                 }
-            }
+            //}
         }
     }
 }
@@ -1648,10 +1648,10 @@ void find_smallest() {
       BlockData ijk = get_block_pos_index(fmm_block[actual_block_index].index);
 
       // Save block data to shared memory for syncronization purposes.
-      if (actual_block_index < last_index && gl_LocalInvocationID.x == 0) {
-        shared_block_sync_info[gl_LocalInvocationID.y] = ijk;
-      }
-      barrier();
+      //if (actual_block_index < last_index && gl_LocalInvocationID.x == 0) {
+      //  shared_block_sync_info[gl_LocalInvocationID.y] = ijk;
+      //}
+      //barrier();
 
       // Load fmm blocks to shared memory. Load ghost region also. 
       if (actual_block_index < last_index) {
@@ -1670,6 +1670,8 @@ void find_smallest() {
         const uint global_index = data_index.w + ijk.base_index;
         //const ivec3 global_pos = data_index.xyz + ijk.base_position*4;
 
+        //if (is_outside(global_pos)) {
+        //}
         // Data is inside computing context. TODO: this should be always true.
         //if (!is_outside(global_pos)) {
             uint block_base_index = ijk.base_position.x +
@@ -1699,14 +1701,58 @@ void find_smallest() {
                 FMM_Block_Shared sync_d = FMM_Block_Shared(BAND, global_ind, neighbor_block_index(basic_hash_index, ijk.base_position));
                 uint ind = atomicAdd(shared_changed_fmm_counter, 1);
                 shared_changed_fmm_info[ind] = sync_d;
+
+                //log int new_base_index = neighbor_block_index(basic_hash_index, ijk.base_position);
+                //log BlockData new_block_data = get_block_pos_index(new_base_index);
+
+                //log vec3 this_coord = vec3(new_block_data.base_position*4);
+                //log initialize_char_array( vec3(this_coord.x, this_coord.y, this_coord.z));
+    
+                //log log_number(data_ind.w, false);
+                //log add_end_of_line();
+    
+                //log AABB aabb = create_char_sequency_points(255, 255, 255);
+                //log AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(4.0, 4.0, 4.0), 1.0));
+                //log create_output_points(aabb, 155, 255, 155);
+
+                //log AABB jebulis = AABB(
+                //log     vec4(
+                //log         this_coord,
+                //log         1.0),
+                //log     vec4(
+                //log         this_coord + vec3(4.0), 1.0));
+                //log create_aabb_triangles_r(jebulis, 255, 255, 0, 0.05);
             }
-        }
-      }
+            //logelse {
+
+            //log    int new_base_index = neighbor_block_index(basic_hash_index, ijk.base_position);
+            //log    BlockData new_block_data = get_block_pos_index(new_base_index);
+
+            //log    vec3 this_coord = vec3(global_p);
+            //log    initialize_char_array( vec3(this_coord.x, this_coord.y, this_coord.z));
+    
+            //log    log_vec3(global_p, 1);
+            //log    add_end_of_line();
+    
+            //log    AABB aabb = create_char_sequency_points(255, 255, 255);
+            //log    AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+            //log    create_output_points(aabb, 155, 255, 155);
+
+            //log    AABB jebulis = AABB(
+            //log        vec4(
+            //log            this_coord,
+            //log            1.0),
+            //log        vec4(
+            //log            this_coord + vec3(1.0), 1.0));
+            //log    create_aabb_triangles_r(jebulis, 255, 255, 0, 0.05);
+            //log}
+        } // for
+      } // if
 
       barrier();
       synchronize_fmm();
       barrier();
-    }
+    } // for
 }
 
 void add_initial_band_points() {
@@ -1961,7 +2007,7 @@ void render_block(uint b, bool ghost_zone) {
         initialize_char_array(vec3(ijk.base_position * 4 - vec3(0.5)));
     
         //log_float(fmm_block[b].band_points_count, 2);
-        log_float(fmm_block[b].band_points_count, 2);
+        log_float(fmm_block[b].band_points_count,1);
         add_end_of_line();
                                                                  
         AABB aabb_joo = create_char_sequency_points(222, 222, 222);
@@ -2032,8 +2078,8 @@ void main() {
   find_smallest();
   barrier();
 
-  global_solver();
-  barrier();
+  // global_solver();
+  // barrier();
 
   //++  solve_quadradic_band_points();
   //++  barrier();
