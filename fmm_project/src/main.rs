@@ -44,11 +44,11 @@ const DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
 const BLOCK_DIMENSIONS: [u32; 3] = [8, 12, 8];
 const TIME_STAMP_COUNT: u32 = 2;
 
-const FAR: u32 =  4;
-const BAND: u32 = 3;
+const FAR: u32 =  2;
+const BAND: u32 = 1;
 const KNOWN: u32 = 0;
-const KNOWN_NEW: u32 = 1;
-const NEW_BAND: u32 = 2;
+//const KNOWN_NEW: u32 = 1;
+//const NEW_BAND: u32 = 2;
 // TODO: add Queries to jaankaup_core.
   
 struct QuerySets {
@@ -155,7 +155,7 @@ struct FMM_App {
     triangle_data: Vec<Triangle_vvvvnnnn>,
     triangle_index: f32,
     show_whole_mesh: u32,
-    changed: bool,
+    changed: u32,
     data_loaded: bool,
     query_sets: Option<QuerySets>,
 }
@@ -201,7 +201,7 @@ impl Application for FMM_App {
 
         let mut buffers: HashMap<String, wgpu::Buffer> = HashMap::new();
 
-        let changed = true;
+        let changed = 0;
         let data_loaded = false;
 
         // Create the depth texture for fmm application.
@@ -681,23 +681,32 @@ impl Application for FMM_App {
         //++     }
         //++ }
 
+        let mut increase_fmm_step = false;
 
-        //if !self.data_loaded {
+        let p_pressed = input.key_state(&Key::P);
+        if !p_pressed.is_none() {
+            self.changed = (self.changed + 1) % 10;
+            if self.changed > 5 { increase_fmm_step = true; self.changed = 0; }
+        }
+
+        if increase_fmm_step {
             let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("FMM update encoder.") });
 
-            if let Some(ref query_sets) = self.query_sets {
-                encoder.write_timestamp(&query_sets.timestamp, 0);
-            }
+            if !self.data_loaded {
+                if let Some(ref query_sets) = self.query_sets {
+                    encoder.write_timestamp(&query_sets.timestamp, 0);
+                }
 
-            self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
-                        &mut encoder,
-                        1,
-                        1,
-                        1
-            ); 
+                self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
+                            &mut encoder,
+                            1,
+                            1,
+                            1
+                ); 
 
-            if let Some(ref query_sets) = self.query_sets {
-                encoder.write_timestamp(&query_sets.timestamp, 1);
+                if let Some(ref query_sets) = self.query_sets {
+                    encoder.write_timestamp(&query_sets.timestamp, 1);
+                }
             }
 
             if let Some(ref query_sets) = self.query_sets {
@@ -714,7 +723,6 @@ impl Application for FMM_App {
             if let Some(ref query_sets) = self.query_sets {
                 encoder.write_timestamp(&query_sets.timestamp, 3);
             }
-
             
             if let Some(ref query_sets) = self.query_sets {
                 let timestamp_query_count = 4;
@@ -727,6 +735,18 @@ impl Application for FMM_App {
             }
 
             queue.submit(Some(encoder.finish()));
+
+            let fmm_attributes = FMM_Attributes{ global_dimensions: BLOCK_DIMENSIONS,
+                                                 offset_hash_table_size: 160 as u32,
+                                                 current_block: [1,0,0],
+                                                 vec_to_offset_table_size: 216 as u32,
+            };
+
+            queue.write_buffer(
+                &self.buffers.get("fmm_attributes").unwrap(),
+                0,
+                bytemuck::cast_slice(&[fmm_attributes])
+            );
 
             if let Some(ref query_sets) = self.query_sets {
                 // We can ignore the future as we're about to wait for the device.
@@ -743,7 +763,7 @@ impl Application for FMM_App {
                     let microseconds = nanoseconds / 1000.0;
                     let milli = microseconds / 1000.0;
                     //println!("{:?} time is {:?} micro seconds.", i, microseconds);
-                    //println!("{:?} time is {:?} milli seconds.", i, milli);
+                    println!("{:?} time is {:?} milli seconds.", i, milli);
     
                 }
             }
@@ -753,7 +773,7 @@ impl Application for FMM_App {
             self.debug_point_count = histogram[0];
             self.debug_triangle_draw_count = histogram[1];
             self.data_loaded = true;
-        //}
+        }
     }
 }
 

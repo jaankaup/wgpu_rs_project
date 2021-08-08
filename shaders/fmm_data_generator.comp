@@ -9,11 +9,11 @@
 #define BLOCK_SIZE 192
 //#define BLOCK_SIZE 128
 
-#define FAR 4
-#define BAND 3
+#define FAR 2
+#define BAND 1
 #define KNOWN 0
-#define KNOWN_NEW 1
-#define NEW_BAND 2
+//#define KNOWN_NEW 1
+//#define NEW_BAND 2
 #define DEBUG_OFFSET 0.07
 
 struct FMM_Node {
@@ -1144,14 +1144,10 @@ void apply_triangle_mesh() {
                     // Save updated fmm node.
                     fmm_nodes[base_index + pos_and_offset.w] = node;
                 }
-
               } // for
         } // if
-
     } // for
-               
   }
-
 }
 
 void copy_offset_to_shared(uint thread_id) {
