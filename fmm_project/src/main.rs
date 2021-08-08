@@ -828,6 +828,7 @@ fn create_buffers(device: &wgpu::Device,
         );
 
         println!("CREATING BLOCKS");
+        println!("number of blocks == {:?}", number_of_blocks);
 
         let mut test_blocks: Vec<FMM_Block> = vec![FMM_Block{ index: 0, band_points_count: 0} ; number_of_blocks as usize * 2];
 
