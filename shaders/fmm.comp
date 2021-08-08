@@ -1961,7 +1961,7 @@ void render_block(uint b, bool ghost_zone) {
         initialize_char_array(vec3(ijk.base_position * 4 - vec3(0.5)));
     
         //log_float(fmm_block[b].band_points_count, 2);
-        log_float(fmm_block[b].index, 2);
+        log_float(fmm_block[b].band_points_count, 2);
         add_end_of_line();
                                                                  
         AABB aabb_joo = create_char_sequency_points(222, 222, 222);
