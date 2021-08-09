@@ -6,7 +6,7 @@
 #define MAX_NUM_CHARS 16 
 
 #define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 8 
+#define LOCAL_Y_DIM 16 
 #define LOCAL_Z_DIM 1
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
 #define SCAN_BLOCK_SIZE (THREAD_COUNT * 2 + ((THREAD_COUNT * 2) >> 4))
