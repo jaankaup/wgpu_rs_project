@@ -41,7 +41,7 @@ use bytemuck::{Pod, Zeroable};
 //triangle points.
 const DEBUG_BUFFER_SIZE: u32   = 1024000; //4194300; // 1048575; //33554416;
 const DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
-const BLOCK_DIMENSIONS: [u32; 3] = [15, 15, 15];
+const BLOCK_DIMENSIONS: [u32; 3] = [4, 8, 4];
 const TIME_STAMP_COUNT: u32 = 2;
 
 const FAR: u32 =  2;

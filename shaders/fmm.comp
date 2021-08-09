@@ -6,7 +6,7 @@
 #define MAX_NUM_CHARS 16 
 
 #define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 4 
+#define LOCAL_Y_DIM 1 
 #define LOCAL_Z_DIM 1
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
 #define SCAN_BLOCK_SIZE (THREAD_COUNT * 2 + ((THREAD_COUNT * 2) >> 4))
@@ -1423,6 +1423,18 @@ float solve_quadratic(uint cell_index) {
 
         // X-DIRECTION
 
+        //float x_minus = neighbors[0].tag == KNOWN ? neighbors[0].value : 0;
+        //float x_plus =  neighbors[1].tag == KNOWN ? neighbors[1].value : 0;
+        //phis[0] = max(0, min(x_minus, x_plus));
+
+        //float y_minus = neighbors[2].tag == KNOWN ? neighbors[2].value : 0;
+        //float y_plus =  neighbors[3].tag == KNOWN ? neighbors[3].value : 0;
+        //phis[1] = max(0, min(y_minus, y_plus));
+
+        //float z_minus = neighbors[4].tag == KNOWN ? neighbors[4].value : 0;
+        //float z_plus =  neighbors[5].tag == KNOWN ? neighbors[5].value : 0;
+        //phis[2] = max(0, min(z_minus, z_plus));
+
         // x dir.
         phis[0] = neighbors[0].tag == KNOWN && neighbors[1].tag == KNOWN ? min(neighbors[0].value, neighbors[1].value) : 0.0;
         phis[0] = neighbors[0].tag == KNOWN && neighbors[1].tag != KNOWN ? neighbors[0].value : phis[0];
@@ -1446,27 +1458,65 @@ float solve_quadratic(uint cell_index) {
         float b = 0.0;
         float c = 0.0;
 
-        for (int i=0 ; i<3 ; i++) {
-            float oho = hs[i] * hs[i];
-            a += oho;
-            b += oho * phis[i];
-            c += oho * phis[i] * phis[i];
-        }
-        b *= -2.0;
-
-        c -= 1.0; // Speed function 1/(f_i,j,k)^2 
-
+        //float temp;
+        //if (phis[0] < phis[1]) {
+        //    temp = phis[0];
+        //    phis[0] = phis[1];
+        //    phis[1] = temp;
+        //}
+        //if (phis[0] < phis[2]) {
+        //    temp = phis[0];
+        //    phis[0] = phis[2];
+        //    phis[2] = temp;
+        //}
+        //if (phis[1] < phis[2]) {
+        //    temp = phis[1];
+        //    phis[1] = phis[2];
+        //    phis[2] = temp;
+        //}
         float final_distance = 777.0;
 
-        float discriminant = pow(b, 2.0) - (4.0*a*c);
-
-        if (discriminant >= 0.0) {
-            float t_phi = (-1.0*b + sqrt(discriminant)) / (2.0*a); 
-            final_distance = t_phi;
-            if (phis[0] < t_phi && phis[1] < t_phi && phis[2] < t_phi) {
-                final_distance = t_phi;
+        for (int j=0 ; j<3 ; j++) {
+            float h0 = hs[0] * hs[0];
+            float h1 = hs[1] * hs[1];
+            float h2 = hs[2] * hs[2];
+            float a = h0 + h1 + h2;
+            float b = -2.0 * (h0*phis[0] + h1*phis[1] + h2*phis[2]); 
+            float c = h0 * phis[0]*phis[0] + h1 * phis[1]*phis[1] + h2 * phis[2]*phis[2] - 1.0; 
+            float discriminant = pow(b, 2.0) - (4.0*a*c);
+            if (discriminant >= 0.0) {
+                float t_phi = (-1.0*b + sqrt(discriminant)) / (2.0*a); 
+                if (phis[0] < t_phi && phis[1] < t_phi && phis[2] < t_phi) {
+                    final_distance = min(t_phi, final_distance);
+                }
             }
+            uint max_j = phis[0] < phis[1] ? 1 : 0;
+            max_j = phis[max_j] < phis[2] ? 2 : max_j;
+            phis[max_j] = 0.0;
+            hs[max_j] = 0.0;
         }
+
+        // for (int i=0 ; i<3 ; i++) {
+        //     float oho = hs[i] * hs[i];
+        //     a += oho;
+        //     b += oho * phis[i];
+        //     c += oho * phis[i] * phis[i];
+        // }
+        // b *= -2.0;
+
+        // c -= 1.0; // Speed function 1/(f_i,j,k)^2 
+
+        // float final_distance = 777.0;
+
+        // float discriminant = pow(b, 2.0) - (4.0*a*c);
+
+        // if (discriminant >= 0.0) {
+        //     float t_phi = (-1.0*b + sqrt(discriminant)) / (2.0*a); 
+        //     final_distance = t_phi;
+        //     if (phis[0] < t_phi && phis[1] < t_phi && phis[2] < t_phi) {
+        //         final_distance = t_phi;
+        //     }
+        // }
 
         return final_distance;
 }
@@ -1603,7 +1653,7 @@ void synchronize_fmm() {
 
                 // A new band found. Increase band count by one.
                 if (old_tag == FAR && temp.tag == BAND) {
-                    //++ atomicAdd(fmm_block[temp.block_index].band_points_count, 1);
+                    atomicAdd(fmm_block[temp.block_index].band_points_count, 1);
 
                     //++ vec3 this_coord = vec3(temp.global_pos);
                     //++ //vec3 this_coord = vec3(temp.global_pos);
@@ -1632,26 +1682,26 @@ void synchronize_fmm() {
                 if (old_tag == BAND && temp.tag == KNOWN) {
                     atomicAdd(fmm_block[temp.block_index].band_points_count, -1);
 
-                     //++ vec3 this_coord = vec3(temp.global_pos);
+                    //++ vec3 this_coord = vec3(temp.global_pos);
 
-                     //++ initialize_char_array( vec3(this_coord.x, this_coord.y, this_coord.z) + vec3(0.0,0.1,0.0));
+                    //++ initialize_char_array( vec3(this_coord.x, this_coord.y, this_coord.z) + vec3(0.0,0.1,0.0));
     
-                     //++ log_number(temp.block_index, false);
-                     //++ add_end_of_line();
+                    //++ log_number(temp.block_index, false);
+                    //++ add_end_of_line();
     
-                     //++ AABB aabb = create_char_sequency_points(255, 255, 255);
-                     //++ AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-                     //++ create_output_points(aabb, 155, 255, 155);
+                    //++ AABB aabb = create_char_sequency_points(255, 255, 255);
+                    //++ AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+                    //++ create_output_points(aabb, 155, 255, 155);
 
-                     //++ AABB jebulis = AABB(
-                     //++     vec4(
-                     //++         this_coord + vec3(-0.1, -0.1, -0.01),
-                     //++         1.0),
-                     //++     vec4(
-                     //++         this_coord + vec3(0.25, 0.25, 0.0),
-                     //++         1.0)
-                     //++ );
-                     //++ create_aabb_triangles_r(jebulis, 100, 200, 0, 0.02);
+                    //++ AABB jebulis = AABB(
+                    //++     vec4(
+                    //++         this_coord + vec3(-0.1, -0.1, -0.01),
+                    //++         1.0),
+                    //++     vec4(
+                    //++         this_coord + vec3(0.25, 0.25, 0.0),
+                    //++         1.0)
+                    //++ );
+                    //++ create_aabb_triangles_r(jebulis, 100, 200, 0, 0.02);
                 }
             //}
         }
@@ -1896,9 +1946,9 @@ void render_fmm_nodes() {
         if (node.tag == FAR) { final_color = far; }
         if (node.tag == BAND) { final_color = band; }
         if (node.tag == KNOWN) { final_color = known; }
-        if (node.value == 777.0) { final_color = error; }
-
+        if (node.value == 777.0)  {final_color = error; }
         create_point_ball7(this_coord, final_color.x,final_color.y,final_color.z, 0.01);
+
     }
     barrier();
   } // for
@@ -1931,7 +1981,7 @@ void solve_quadradic_band_points() {
     }
     barrier();
 
-    // Update both center data and ghost region band points.
+    // Update only the center data.
     if (actual_block_index < last_index) { save_fmm_data(ijk.base_index, ijk.base_position * 4, true); }
     barrier();
   }
@@ -2008,47 +2058,46 @@ void render_block(uint b, bool ghost_zone) {
     
     //if (fmm_b.tag != FAR) { 
     if (fmm_b.tag == BAND || fmm_b.tag == KNOWN) { 
-    //if (fmm_b.tag == BAND || fmm_b.tag == KNOWN_NEW || fmm_b.tag == NEW_BAND || fmm_b.tag == KNOWN) { 
     //if (fmm_b.tag == KNOWN_NEW) { 
 
-        create_point_ball7(this_coord, final_color.x,final_color.y,final_color.z, 0.01);
+        //create_point_ball7(this_coord, final_color.x,final_color.y,final_color.z, 0.01);
 
-        //++   initialize_char_array(
-        //++     vec3(this_coord.x,
-        //++          this_coord.y,
-        //++          this_coord.z));
+           initialize_char_array(
+             vec3(this_coord.x,
+                  this_coord.y,
+                  this_coord.z));
     
-        //++   // log_vec3(vec3(this_coord), 1);
-        //++   // add_end_of_line();
-        //++   //log_number(123, false);
-        //++   // log_number(position_index, false);
-        //++   log_float(fmm_b.value, 2);
-        //++   //log_float(fmm_block[b].band_points_count, 2);
-        //++   //log_number(b - global_data_length(), false);
-        //++   //log_number(stream_compaction_count, false);
-        //++   add_end_of_line();
-        //++   ////  log_number(shared_vec_to_offset[thread_id], false);
-        //++   //++log_number(mapping_to_offset, false);
-        //++   //++add_end_of_line();
+           // log_vec3(vec3(this_coord), 1);
+           // add_end_of_line();
+           //log_number(123, false);
+           // log_number(position_index, false);
+           log_float(fmm_b.value, 2);
+           //log_float(fmm_block[b].band_points_count, 2);
+           //log_number(b - global_data_length(), false);
+           //log_number(stream_compaction_count, false);
+           add_end_of_line();
+           ////  log_number(shared_vec_to_offset[thread_id], false);
+           //++log_number(mapping_to_offset, false);
+           //++add_end_of_line();
     
-        //++   ////++ log_vec3(vec3(this_coord), 1);
-        //++   ////++ add_end_of_line();
-        //++   ////++ //log_number(123, false);
-        //++   ////++ log_number(thread_id, false);
-        //++   ////++ //log_number(joopajoo.index, false);
-        //++   ////++ add_end_of_line();
-        //++   ////++ ////  log_number(shared_vec_to_offset[thread_id], false);
-        //++   ////++ log_number(joopajoo.index, false);
-        //++   ////++ add_end_of_line();
+           ////++ log_vec3(vec3(this_coord), 1);
+           ////++ add_end_of_line();
+           ////++ //log_number(123, false);
+           ////++ log_number(thread_id, false);
+           ////++ //log_number(joopajoo.index, false);
+           ////++ add_end_of_line();
+           ////++ ////  log_number(shared_vec_to_offset[thread_id], false);
+           ////++ log_number(joopajoo.index, false);
+           ////++ add_end_of_line();
     
     
-        //++   // if (thread_id < 64) { final_color = center_color; }
-        //++   // else if (in_domain) { final_color = ghost_color; }
-        //++   // else { final_color = outside_color; }
+           // if (thread_id < 64) { final_color = center_color; }
+           // else if (in_domain) { final_color = ghost_color; }
+           // else { final_color = outside_color; }
     
-        //++   AABB aabb = create_char_sequency_points(final_color.x, final_color.y, final_color.z);
-        //++   AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-        //++   create_output_points(aabb, final_color.x, final_color.y, final_color.z);
+           AABB aabb = create_char_sequency_points(final_color.x, final_color.y, final_color.z);
+           AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+           create_output_points(aabb, final_color.x, final_color.y, final_color.z);
 
         //shared_memory_nodes[thread_id] = thread_id < 160 ?
     }
@@ -2131,11 +2180,12 @@ void main() {
   find_smallest();
   barrier();
 
-  // global_solver();
-  // barrier();
+  global_solver();
+  barrier();
 
-  //++  solve_quadradic_band_points();
-  //++  barrier();
+  solve_quadradic_band_points();
+  barrier();
+
   // global_solver();
   // barrier();
 
@@ -2165,29 +2215,29 @@ void main() {
   render_fmm_nodes();
   barrier();
 
-  // uint all_dimension_length = global_data_length();
+  //++ uint all_dimension_length = global_data_length();
 
-  // uint last_index = all_dimension_length + stream_compaction_count;
+  //++ uint last_index = all_dimension_length + stream_compaction_count;
 
-  // const uint offset = stream_compaction_count == 0 ? 0 : (stream_compaction_count - 1) / LOCAL_Y_DIM + 1;
+  //++ const uint offset = stream_compaction_count == 0 ? 0 : (stream_compaction_count - 1) / LOCAL_Y_DIM + 1;
 
-  // for (int i=0 ; i<stream_compaction_count ; i += LOCAL_Y_DIM) {
+  //++ for (int i=0 ; i<stream_compaction_count ; i += LOCAL_Y_DIM) {
 
-  //   uint actual_index = gl_LocalInvocationID.y + i + all_dimension_length;
+  //++   uint actual_index = gl_LocalInvocationID.y + i + all_dimension_length;
 
-  //   BlockData ijk = get_block_pos_index(fmm_block[actual_index].index);
+  //++   BlockData ijk = get_block_pos_index(fmm_block[actual_index].index);
 
-  //   // Load FMM nodes to the shared memory.
-  //   if (actual_index < last_index) {
-  //       load_fmm_data(ijk.base_index, ijk.base_position * 4, false);
-  //   }
-  //   barrier();
+  //++   // Load FMM nodes to the shared memory.
+  //++   if (actual_index < last_index) {
+  //++       load_fmm_data(ijk.base_index, ijk.base_position * 4, false);
+  //++   }
+  //++   barrier();
 
-  //   if (actual_index < last_index) {
-  //       render_block(actual_index, false);
-  //   }
-  //   barrier();
-  // }
+  //++   if (actual_index < last_index) {
+  //++       render_block(actual_index, false);
+  //++   }
+  //++   barrier();
+  //++ }
   //  check_all_threads();
   /* UPDATE COUNTERS. DEBUGGING. */
   if (local_id_to_x() == 0) {
