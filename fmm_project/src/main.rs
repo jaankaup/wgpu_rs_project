@@ -41,7 +41,7 @@ use bytemuck::{Pod, Zeroable};
 //triangle points.
 const DEBUG_BUFFER_SIZE: u32   = 1024000; //4194300; // 1048575; //33554416;
 const DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
-const BLOCK_DIMENSIONS: [u32; 3] = [8, 12, 8];
+const BLOCK_DIMENSIONS: [u32; 3] = [15, 15, 15];
 const TIME_STAMP_COUNT: u32 = 2;
 
 const FAR: u32 =  2;
@@ -255,7 +255,7 @@ impl Application for FMM_App {
         );
 
         let (_, triangle_data, aabb): (Vec<Triangle>, Vec<Triangle_vvvvnnnn>, BBox) =
-            load_triangles_from_obj("assets/models/wood.obj", 6.0, [10.0, -5.0, -10.0], None).unwrap();
+            load_triangles_from_obj("assets/models/wood.obj", 7.0, [20.0, 0.0, 26.0], None).unwrap();
             //load_triangles_from_obj("assets/models/wood.obj", 1.0, [5.0, -5.0, 18.0], Some(1)).unwrap();
 
         let triangle_count: u32 = triangle_data.len() as u32;
