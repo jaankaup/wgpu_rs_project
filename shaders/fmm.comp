@@ -6,7 +6,7 @@
 #define MAX_NUM_CHARS 16 
 
 #define LOCAL_X_DIM 64 
-#define LOCAL_Y_DIM 1 
+#define LOCAL_Y_DIM 4 
 #define LOCAL_Z_DIM 1
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
 #define SCAN_BLOCK_SIZE (THREAD_COUNT * 2 + ((THREAD_COUNT * 2) >> 4))
@@ -180,8 +180,8 @@ shared uint stream_compaction_count;
 //shared CharInformation[THREAD_COUNT] char_arrays;
 shared CharInformation[THREAD_COUNT] char_arrays;
 
-const uvec3 local_dimension = uvec3(4,4,4);
-const uvec3 group_dimension = uvec3(4,4,4);
+// const uvec3 local_dimension = uvec3(4,4,4);
+// const uvec3 group_dimension = uvec3(4,4,4);
 
 const uint bez_indices[17] = {
     104| (108 << 8) | (112 << 16) | (116 << 24),  // 0       
@@ -2177,14 +2177,16 @@ void main() {
   global_solver();
   barrier();
 
-  find_smallest();
-  barrier();
+  if (stream_compaction_count > 0) {
+    find_smallest();
+    barrier();
 
-  global_solver();
-  barrier();
+    global_solver();
+    barrier();
 
-  solve_quadradic_band_points();
-  barrier();
+    solve_quadradic_band_points();
+    barrier();
+  }
 
   // global_solver();
   // barrier();

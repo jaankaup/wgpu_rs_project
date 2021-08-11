@@ -1,0 +1,111 @@
+#version 450
+
+#define STEP_SIZE 0.5
+
+#define LOCAL_X_DIM 8 
+#define LOCAL_Y_DIM 8
+
+struct Ray {
+  vec3 origin;
+  vec3 direction;
+  float rMin;
+  float rMax;
+};
+
+struct RayPayload {
+  vec4 intersection_point;
+  vec4 normal;
+  float visibility;
+  float opacity;
+  uint color;
+};
+
+struct FMM_Node {
+    float value;
+    uint tag;
+};
+
+layout(set = 0, binding = 0) uniform RayCamera {
+    vec4 position;
+    vec4 view;
+    vec4 up;
+    vec2 fov;
+    float apertureRadius; // Temporarly aperture radius is working as isovalue.
+    float focalDistance;
+} camera;
+
+layout(set = 0, binding = 1) readonly buffer FMM_Nodes {
+    FMM_Node[] fmm_nodes;
+};
+
+//layout(set = 0, binding = 2, r32f) uniform writeonly image2D screen_texture;
+//layout(set = 0, binding = 2, rgba32f) uniform writeonly image2D screen_texture;
+
+layout(set = 0, binding = 2) writeonly buffer RayOutputBuffer {
+    uint[] frame_output;
+};
+
+layout(local_size_x = LOCAL_X_DIM, local_size_y = LOCAL_Y_DIM) in;
+
+uint encode_rgba_u32(uint r, uint g, uint b, uint a) {
+  uint col = 0;
+  col = (r << 24) | (g << 16) | (b  << 8) | a;
+  return col;
+}
+
+// r, g, b, a must be in range [0,1].
+uint encode_rgbaf_u32(vec4 col) {
+  uint encoded_col = 0;
+  encoded_col = (uint(col.x*255) << 24) |
+        (uint(col.y*255) << 16) |
+        (uint(col.z*255)  << 8) |
+        uint(col.w*255);
+  return encoded_col;
+}
+
+void main () {
+
+  float x_coord = float(gl_GlobalInvocationID.x);
+  float y_coord = float(gl_GlobalInvocationID.y);
+  float global_x_dim = float(gl_NumWorkGroups.x * LOCAL_X_DIM); // from uniform
+  float global_y_dim = float(gl_NumWorkGroups.y * LOCAL_Y_DIM); // from uniform
+
+  vec3 right = normalize(cross(camera.view.xyz,camera.up.xyz));
+  vec3 y = normalize(cross(camera.view.xyz, right));
+
+  float d = camera.focalDistance;
+
+  vec3 u = (d * tan(camera.fov.x*0.5)) * right;
+  vec3 v = (d * tan(camera.fov.y*0.5)) * y;
+
+  float alpha = 2.0 * (x_coord + 0.5) / global_x_dim - 1.0;
+  float beta  = 1.0 - 2.0 * (y_coord + 0.5) / global_y_dim;
+
+  vec3 point_on_plane = alpha * u + beta * v;
+
+  Ray ray;
+  ray.origin = point_on_plane + camera.position.xyz;
+  ray.direction = normalize(point_on_plane + d*camera.view.xyz);
+  ray.rMin = 0.0f;
+  ray.rMax = 300.0f;
+
+  RayPayload payload;
+  payload.color = encode_rgbaf_u32(vec4(1.0, 0.0, 0.0, 1.0));
+  payload.visibility = 1.0;
+
+//  traceRay(ray, payload);
+//
+//  RayOutput result;
+//  result.origin = vec4(ray.origin, 1.0);
+//  result.intersection_point = payload.intersection_point;
+//  result.normal = payload.normal;
+
+// struct RayOutput {
+//     vec4 origin; // fourth element == visibility.
+//     vec4 intersection_point; // fourt element == opacity.
+//     vec4 normal; // fourth element == the diffuse color.
+// };
+
+  //imageStore(screen_texture, ivec2(0,1), vec4(1.0, 1.0, 1.0, 1.0));
+  frame_output[gl_GlobalInvocationID.x + gl_NumWorkGroups.x * gl_WorkGroupSize.x * gl_GlobalInvocationID.y] = payload.color;
+}

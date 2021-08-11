@@ -115,7 +115,4 @@ fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
     var the_color2: vec3<f32> = hsv2rgb(the_color);
 
     return vec4<f32>(mix(vec3<f32>(0.5, 0.0, 0.0), the_color2, vec3<f32>(blah)), 1.0);
-    //return vec4<f32>(mix(vec3<f32>(1.0, 0.0, 0.0), final_color.xyz, vec3<f32>(blah)), 1.0);
-    // return vec4<f32>(rgb2hsv(final_color.xyz), 1.0);
-    // return final_color;
 }

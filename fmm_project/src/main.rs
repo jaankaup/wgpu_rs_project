@@ -17,8 +17,9 @@ use jaankaup_core::wgpu_system::{
         WGPUFeatures,
         WGPUConfiguration,
         Application,
-        BasicLoop
+        BasicLoop,
 };
+use jaankaup_core::two_triangles::TwoTriangles;
 
 use jaankaup_core::render_pipelines::{
     create_bind_group_layouts,
@@ -84,7 +85,8 @@ impl WGPUFeatures for FMM_Features {
         // wgpu::Features::empty()
     }
     fn required_features() -> wgpu::Features {
-        wgpu::Features::SPIRV_SHADER_PASSTHROUGH
+        wgpu::Features::SPIRV_SHADER_PASSTHROUGH |
+        wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
         //wgpu::Features::ALL_NATIVE
     }
     fn required_limits() -> wgpu::Limits {
@@ -130,6 +132,7 @@ unsafe impl bytemuck::Pod for FMM_Attributes {}
 
 // The fmm application.
 struct FMM_App {
+    textures: HashMap<String, JTexture>,
     depth_texture: JTexture,
     camera: Camera,
     buffers: HashMap<String, wgpu::Buffer>,
@@ -158,6 +161,9 @@ struct FMM_App {
     changed: u32,
     data_loaded: bool,
     query_sets: Option<QuerySets>,
+    screen: TwoTriangles,
+    sphere_tracer_pipeline: SphereTracerPipeline, 
+    sphere_tracer_bind_groups: Vec<wgpu::BindGroup>,
 }
 
 impl FMM_App {
@@ -199,6 +205,7 @@ impl Application for FMM_App {
             None
         };
 
+        let mut textures: HashMap<String, JTexture> = HashMap::new();
         let mut buffers: HashMap<String, wgpu::Buffer> = HashMap::new();
 
         let changed = 0;
@@ -224,6 +231,27 @@ impl Application for FMM_App {
                                              vec_to_offset_table_size: vec_to_offset_table.len() as u32,
         };
         let update_data_generator = 0;
+
+        let sphere_tracer_texture =
+            JTexture::create_texture2d(&configuration.device, &configuration.sc_desc, 1, 256, 256);
+
+        textures.insert("sphere_tracer_texture".to_string(), sphere_tracer_texture);
+
+        // Create the sphere tracer screen.
+        let screen = TwoTriangles::init(&configuration.device, &configuration.sc_desc);
+        let screen_group = TwoTriangles::create_bind_group(
+            &configuration.device,
+            &textures.get("sphere_tracer_texture").unwrap() 
+        );
+
+        buffers.insert(
+            "sphere_tracer_output".to_string(),
+            buffer_from_data::<u32>(
+            &configuration.device,
+            &vec![0; 256*256],
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
+            None)
+        );
 
         buffers.insert(
             "index_hash_table".to_string(),
@@ -298,16 +326,6 @@ impl Application for FMM_App {
                        &mut buffers
         );
 
-        // Create render pipelines for debugger.
-        // let vertex_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvc_camera.vert.spv");
-        // let fragment_shader_src = wgpu::include_spirv!("../../shaders/spirv/render_vvvc_camera.frag.spv");
-
-        // Create render pipelines vvvvnnnn.
-        //let vertex_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.vert.spv");
-        //let fragment_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/render_vvvvnnnn_camera.frag.spv");
-        // let vertex_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.vert.spv");
-        // let fragment_shader_vvvvnnnn = wgpu::include_spirv!("../../shaders/spirv/renderer_4v4n.frag.spv");
-
         // The point pipeline.
         let render_vvvc_point_pipeline = Render_vvvc::init(
                     &configuration.device,
@@ -317,8 +335,6 @@ impl Application for FMM_App {
                         source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v3c1.wgsl"))),
                         //flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
                     }),
-                    // &configuration.device.create_shader_module(&vertex_shader_src),
-                    // &configuration.device.create_shader_module(&fragment_shader_src),
                     wgpu::PrimitiveTopology::PointList
         );
         let render_vvvc_point_bind_groups = render_vvvc_point_pipeline.create_bind_groups(
@@ -333,10 +349,7 @@ impl Application for FMM_App {
                     &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
                         label: Some("renderer_v3c1_module2"),
                         source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v3c1.wgsl"))),
-                        //flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
                     }),
-                    // &configuration.device.create_shader_module(&vertex_shader_src),
-                    // &configuration.device.create_shader_module(&fragment_shader_src),
                     wgpu::PrimitiveTopology::TriangleList
         );
         let render_vvvc_triangle_bind_groups = render_vvvc_triangle_pipeline.create_bind_groups(
@@ -349,10 +362,7 @@ impl Application for FMM_App {
                 &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
                     label: Some("renderer_v4n4_module"),
                     source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/renderer_v4n4_plain.wgsl"))),
-                    //flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
                 })
-                // &configuration.device.create_shader_module(&vertex_shader_vvvvnnnn),
-                // &configuration.device.create_shader_module(&fragment_shader_vvvvnnnn)
         );
         let render_vvvvnnnn_bind_groups = render_vvvvnnnn_pipeline.create_bind_groups(
             &configuration.device,
@@ -365,13 +375,6 @@ impl Application for FMM_App {
         // Create histogram for fmm debug.
         let mut histogram = Histogram::init(&configuration.device, &vec![0, 2]); 
 
-        // let block_dimension_size = (BLOCK_DIMENSIONS[0] * BLOCK_DIMENSIONS[1] * BLOCK_DIMENSIONS[2] + 
-        //                            ((BLOCK_DIMENSIONS[0] * BLOCK_DIMENSIONS[1] * BLOCK_DIMENSIONS[2]) >> 4)) 
-        //                            * std::mem::size_of::<u32>() as u32;
-        // let output_vertex_size = std::mem::size_of::<OutputVertex>() as u32 * DEBUG_BUFFER_SIZE * 2;
-        // let fmm_block_size = std::mem::size_of::<FMM_Block>() as u32 * BLOCK_DIMENSIONS[0] * BLOCK_DIMENSIONS[1] * BLOCK_DIMENSIONS[2];
-        // let fmm_nodes_size = std::mem::size_of::<FMM_Node>() as u32 * BLOCK_DIMENSIONS[0] * BLOCK_DIMENSIONS[1] * BLOCK_DIMENSIONS[2] * 64;
-
         let fmm_debug_pipeline = FMM_debug_pipeline::init(&configuration.device);
 
         let fmm_debug_bind_groups =
@@ -380,7 +383,6 @@ impl Application for FMM_App {
                     &fmm_debug_pipeline.get_bind_group_layout_entries(),
                     &vec![
                         vec![
-                            //&buffers.get("").as_entire_binding(),
                             &camera.get_camera_uniform(&configuration.device).as_entire_binding(),
                             &buffers.get("prefix_sum_temp").unwrap().as_entire_binding(),
                             &buffers.get("debug_points_output").unwrap().as_entire_binding(),
@@ -412,10 +414,29 @@ impl Application for FMM_App {
                         ], 
                     ]
         );
+
+        println!("Creating Sphere tracer");
+        let sphere_tracer_pipeline = SphereTracerPipeline::init(&configuration.device); 
+        let sphere_tracer_bind_groups = 
+                create_bind_groups(
+                    &configuration.device, 
+                    &sphere_tracer_pipeline.get_bind_group_layout_entries(),
+                    &vec![
+                        vec![
+                            &camera.get_ray_camera_uniform(&configuration.device).as_entire_binding(),
+                            &buffers.get("fmm_nodes").unwrap().as_entire_binding(),
+                            &buffers.get("sphere_tracer_output").unwrap().as_entire_binding(),
+                            //&wgpu::BindingResource::TextureView(&textures.get("sphere_tracer_texture").unwrap().view),
+                        ],
+                    ]
+        );
                 
+        println!("Creating Sphere tracer :: OK");
+
         let show_mesh = false;
 
         Self {
+            textures,
             depth_texture,
             camera,
             buffers,
@@ -444,6 +465,9 @@ impl Application for FMM_App {
             changed,
             data_loaded,
             query_sets,
+            screen,
+            sphere_tracer_pipeline,
+            sphere_tracer_bind_groups,
         }
     }
 
@@ -764,7 +788,6 @@ impl Application for FMM_App {
                     let milli = microseconds / 1000.0;
                     //println!("{:?} time is {:?} micro seconds.", i, microseconds);
                     println!("{:?} time is {:?} milli seconds.", i, milli);
-    
                 }
             }
 
@@ -775,6 +798,25 @@ impl Application for FMM_App {
             self.data_loaded = true;
         }
     }
+//                        encoder.copy_buffer_to_texture(
+//                        wgpu::BufferCopyView {
+//                            buffer: &self.buffers.get(BUFFERS.ray_march_output_buffer.name).unwrap().buffer,
+//                            layout: wgpu::TextureDataLayout {
+//                                offset: 0,
+//                                bytes_per_row: CAMERA_RESOLUTION.0 * 4,
+//                                rows_per_image: CAMERA_RESOLUTION.1,
+//                            },
+//                        },
+//                        wgpu::TextureCopyView{
+//                            texture: &self.textures.get(TEXTURES.ray_texture.name).unwrap().texture,
+//                            mip_level: 0,
+//                            origin: wgpu::Origin3d::ZERO,
+//                        },
+//                        wgpu::Extent3d {
+//                            width: CAMERA_RESOLUTION.0,
+//                            height: CAMERA_RESOLUTION.1,
+//                            depth: 1,
+//                    });
 }
 
 fn create_buffers(device: &wgpu::Device,
@@ -873,6 +915,117 @@ fn create_buffers(device: &wgpu::Device,
 //             None)
 //         );
 // }
+
+pub struct SphereTracerPipeline {
+    layout_entries: Vec<Vec<wgpu::BindGroupLayoutEntry>>, 
+    bind_group_layouts: Vec<wgpu::BindGroupLayout>, 
+    pipeline: wgpu::ComputePipeline,
+}
+
+impl SphereTracerPipeline {
+
+    pub fn get_pipeline(&self) -> &wgpu::ComputePipeline {
+        &self.pipeline
+    }
+
+    pub fn get_bind_group_layouts(&self) -> &Vec<wgpu::BindGroupLayout> {
+        &self.bind_group_layouts
+    }
+
+    pub fn get_bind_group_layout_entries(&self) -> &Vec<Vec<wgpu::BindGroupLayoutEntry>> {
+        &self.layout_entries
+    }
+
+    pub fn dispatch(&self, bind_groups: &Vec<wgpu::BindGroup>,
+                    encoder: &mut wgpu::CommandEncoder,
+                    x: u32, y: u32, z: u32) {
+
+        let mut pass = encoder.begin_compute_pass(
+            &wgpu::ComputePassDescriptor { label: None}
+        );
+        pass.set_pipeline(&self.pipeline);
+        for (e, bgs) in bind_groups.iter().enumerate() {
+            pass.set_bind_group(e as u32, &bgs, &[]);
+        }
+        pass.dispatch(x, y, z)
+    }
+
+    pub fn init(device: &wgpu::Device) -> Self {
+
+        let mut comp_module = wgpu::include_spirv_raw!("../../shaders/spirv/sphere_tracer_fmm.comp.spv");
+
+        // Define all bind grout entries for pipeline and bind groups.
+        let layout_entries = vec![
+                vec![
+                    // layout(set = 0, binding = 0) uniform RayCamera {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                            },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 1) buffer FMM_Nodes {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None, // wgpu::BufferSize::new(temp_prefix_sum_size),
+                        },
+                        count: None,
+                    },
+                    //wgpu::BindGroupLayoutEntry {
+                    //    binding: 2,
+                    //    visibility: wgpu::ShaderStages::COMPUTE,
+                    //    ty: wgpu::BindingType::StorageTexture {
+                    //        access: wgpu::StorageTextureAccess::ReadOnly,
+                    //        format: wgpu::TextureFormat::Rgba32Float,
+                    //        view_dimension: wgpu::TextureViewDimension::D2,
+                    //    },
+                    //    count: None,
+                    //},
+                    //layout(set = 0, binding = 2) buffer RayOutputBuffer {
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None, //wgpu::BufferSize::new(3193724),
+                        },
+                        count: None,
+                    },
+                ],
+        ];
+        let bind_group_layouts = create_bind_group_layouts(&device, &layout_entries);
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &bind_group_layouts.iter().collect::<Vec<_>>(),
+            push_constant_ranges: &[],
+        });
+
+        // Create the pipeline.
+        let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("sphere_tracer_fmm_pipeline"),
+            layout: Some(&pipeline_layout),
+            module: unsafe { &device.create_shader_module_spirv(&comp_module) },
+            entry_point: "main",
+        });
+
+
+        Self {
+            layout_entries, 
+            bind_group_layouts, 
+            pipeline,
+        }
+    }
+}
 
 /// Struct for fmm development version.
 pub struct FMM_debug_pipeline {
@@ -1033,12 +1186,11 @@ impl FMM_debug_pipeline {
 
         // Create the pipeline.
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("fmm_debug_pipeline"),
+            label: Some("sphere_tracer_fmm_pipeline"),
             layout: Some(&pipeline_layout),
             module: unsafe { &device.create_shader_module_spirv(&comp_module) },
             entry_point: "main",
         });
-
 
         Self {
             layout_entries, 

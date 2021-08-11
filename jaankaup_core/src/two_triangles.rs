@@ -1,4 +1,5 @@
 // TODO: define shader_modules
+use std::borrow::Cow;
 use crate::buffer::*;
 use crate::texture as jaankaup;
 use crate::misc::create_vb_descriptor;
@@ -145,7 +146,7 @@ impl TwoTriangles {
     /// Create the pipeline for TwoTriangles.
     fn create_pipeline(device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor) -> wgpu::RenderPipeline {
     
-        let (vs_module, fs_module) = TwoTriangles::load_shaders(&device);
+        // let (vs_module, fs_module) = TwoTriangles::load_shaders(&device);
         
         // Create bind group layout for pipeline.
         let bind_group_layout = TwoTriangles::get_bind_group_layout(&device);
@@ -161,14 +162,19 @@ impl TwoTriangles {
         let (stride, attributes) =  create_vb_descriptor(
             &vec![wgpu::VertexFormat::Float32x4, wgpu::VertexFormat::Float32x4]
         );
+
+        let wgsl_module = &device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            label: Some("two_triangles_wgsl_module"),
+            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/two_triangles.wgsl"))),
+        });
         
         // Create the pipeline.
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("two_triangles_pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &vs_module,
-                entry_point: "main",
+                module: &wgsl_module,
+                entry_point: "vs_main",
                 buffers: &[
                     wgpu::VertexBufferLayout {
                         array_stride: stride,
@@ -208,8 +214,8 @@ impl TwoTriangles {
                 alpha_to_coverage_enabled: false,
             },
             fragment: Some(wgpu::FragmentState {
-                module: &fs_module,
-                entry_point: "main",
+                module: &wgsl_module,
+                entry_point: "fs_main",
                 targets: &[sc_desc.format.into()], // &[wgpu::ColorTargetState {
                    //format: sc_desc.format,
                    //alpha_blend: wgpu::BlendState::REPLACE,

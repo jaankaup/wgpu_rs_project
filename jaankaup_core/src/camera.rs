@@ -32,9 +32,9 @@ unsafe impl bytemuck::Pod for CameraUniform {}
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct RayCameraUniform {
-    pos: cgmath::Vector3<f32>,
-    view: cgmath::Vector3<f32>,
-    up: cgmath::Vector3<f32>,
+    pos: cgmath::Vector4<f32>,
+    view: cgmath::Vector4<f32>,
+    up: cgmath::Vector4<f32>,
     fov: cgmath::Vector2<f32>,
     aperture_radius: f32,
     focal_distance: f32,
@@ -108,9 +108,9 @@ impl Camera {
 
         // Create ray camera uniform data.
         let ray_camera_uniform = RayCameraUniform {
-            pos: self.pos,
-            view: self.view,
-            up: self.up,
+            pos: cgmath::Vector4::<f32>::new(self.pos.x, self.pos.y, self.pos.z, 1.0),
+            view: cgmath::Vector4::<f32>::new(self.view.x, self.view.y, self.view.z, 0.0),
+            up: cgmath::Vector4::<f32>::new(self.up.x, self.up.y, self.up.z, 0.0),
             fov: self.fov,
             aperture_radius: self.aperture_radius,
             focal_distance: self.focal_distance,

@@ -199,7 +199,75 @@ impl Texture {
         }
     }
 
-    pub fn create_texture2d(device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, sample_count: u32, width: u32, height: u32) -> Self {
+    //++ pub fn create_storage2d(device: &wgpu::Device,
+    //++                         sc_desc: &wgpu::SwapChainDescriptor,
+    //++                         width: u32,
+    //++                         height: u32) -> Self {
+
+    //++     let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+    //++         address_mode_u: wgpu::AddressMode::MirrorRepeat,
+    //++         address_mode_v: wgpu::AddressMode::MirrorRepeat,
+    //++         address_mode_w: wgpu::AddressMode::MirrorRepeat,
+    //++         mag_filter: wgpu::FilterMode::Linear,
+    //++         min_filter: wgpu::FilterMode::Linear,
+    //++         mipmap_filter: wgpu::FilterMode::Linear,
+    //++         lod_min_clamp: -100.0,
+    //++         lod_max_clamp: 100.0,
+    //++         compare: None, //Some(wgpu::CompareFunction::Always),
+    //++         ..Default::default()
+    //++     });
+
+    //++     let texture_extent = wgpu::Extent3d {
+    //++         width: width,
+    //++         height: height,
+    //++         depth_or_array_layers: 1,
+    //++     };
+
+    //++     let texture = device.create_texture(&wgpu::TextureDescriptor {
+    //++         size: texture_extent,
+    //++         mip_level_count: 1,
+    //++         sample_count: 1,
+    //++         dimension: wgpu::TextureDimension::D2,
+    //++         format: sc_desc.format, //wgpu::TextureFormat::Rgba8UnormSrgb,
+    //++         usage: wgpu::TextureUsages::TEXTURE_BINDING |
+    //++                wgpu::TextureUsages::COPY_DST |
+    //++                wgpu::TextureUsages::STORAGE_BINDING, // TODO: as function parameter
+    //++         label: None,
+    //++     });
+
+    //++     let view = texture.create_view(&wgpu::TextureViewDescriptor {
+    //++         label: None,
+    //++         format: Some(sc_desc.format),// gpu::TextureFormat::Rgba8UnormSrgb,
+    //++         dimension: Some(wgpu::TextureViewDimension::D2),
+    //++         aspect: wgpu::TextureAspect::All,
+    //++         base_mip_level: 0,
+    //++         //level_count: std::num::NonZeroU32::new(1),
+    //++         mip_level_count: std::num::NonZeroU32::new(1),
+    //++         base_array_layer: 0,
+    //++         array_layer_count: std::num::NonZeroU32::new(1),
+    //++     });
+
+    //++     let texture_type = TextureType::Diffuse;
+
+    //++     let depth = 1;
+
+    //++     Self {
+
+    //++         texture_type, 
+    //++         texture,
+    //++         view,
+    //++         sampler,
+    //++         width,
+    //++         height,
+    //++         depth, 
+    //++     }
+    //++ }
+
+    pub fn create_texture2d(device: &wgpu::Device,
+                            sc_desc: &wgpu::SwapChainDescriptor,
+                            sample_count: u32,
+                            width: u32,
+                            height: u32) -> Self {
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::MirrorRepeat,
@@ -226,7 +294,8 @@ impl Texture {
             sample_count: sample_count,
             dimension: wgpu::TextureDimension::D2,
             format: sc_desc.format, //wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING |
+                   wgpu::TextureUsages::COPY_DST,
             label: None,
         });
 
