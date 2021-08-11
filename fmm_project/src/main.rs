@@ -42,11 +42,13 @@ use bytemuck::{Pod, Zeroable};
 //triangle points.
 const DEBUG_BUFFER_SIZE: u32   = 1024000; //4194300; // 1048575; //33554416;
 const DEBUG_BUFFER_OFFSET: u32 = 1024000; // 2097151 / 2 ~= 1048574
+//const BLOCK_DIMENSIONS: [u32; 3] = [32, 32, 32];
 const BLOCK_DIMENSIONS: [u32; 3] = [4, 8, 4];
 const TIME_STAMP_COUNT: u32 = 2;
 
-const FAR: u32 =  2;
+const FAR: u32 =  3;
 const BAND: u32 = 1;
+const BAND_NEW: u32 = 1;
 const KNOWN: u32 = 0;
 //const KNOWN_NEW: u32 = 1;
 //const NEW_BAND: u32 = 2;
@@ -369,7 +371,7 @@ impl Application for FMM_App {
             &camera.get_camera_uniform(&configuration.device)
         );
 
-        let mut debug_point_count = 2;
+        let mut debug_point_count = 2; // WHY?
         let mut debug_triangle_draw_count = DEBUG_BUFFER_SIZE;
 
         // Create histogram for fmm debug.
@@ -425,6 +427,9 @@ impl Application for FMM_App {
                         vec![
                             &camera.get_ray_camera_uniform(&configuration.device).as_entire_binding(),
                             &buffers.get("fmm_nodes").unwrap().as_entire_binding(),
+                            &buffers.get("index_hash_table").unwrap().as_entire_binding(),
+                            &buffers.get("vec_to_offset").unwrap().as_entire_binding(),
+                            &buffers.get("fmm_attributes").unwrap().as_entire_binding(),
                             &buffers.get("sphere_tracer_output").unwrap().as_entire_binding(),
                             //&wgpu::BindingResource::TextureView(&textures.get("sphere_tracer_texture").unwrap().view),
                         ],
@@ -713,24 +718,23 @@ impl Application for FMM_App {
             if self.changed > 5 { increase_fmm_step = true; self.changed = 0; }
         }
 
-        if increase_fmm_step {
-            let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("FMM update encoder.") });
+        //if increase_fmm_step {
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("FMM update encoder.") });
 
-            if !self.data_loaded {
-                if let Some(ref query_sets) = self.query_sets {
-                    encoder.write_timestamp(&query_sets.timestamp, 0);
-                }
+        if !self.data_loaded {
+            if let Some(ref query_sets) = self.query_sets {
+                encoder.write_timestamp(&query_sets.timestamp, 0);
+            }
 
-                self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
-                            &mut encoder,
-                            1,
-                            1,
-                            1
-                ); 
+            self.fmm_data_generator.dispatch(&self.fmm_data_generator_bind_groups,
+                        &mut encoder,
+                        1,
+                        1,
+                        1
+            ); 
 
-                if let Some(ref query_sets) = self.query_sets {
-                    encoder.write_timestamp(&query_sets.timestamp, 1);
-                }
+            if let Some(ref query_sets) = self.query_sets {
+                encoder.write_timestamp(&query_sets.timestamp, 1);
             }
 
             if let Some(ref query_sets) = self.query_sets {
@@ -760,17 +764,17 @@ impl Application for FMM_App {
 
             queue.submit(Some(encoder.finish()));
 
-            let fmm_attributes = FMM_Attributes{ global_dimensions: BLOCK_DIMENSIONS,
-                                                 offset_hash_table_size: 160 as u32,
-                                                 current_block: [1,0,0],
-                                                 vec_to_offset_table_size: 216 as u32,
-            };
+            //++let fmm_attributes = FMM_Attributes{ global_dimensions: BLOCK_DIMENSIONS,
+            //++                                     offset_hash_table_size: 160 as u32,
+            //++                                     current_block: [1,0,0],
+            //++                                     vec_to_offset_table_size: 216 as u32,
+            //++};
 
-            queue.write_buffer(
-                &self.buffers.get("fmm_attributes").unwrap(),
-                0,
-                bytemuck::cast_slice(&[fmm_attributes])
-            );
+            //++queue.write_buffer(
+            //++    &self.buffers.get("fmm_attributes").unwrap(),
+            //++    0,
+            //++    bytemuck::cast_slice(&[fmm_attributes])
+            //++);
 
             if let Some(ref query_sets) = self.query_sets {
                 // We can ignore the future as we're about to wait for the device.
@@ -797,6 +801,7 @@ impl Application for FMM_App {
             self.debug_triangle_draw_count = histogram[1];
             self.data_loaded = true;
         }
+        //if increase_fmm_step {
     }
 //                        encoder.copy_buffer_to_texture(
 //                        wgpu::BufferCopyView {
@@ -979,6 +984,40 @@ impl SphereTracerPipeline {
                         },
                         count: None,
                     },
+                    // layout(set = 0, binding = 2) buffer OffsetTable
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    // layout(set = 0, binding = 3) buffer VecToHashTable
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 3,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    // layout(set=0, binding=4) uniform FMM_Attributes
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 4,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                            //min_binding_size: wgpu::BufferSize::new(12),
+                            },
+                        count: None,
+                    },
                     //wgpu::BindGroupLayoutEntry {
                     //    binding: 2,
                     //    visibility: wgpu::ShaderStages::COMPUTE,
@@ -989,9 +1028,9 @@ impl SphereTracerPipeline {
                     //    },
                     //    count: None,
                     //},
-                    //layout(set = 0, binding = 2) buffer RayOutputBuffer {
+                    //layout(set = 0, binding = 5) buffer RayOutputBuffer {
                     wgpu::BindGroupLayoutEntry {
-                        binding: 2,
+                        binding: 5,
                         visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },

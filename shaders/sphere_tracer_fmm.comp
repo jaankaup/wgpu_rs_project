@@ -41,7 +41,26 @@ layout(set = 0, binding = 1) readonly buffer FMM_Nodes {
 //layout(set = 0, binding = 2, r32f) uniform writeonly image2D screen_texture;
 //layout(set = 0, binding = 2, rgba32f) uniform writeonly image2D screen_texture;
 
-layout(set = 0, binding = 2) writeonly buffer RayOutputBuffer {
+layout(set = 0, binding = 2) readonly buffer OffsetTable {
+    ivec4[160] offset_hash_table;
+};
+
+layout(set = 0, binding = 3) readonly buffer VecToHashTable {
+    uint[216] vec_to_offset_table;
+};
+
+struct FMM_Attribute {
+    uvec3 global_dimensions;
+    uint offset_hash_table_size;
+    uvec3 current_block;
+    uint vec_to_offset_table_size;
+};
+
+layout(set=0, binding=4) uniform FMM_Attributes {
+    FMM_Attribute fmm_attributes;
+};
+
+layout(set = 0, binding = 5) writeonly buffer RayOutputBuffer {
     uint[] frame_output;
 };
 

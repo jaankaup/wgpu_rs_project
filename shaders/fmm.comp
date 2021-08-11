@@ -11,7 +11,9 @@
 #define THREAD_COUNT (LOCAL_X_DIM * LOCAL_Y_DIM * LOCAL_Z_DIM)
 #define SCAN_BLOCK_SIZE (THREAD_COUNT * 2 + ((THREAD_COUNT * 2) >> 4))
 
-#define FAR 2
+#define OUTSIDE 4
+#define FAR 3
+#define BAND_NEW 2
 #define BAND 1
 #define KNOWN 0
 //#define KNOWN_NEW 1
@@ -24,12 +26,6 @@
 
 shared uint[THREAD_COUNT] thread_check_table;
 
-// Fast marching method cell node.
-// 0 => Far.
-// 1 => Band.
-// 2 => Known.
-// 3 => Band unknow.
-// 5 => Out of context.
 struct FMM_Node {
     float value;
     uint tag;
@@ -1168,9 +1164,6 @@ uint global_solver() {
 
   uint number_of_blocks = global_data_length();
 
-  // Convert 4x4x4 index to uint.
-  uint local_id_x = local_id_to_x();
-
   // Reset the counter for active blocks. 
   if (gl_LocalInvocationIndex == 0) stream_compaction_count = 0;
   barrier();
@@ -1178,6 +1171,7 @@ uint global_solver() {
   // Number of data chunks. There must be at least one iteration.
   // neeeded. TODO: check number_of_blocks == 0. Return immediatelly if it
   // true.
+
   const uint number_of_scan_blocks = (number_of_blocks - 1) / (THREAD_COUNT*2) + 1;
 
   // Available items count.
@@ -1218,7 +1212,7 @@ uint global_solver() {
       barrier(); // ???
 
       // Add the exclusive part to the shared aux.
-      if (local_id_x == 0) shared_aux[j + (j >> 4)] = exclusive_part; 
+      if (gl_LocalInvocationIndex == 0) shared_aux[j + (j >> 4)] = exclusive_part; 
       barrier();
 
       // Copy local prefix sum data to temp_prefix_sum buffer.
@@ -1334,7 +1328,7 @@ void load_fmm_data(uint base_index, ivec3 global_base_coord, bool center_data_on
                            global_index.z >= fmm_attributes.global_dimensions.z*4;
 
             shared_fmm_nodes[thread_id + gl_LocalInvocationID.y * 160] = 
-                outside ? FMM_Node(0.0, 5) : fmm_nodes[pos_and_offset.w + int(base_index)];
+                outside ? FMM_Node(0.0, OUTSIDE) : fmm_nodes[pos_and_offset.w + int(base_index)];
 
         }
     }
@@ -1361,8 +1355,7 @@ void save_fmm_data(uint base_index, ivec3 global_base_index, bool center_data_on
                            global_index.y >= fmm_attributes.global_dimensions.y*4 ||
                            global_index.z >= fmm_attributes.global_dimensions.z*4;
             if (!outside) {
-                fmm_nodes[pos_and_offset.w + int(base_index)] = shared_fmm_nodes[thread_id + gl_LocalInvocationID.y * 160]; 
-            }
+                fmm_nodes[pos_and_offset.w + int(base_index)] = shared_fmm_nodes[thread_id + gl_LocalInvocationID.y * 160]; }
         }
     }
 }
@@ -1532,31 +1525,33 @@ void reduce(bool process) {
     barrier();
 
     for (uint s = LOCAL_X_DIM/2 ; s > 0 ; s >>= 1) {
-        if (gl_LocalInvocationID.x < s && process) {
+        if (gl_LocalInvocationID.x < s && true) {
 
-                FMM_Node a = shared_fmm_nodes[shared_fmm_indices[gl_LocalInvocationIndex] + 160 * gl_LocalInvocationID.y];
-                FMM_Node b = shared_fmm_nodes[shared_fmm_indices[gl_LocalInvocationIndex + s] + 160 * gl_LocalInvocationID.y];
+            uint a_index = shared_fmm_indices[gl_LocalInvocationIndex]; // + 160 * gl_LocalInvocationID.y;
+            uint b_index = shared_fmm_indices[gl_LocalInvocationIndex + s]; // + 160 * gl_LocalInvocationID.y;
 
-                if (a.tag == BAND && b.tag == BAND) {
-                    shared_fmm_indices[gl_LocalInvocationIndex] =
-                        a.value < b.value ? shared_fmm_indices[gl_LocalInvocationIndex] : shared_fmm_indices[gl_LocalInvocationIndex + s];
-                }
+            FMM_Node a = shared_fmm_nodes[a_index + 160 * gl_LocalInvocationID.y];
+            FMM_Node b = shared_fmm_nodes[b_index + 160 * gl_LocalInvocationID.y];
 
-                // if (a.tag == BAND && b.tag != BAND) {
-                //     shared_fmm_indices[gl_LocalInvocationIndex] = shared_fmm_indices[gl_LocalInvocationIndex]; // ???
-                // }
+            uint temp_index = (a.tag == BAND) &&
+                              (b.tag == BAND) &&
+                              (a.value > b.value) ? b_index : a_index;
 
-                if (a.tag != BAND && b.tag == BAND) {
-                    shared_fmm_indices[gl_LocalInvocationIndex] = shared_fmm_indices[gl_LocalInvocationIndex + s];
-                    //shared_fmm_indices[thread_a] = shared_fmm_indices[thread_b];
-                }
+            temp_index      = (a.tag != BAND) &&
+                              (b.tag == BAND) ? b_index : temp_index; 
 
-                // TODO: check if band tag.
-                //shared_fmm_indices[gl_LocalInvocationIndex] =
-                //    a.value < b.value ? shared_fmm_indices[gl_LocalInvocationIndex] : shared_fmm_indices[gl_LocalInvocationIndex + s];
-        }
-        barrier();
-    }
+            shared_fmm_indices[gl_LocalInvocationIndex] = shared_fmm_indices[temp_index];
+
+            //++ if (a.tag == BAND && b.tag == BAND) {
+            //++     shared_fmm_indices[gl_LocalInvocationIndex] =
+            //++         a.value < b.value ? shared_fmm_indices[gl_LocalInvocationIndex] : shared_fmm_indices[gl_LocalInvocationIndex + s];
+            //++ }
+
+            //++ if (a.tag != BAND && b.tag == BAND) {
+            //++     shared_fmm_indices[gl_LocalInvocationIndex] = shared_fmm_indices[gl_LocalInvocationIndex + s];
+            //++     //shared_fmm_indices[thread_a] = shared_fmm_indices[thread_b];
+            //++ }
+   }
 }
 
 const ivec3[33] neighbor_block_positions = {
@@ -1644,69 +1639,59 @@ int neighbor_block_index(uint hash_index, ivec3 block_pos) {
 
 void synchronize_fmm() {
 
-    if (gl_LocalInvocationIndex == 0) {
-        for (int i=0 ; i<shared_changed_fmm_counter; i++) {
-            FMM_Block_Shared temp = shared_changed_fmm_info[i];
-            //if (temp.block_index != -1) {
+  //if (gl_LocalInvocationIndex == 0) {
+  //for (int i=0 ; i<shared_changed_fmm_counter; i++) {
 
-                uint old_tag = atomicMin(fmm_nodes[temp.global_index].tag, temp.tag);
+  //const uint offset = (shared_changed_fmm_counter - 1) / LOCAL_Y_DIM + 1;
 
-                // A new band found. Increase band count by one.
-                if (old_tag == FAR && temp.tag == BAND) {
-                    atomicAdd(fmm_block[temp.block_index].band_points_count, 1);
+  for (uint i = 0; i<shared_changed_fmm_counter ; i += THREAD_COUNT) {
 
-                    //++ vec3 this_coord = vec3(temp.global_pos);
-                    //++ //vec3 this_coord = vec3(temp.global_pos);
-
-                    //++ initialize_char_array(vec3(this_coord.x, this_coord.y, this_coord.z) + vec3(0.0,0.1,0.0));
+    //uint index = i + gl_LocalInvocationID.y * offset;
+    uint index = i + gl_LocalInvocationIndex; 
     
-                    //++ log_number(temp.block_index, false);
-                    //++ add_end_of_line();
-    
-                    //++ AABB aabb = create_char_sequency_points(255, 255, 255);
-                    //++ AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-                    //++ create_output_points(aabb, 155, 255, 155);
+    if (index < shared_changed_fmm_counter) {
 
-                    //++ AABB jebulis = AABB(
-                    //++     vec4(
-                    //++         this_coord + vec3(-0.1, -0.1, -0.01),
-                    //++         1.0),
-                    //++     vec4(
-                    //++         this_coord + vec3(0.25, 0.25, 0.0),
-                    //++         1.0)
-                    //++ );
-                    //++ create_aabb_triangles_r(jebulis, 200, 100, 0, 0.01);
-                }
+        FMM_Block_Shared temp = shared_changed_fmm_info[index];
 
-                // A new known found. Decrease band count by one.
-                if (old_tag == BAND && temp.tag == KNOWN) {
-                    atomicAdd(fmm_block[temp.block_index].band_points_count, -1);
+        // 1. Create all initial KNOW points.
+        // 2. Add non-KNOWN neighbors to BAND_NEW. 
+        // 3. Solve quadradic on BAND_NEW => BAND.
+        // 4. (loop1) Add KNOWN.
+        // 5. (loop2) Change FAR and BAND neighbors to BAND_NEW.
+        // 6. (loop3) Save to temp.
+        // 7. (loop4) Apply solve quadratic to all BAND_NEW points.
 
-                    //++ vec3 this_coord = vec3(temp.global_pos);
 
-                    //++ initialize_char_array( vec3(this_coord.x, this_coord.y, this_coord.z) + vec3(0.0,0.1,0.0));
-    
-                    //++ log_number(temp.block_index, false);
-                    //++ add_end_of_line();
-    
-                    //++ AABB aabb = create_char_sequency_points(255, 255, 255);
-                    //++ AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
-                    //++ create_output_points(aabb, 155, 255, 155);
+        // PLAN.
+        // (BAND_NEW, FAR)      => BAND_NEW 
+        // (BAND_NEW, BAND_NEW) => BAND_NEW
+        // (BAND_NEW, BAND)     => BAND_NEW
+        // (KNOWN, BAND_NEW)    => KNOWN 
 
-                    //++ AABB jebulis = AABB(
-                    //++     vec4(
-                    //++         this_coord + vec3(-0.1, -0.1, -0.01),
-                    //++         1.0),
-                    //++     vec4(
-                    //++         this_coord + vec3(0.25, 0.25, 0.0),
-                    //++         1.0)
-                    //++ );
-                    //++ create_aabb_triangles_r(jebulis, 100, 200, 0, 0.02);
-                }
-            //}
+
+        uint old_tag = atomicMin(fmm_nodes[temp.global_index].tag, temp.tag);
+
+            uint value_to_add = old_tag == FAR && temp.tag == BAND ?  1 : 0;
+            value_to_add      = old_tag == BAND && temp.tag == KNOWN ?  -1 : value_to_add;
+            // value_to_add      = (old_tag == BAND_NEW || old_tag == BAND_NEW) && temp.tag == KNOWN ? -1 : value_to_add;
+            // value_to_add      = (old_tag == BAND || old_tag == BAND_NEW) && temp.tag == KNOWN ? -1 : value_to_add;
+
+            if (value_to_add != 0) {
+                atomicAdd(fmm_block[temp.block_index].band_points_count, value_to_add);
+            }
+
+            // // A new band found. Increase band count by one.
+            // if (old_tag == FAR && temp.tag == BAND) {
+            //     atomicAdd(fmm_block[temp.block_index].band_points_count, 1);
+            // }
+
+            // // A new known found. Decrease band count by one.
+            // if (old_tag == BAND && temp.tag == KNOWN) {
+            //     atomicAdd(fmm_block[temp.block_index].band_points_count, -1);
+            // }
         }
     }
-    barrier();
+    // barrier();
 }
 
 bool is_outside(ivec3 pos) {
@@ -1723,8 +1708,10 @@ bool is_outside(ivec3 pos) {
 // BAND points. Synchronize ghost points.
 void find_smallest() {
 
-    const uint offset =
-        stream_compaction_count == 0 ? 0 : (stream_compaction_count - 1) / LOCAL_Y_DIM + 1;
+    // if (stream_compaction_count == 0) return;
+
+    //const uint offset =
+    //    stream_compaction_count == 0 ? 0 : (stream_compaction_count - 1) / LOCAL_Y_DIM + 1;
 
     uint all_dimension_length = global_data_length();
 
@@ -1732,14 +1719,14 @@ void find_smallest() {
 
     // Iterate over active blocks. Find smallest band node and change it to
     // known. Add surrounding not known nodes to band.
-    for (int i=0 ; i<offset ; i++) {
+    for (int i=0 ; i<stream_compaction_count ; i += LOCAL_Y_DIM) {
 
       // Reset the syncronization fmm cell counter.
       if (gl_LocalInvocationIndex == 0) { shared_changed_fmm_counter = 0; }
       barrier();
 
       // Calculate the position of the current active block.
-      const uint actual_block_index = i + offset * gl_LocalInvocationID.y + all_dimension_length;
+      const uint actual_block_index = i + gl_LocalInvocationID.y + all_dimension_length;
       BlockData ijk = get_block_pos_index(fmm_block[actual_block_index].index);
 
       // Save block data to shared memory for syncronization purposes.
@@ -1846,10 +1833,11 @@ void find_smallest() {
 
       barrier();
       synchronize_fmm();
-      //barrier();
+      barrier();
     } // for
 }
 
+// TODO: syncronize? yes!
 void add_initial_band_points() {
 
   uint global_dimension_length = global_data_length();
@@ -1858,12 +1846,16 @@ void add_initial_band_points() {
 
   const uint offset = global_dimension_length/LOCAL_Y_DIM;
 
-  for (int b = 0; b<offset ; b++) {
+  //for (int b = 0; b<offset ; b += LOCAL_Y_DIM) {
+  for (int b = 0; b<global_dimension_length ; b += LOCAL_Y_DIM) {
 
-        BlockData ijk = get_block_pos_index(b + offset * gl_LocalInvocationID.y);
+        uint block_index = b + gl_LocalInvocationID.y; // * offset;
+        BlockData ijk = get_block_pos_index(block_index);
 
         // Load FMM nodes to the shared memory.
-        load_fmm_data(ijk.base_index, ijk.base_position * 4, false);
+        if (block_index < global_dimension_length) {
+            load_fmm_data(ijk.base_index, ijk.base_position * 4, false);
+        }
         barrier();
 
         FMM_Node node = shared_fmm_nodes[gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y];
@@ -1875,37 +1867,38 @@ void add_initial_band_points() {
             uint[6] neighbor_indices;
             get_neighbors(gl_LocalInvocationID.x, gl_LocalInvocationID.y, neighbors, neighbor_indices);
 
-            // TODO: out side of context fmm nodes.
-
-            bool add_band = neighbors[0].tag != KNOWN;
+            //bool add_band = neighbors[0].tag != KNOWN;
+            bool add_band = neighbors[0].tag == FAR;
             
             if (add_band) {
                 shared_fmm_nodes[neighbor_indices[0]].tag = BAND;
             }
 
             shared_fmm_nodes[neighbor_indices[0]].tag =  
-                neighbors[0].tag != KNOWN ? BAND : shared_fmm_nodes[neighbor_indices[0]].tag;
+                neighbors[0].tag == FAR ? BAND : shared_fmm_nodes[neighbor_indices[0]].tag;
 
             shared_fmm_nodes[neighbor_indices[1]].tag =  
-                neighbors[1].tag != KNOWN ? BAND : shared_fmm_nodes[neighbor_indices[1]].tag;
+                neighbors[1].tag == FAR ? BAND : shared_fmm_nodes[neighbor_indices[1]].tag;
 
             shared_fmm_nodes[neighbor_indices[2]].tag =  
-                neighbors[2].tag != KNOWN ? BAND : shared_fmm_nodes[neighbor_indices[2]].tag;
+                neighbors[2].tag == FAR ? BAND : shared_fmm_nodes[neighbor_indices[2]].tag;
 
             shared_fmm_nodes[neighbor_indices[3]].tag =  
-                neighbors[3].tag != KNOWN ? BAND : shared_fmm_nodes[neighbor_indices[3]].tag;
+                neighbors[3].tag == FAR ? BAND : shared_fmm_nodes[neighbor_indices[3]].tag;
 
             shared_fmm_nodes[neighbor_indices[4]].tag =  
-                neighbors[4].tag != KNOWN ? BAND : shared_fmm_nodes[neighbor_indices[4]].tag;
+                neighbors[4].tag == FAR ? BAND : shared_fmm_nodes[neighbor_indices[4]].tag;
 
             shared_fmm_nodes[neighbor_indices[5]].tag =  
-                neighbors[5].tag != KNOWN ? BAND : shared_fmm_nodes[neighbor_indices[5]].tag;
+                neighbors[5].tag == FAR ? BAND : shared_fmm_nodes[neighbor_indices[5]].tag;
         }
 
         barrier();
 
         // Update both center data and ghost region band points.
-        save_fmm_data(ijk.base_index, ijk.base_position * 4, false);
+        if (block_index < global_dimension_length) {
+            save_fmm_data(ijk.base_index, ijk.base_position * 4, false);
+        }
 
         barrier();
 
@@ -1916,8 +1909,7 @@ void render_fmm_nodes() {
 
   uint all_dimension_length = global_data_length();
 
-  const uint offset =
-      stream_compaction_count == 0 ? 0 : (all_dimension_length - 1) / LOCAL_Y_DIM + 1;
+  const uint offset = (all_dimension_length - 1) / LOCAL_Y_DIM + 1;
 
   for (int b = 0; b<offset ; b++) {
 
@@ -1926,7 +1918,9 @@ void render_fmm_nodes() {
     BlockData ijk = get_block_pos_index(block_index);
 
     // Load FMM nodes to the shared memory.
-    load_fmm_data(ijk.base_index, ijk.base_position * 4, false);
+    if (block_index < all_dimension_length) {
+        load_fmm_data(ijk.base_index, ijk.base_position * 4, false);
+    }
     barrier();
 
     if (block_index < all_dimension_length) {
@@ -1948,7 +1942,6 @@ void render_fmm_nodes() {
         if (node.tag == KNOWN) { final_color = known; }
         if (node.value == 777.0)  {final_color = error; }
         create_point_ball7(this_coord, final_color.x,final_color.y,final_color.z, 0.01);
-
     }
     barrier();
   } // for
@@ -1956,14 +1949,16 @@ void render_fmm_nodes() {
 
 void solve_quadradic_band_points() {
 
+  if (stream_compaction_count == 0) return;
+
   uint all_dimension_length = global_data_length();
 
   const uint last_index = stream_compaction_count + all_dimension_length;
-  const uint offset = (stream_compaction_count - 1) / LOCAL_Y_DIM + 1;
+  // const uint offset = (stream_compaction_count - 1) / LOCAL_Y_DIM + 1;
 
-  for (int b = 0; b<offset ; b++) {
+  for (int b = 0; b<stream_compaction_count ; b += LOCAL_Y_DIM) {
 
-    const uint actual_block_index = b + offset * gl_LocalInvocationID.y + all_dimension_length;
+    const uint actual_block_index = b + gl_LocalInvocationID.y + all_dimension_length;
     BlockData ijk = get_block_pos_index(fmm_block[actual_block_index].index);
 
     // Load fmm blocks to shared memory. Load ghost region also. 
@@ -1992,11 +1987,11 @@ void calculate_initial_band_count() {
   uint all_dimension_length = global_data_length();
 
   const uint offset = (all_dimension_length - 1) / LOCAL_Y_DIM + 1;
-  // TODO: offset might not be correct.
 
-  for (int b = 0; b<offset ; b++) {
+  //for (int b = 0; b<offset ; b++) {
+  for (int b = 0; b<all_dimension_length ; b += LOCAL_Y_DIM) {
 
-    uint block_index = b + gl_LocalInvocationID.y * offset;
+    uint block_index = b + gl_LocalInvocationID.y;
     bool process = block_index < all_dimension_length;
 
     BlockData ijk = get_block_pos_index(block_index);
@@ -2006,7 +2001,8 @@ void calculate_initial_band_count() {
     if (gl_LocalInvocationID.x == 0) { band_counts[gl_LocalInvocationID.y] = 0; }
     barrier();
 
-    if (process) { load_fmm_data(ijk.base_index, ijk.base_position * 4, false); }
+    //if (process) { load_fmm_data(ijk.base_index, ijk.base_position * 4, false); }
+    if (process) { load_fmm_data(ijk.base_index, ijk.base_position * 4, true); }
     barrier();
 
     FMM_Node node = shared_fmm_nodes[gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y];
@@ -2014,13 +2010,14 @@ void calculate_initial_band_count() {
     // BAND found.
     if (node.tag == BAND && process) {
         atomicAdd(band_counts[gl_LocalInvocationID.y], 1);
-        node.value = solve_quadratic(gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y);
-        //node.tag = BAND;
+
+        // TOOD: check this works.
+        //node.value = solve_quadratic(gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y); 
+
         shared_fmm_nodes[gl_LocalInvocationID.x + 160 * gl_LocalInvocationID.y] = node; 
     }
     barrier();
 
-    // Update both center data and ghost region band points.
     if (process) { save_fmm_data(ijk.base_index, ijk.base_position * 4, true); }
     barrier();
 
@@ -2139,7 +2136,7 @@ void render_block(uint b, bool ghost_zone) {
 void main() {
 
   /* LOAD COUNTERS. DEBUGGING. */
-  if (local_id_to_x() == 0) {
+  if (gl_LocalInvocationIndex == 0) {
     counter[0] = atomic_counters[0];
     counter[1] = atomic_counters[1];
 
@@ -2166,57 +2163,27 @@ void main() {
   barrier();
 
   /* CREATE FIRST BAND FOR INITIAL FMM NODES. */
-  if (fmm_attributes.current_block[0] == 0) {
+  // if (fmm_attributes.current_block[0] == 0) {
     add_initial_band_points();
     barrier();
 
-    calculate_initial_band_count();
+    calculate_initial_band_count(); // TODO: remove solve_quadratic from this function.
     barrier();
-  }
+  // }
 
-  global_solver();
-  barrier();
-
-  if (stream_compaction_count > 0) {
-    find_smallest();
-    barrier();
-
-    global_solver();
-    barrier();
+  while (global_solver() > 0) {
 
     solve_quadradic_band_points();
     barrier();
+
+    find_smallest();
+    barrier();
   }
-
-  // global_solver();
-  // barrier();
-
-  // find_smallest();
-  // barrier();
-
-  // do {
-  //   global_solver();
-  //   barrier();
-
-  //   if (stream_compaction_count > 0) {
-  //       find_smallest();
-  //       barrier();
-  //   }
-  // } while (stream_compaction_count > 0);
-  
-  //while (stream_compaction_count > 0) {
-  //  global_solver();
-  //  barrier();
-  //  
-  //  // Itetare active blocks. Add smallest value to KNOWN, update neighbors to
-  //  // band. Points. Update band those band points. 
-
-  //}
 
   /* RENDER NODES. DEBUGGING. */
   render_fmm_nodes();
   barrier();
-
+  //check_all_threads();
   //++ uint all_dimension_length = global_data_length();
 
   //++ uint last_index = all_dimension_length + stream_compaction_count;
@@ -2242,7 +2209,7 @@ void main() {
   //++ }
   //  check_all_threads();
   /* UPDATE COUNTERS. DEBUGGING. */
-  if (local_id_to_x() == 0) {
+  if (gl_LocalInvocationIndex == 0) {
     atomic_counters[0] = counter[0];
     atomic_counters[1] = counter[1];
   }
