@@ -1551,7 +1551,8 @@ void reduce(bool process) {
             //++     shared_fmm_indices[gl_LocalInvocationIndex] = shared_fmm_indices[gl_LocalInvocationIndex + s];
             //++     //shared_fmm_indices[thread_a] = shared_fmm_indices[thread_b];
             //++ }
-   }
+        }
+    }
 }
 
 const ivec3[33] neighbor_block_positions = {
