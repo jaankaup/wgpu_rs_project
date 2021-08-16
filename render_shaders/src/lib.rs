@@ -41,7 +41,7 @@ impl Render_vvvvnnnn {
     }
 
     pub fn init(device: &wgpu::Device,
-                sc_desc: &wgpu::SwapChainDescriptor,               
+                sc_desc: &wgpu::SurfaceConfiguration,               
                 wgsl_module: &wgpu::ShaderModule,
                 //vs_module: &wgpu::ShaderModule,
                 //fs_module: &wgpu::ShaderModule,
@@ -191,7 +191,7 @@ impl Render_vvvc {
     }
 
     pub fn init(device: &wgpu::Device,
-                sc_desc: &wgpu::SwapChainDescriptor,               
+                sc_desc: &wgpu::SurfaceConfiguration,               
                 wgsl_module: &wgpu::ShaderModule,
                 //vs_module: &wgpu::ShaderModule,
                 //fs_module: &wgpu::ShaderModule,

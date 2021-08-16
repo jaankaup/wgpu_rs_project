@@ -29,15 +29,15 @@ pub trait Application: Sized + 'static {
     fn render(&mut self,
               device: &wgpu::Device,
               queue: &mut wgpu::Queue,
-              swap_chain: &mut wgpu::SwapChain,
+              //swap_chain: &mut wgpu::SwapChain,
               surface: &wgpu::Surface,
-              sc_desc: &wgpu::SwapChainDescriptor);
+              sc_desc: &wgpu::SurfaceConfiguration);
 
     /// A function that handles inputs.
     fn input(&mut self, queue: &wgpu::Queue, input_cache: &InputCache);
 
     /// A function for resizing.
-    fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, new_size: winit::dpi::PhysicalSize<u32>);
+    fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SurfaceConfiguration, new_size: winit::dpi::PhysicalSize<u32>);
 
     /// A function for updating the state of the application.
     fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, input: &InputCache);
@@ -64,8 +64,8 @@ pub struct WGPUConfiguration {
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
-    pub swap_chain: wgpu::SwapChain,
-    pub sc_desc: wgpu::SwapChainDescriptor,
+    //pub swap_chain: wgpu::SwapChain,
+    pub sc_desc: wgpu::SurfaceConfiguration,
 }
 
 /// A trait to configure wgpu-rs engine. TODO: Do we need this? 'static + Sized
@@ -103,7 +103,7 @@ impl Loop for BasicLoop {
         adapter,
         device,
         mut queue,
-        mut swap_chain,
+        //mut swap_chain,
         mut sc_desc
         }: WGPUConfiguration,) {
 
@@ -122,7 +122,7 @@ impl Loop for BasicLoop {
                 &adapter,
                 &device,
                 &mut queue,
-                &mut swap_chain,
+                // &mut swap_chain,
                 &mut sc_desc,
                 &mut application,
                 &mut input,
@@ -178,7 +178,7 @@ impl Loop for BasicLoop {
                         size = new_size;
                         sc_desc.width = new_size.width;
                         sc_desc.height = new_size.height;
-                        swap_chain = device.create_swap_chain(&surface, &sc_desc);
+                        //swap_chain = device.create_swap_chain(&surface, &sc_desc);
                         application.resize(&device, &sc_desc, size);
                     }
                     WindowEvent::CloseRequested => {
@@ -190,7 +190,7 @@ impl Loop for BasicLoop {
                 //application.input(&queue, &input);
             }
             Event::RedrawRequested(_) => {
-                application.render(&device, &mut queue, &mut swap_chain, &surface, &sc_desc);
+                application.render(&device, &mut queue /* &mut swap_chain */, &surface, &sc_desc);
             }
             _ => { } // Any other events
         } // match event
@@ -319,7 +319,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
         required_features - adapter_features
     );
 
-    let needed_limits = P::required_limits();
+    let needed_limits = P::required_limits().using_resolution(adapter.limits());
 
     let trace_dir = std::env::var("WGPU_TRACE");
     log::info!("trace_dir == {:?}", trace_dir);
@@ -335,15 +335,23 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
         .await
         .expect("Unable to find a suitable GPU adapter!");
 
-    let sc_desc = wgpu::SwapChainDescriptor {
+    // let sc_desc = wgpu::SwapChainDescriptor {
+    //     usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+    //     format: adapter.get_swap_chain_preferred_format(&surface).unwrap(),
+    //     width: size.width,
+    //     height: size.height,
+    //     present_mode: wgpu::PresentMode::Mailbox,
+    // };
+      
+    let sc_desc = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-        format: adapter.get_swap_chain_preferred_format(&surface).unwrap(),
+        format: surface.get_preferred_format(&adapter).unwrap(),
         width: size.width,
         height: size.height,
         present_mode: wgpu::PresentMode::Mailbox,
     };
-
-    let swap_chain = device.create_swap_chain(&surface, &sc_desc);
+    surface.configure(&device, &sc_desc);
+    //let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
     Ok(WGPUConfiguration {
             window: window,
@@ -354,7 +362,6 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
             adapter: adapter,
             device: device,
             queue: queue,
-            swap_chain: swap_chain,
             sc_desc: sc_desc,
     })
 }

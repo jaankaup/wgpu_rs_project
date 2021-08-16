@@ -4,6 +4,7 @@
 
 #define LOCAL_X_DIM 8 
 #define LOCAL_Y_DIM 8
+#define THREAD_COUNT LOCAL_X_DIM * LOCAL_Y_DIM
 
 struct Ray {
   vec3 origin;
@@ -25,6 +26,15 @@ struct FMM_Node {
     uint tag;
 };
 
+struct FMM_Node_Array {
+    FMM_Node fmm_nodex;
+    //FMM_Node[64] array;
+};
+
+// struct Distance_Array {
+//     uint[64] distance_array;
+// };
+
 layout(set = 0, binding = 0) uniform RayCamera {
     vec4 position;
     vec4 view;
@@ -34,8 +44,9 @@ layout(set = 0, binding = 0) uniform RayCamera {
     float focalDistance;
 } camera;
 
-layout(set = 0, binding = 1) readonly buffer FMM_Nodes {
-    FMM_Node[] fmm_nodes;
+// layout(set = 0, binding = 1) readonly buffer FMM_Nodes {
+layout(set = 0, binding = 1) buffer FMM_Nodes {
+    FMM_Node_Array[] fmm_nodes;
 };
 
 //layout(set = 0, binding = 2, r32f) uniform writeonly image2D screen_texture;
@@ -64,13 +75,73 @@ layout(set = 0, binding = 5) writeonly buffer RayOutputBuffer {
     uint[] frame_output;
 };
 
-layout(local_size_x = LOCAL_X_DIM, local_size_y = LOCAL_Y_DIM) in;
+shared ivec4[160] shared_offset_table;
+shared uint[216] shared_vec_to_offset;
+shared float[THREAD_COUNT * 64] distance_values;
+//shared float[THREAD_COUNT * 64] distance_values;
+
+// Box (exact).
+float sdBox( vec3 p, vec3 b )
+{
+  vec3 q = abs(p) - b;
+  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
 
 uint encode_rgba_u32(uint r, uint g, uint b, uint a) {
   uint col = 0;
   col = (r << 24) | (g << 16) | (b  << 8) | a;
   return col;
 }
+
+void load_fmm_data(uint base_index, ivec3 global_base_coord) {
+    
+    for (int x=0 ; x < THREAD_COUNT ; x++) {
+
+        const ivec4 pos_and_offset = shared_offset_table[gl_LocalInvocationIndex];
+        ivec3 global_index = pos_and_offset.xyz + global_base_coord;
+
+        bool outside = global_index.x < 0 ||
+                       global_index.y < 0 ||
+                       global_index.z < 0 ||
+                       global_index.x >= fmm_attributes.global_dimensions.x*4 ||
+                       global_index.y >= fmm_attributes.global_dimensions.y*4 ||
+                       global_index.z >= fmm_attributes.global_dimensions.z*4;
+        // float dist_to_aabb = sdBoundingBox( vec3 p, vec3 b, float e )
+
+        distance_values[gl_LocalInvocationIndex] = !outside ? fmm_nodes[global_index].value : 657.0; 
+
+        //    outside ? FMM_Node(0.0, OUTSIDE) : fmm_nodes[pos_and_offset.w + int(base_index)];
+        
+    }
+}
+
+//++void load_fmm_data(uint base_index, ivec3 global_base_coord, bool center_data_only) {
+//++
+//++    const uint number_of_blocks =
+//++        center_data_only ? 1 : (fmm_attributes.offset_hash_table_size - 1) / 64 + 1;
+//++
+//++    for (int x=0 ; x < number_of_blocks ; x++) {
+//++
+//++        const uint thread_id = x * 64 + gl_LocalInvocationID.x;
+//++
+//++        if (thread_id < fmm_attributes.offset_hash_table_size) {
+//++
+//++            const ivec4 pos_and_offset = shared_offset_table[thread_id];
+//++            ivec3 global_index = pos_and_offset.xyz + global_base_coord;
+//++
+//++            bool outside = global_index.x < 0 ||
+//++                           global_index.y < 0 ||
+//++                           global_index.z < 0 ||
+//++                           global_index.x >= fmm_attributes.global_dimensions.x*4 ||
+//++                           global_index.y >= fmm_attributes.global_dimensions.y*4 ||
+//++                           global_index.z >= fmm_attributes.global_dimensions.z*4;
+//++
+//++            shared_fmm_nodes[thread_id + gl_LocalInvocationID.y * 160] = 
+//++                outside ? FMM_Node(0.0, OUTSIDE) : fmm_nodes[pos_and_offset.w + int(base_index)];
+//++
+//++        }
+//++    }
+//++}
 
 // r, g, b, a must be in range [0,1].
 uint encode_rgbaf_u32(vec4 col) {
@@ -80,6 +151,93 @@ uint encode_rgbaf_u32(vec4 col) {
         (uint(col.z*255)  << 8) |
         uint(col.w*255);
   return encoded_col;
+}
+
+// Calculate the density value.
+float calculate_density(vec3 f_pos) {
+  return 0.0;
+  //vec4 n = texture(sampler3D(t_diffuse3, s_diffuse3), f_pos*0.0025) * 2 - vec4(1.0, 1.0, 1.0, 1.0);
+  //return f_pos.y + 15 * n.y;
+  //return f_pos.y + 24*sin((f_pos.x + f_pos.y + f_pos.z)*0.01) * n.x - 5 * n.w + 100.5 * n.y + 5.0 * n.z + 200;
+  //return f_pos.y + 50 * noise(f_pos*0.1);
+}
+
+vec3 calculate_normal(vec3 pos) {
+  return vec3(1.0, 0.0, 0.0);
+  //++ vec3 grad;
+
+  //++ const float offset = 0.1f;
+  //++ float right = calculate_density(vec3(pos.x+offset, pos.y,pos.z));
+  //++ float left = calculate_density(vec3(pos.x-offset, pos.y,pos.z));
+  //++ float up = calculate_density(vec3(pos.x, pos.y+offset,pos.z));
+  //++ float down = calculate_density(vec3(pos.x, pos.y-offset,pos.z));
+  //++ float z_minus = calculate_density(vec3(pos.x, pos.y,pos.z-offset));
+  //++ float z = calculate_density(vec3(pos.x, pos.y,pos.z+offset));
+  //++ grad.x = right - left;
+  //++ grad.y = up - down;
+  //++ grad.z = z - z_minus;
+  //++ return normalize(grad);
+}
+
+// Calculate the point in the Ray direction.
+vec3 getPoint(float parameter, in Ray ray) { return ray.origin + parameter * ray.direction; }
+
+// If ray does not intersect anything (back groung color).
+void miss(in Ray ray, inout RayPayload payload) {
+  payload.color = encode_color(255,0,0,1);
+}
+
+// Trace a ray.
+void traceRay(inout Ray ray, inout RayPayload payload) {
+  float dist = ray.rMin;
+  float maxi = ray.rMax;
+  const float temp_offset = 0.1;
+  vec3 p;
+  float value_calculate_density;
+
+   while (dist < ray.rMax) {
+     p = getPoint(dist, ray);
+     value_calculate_density = calculate_density(p);
+     if (value_calculate_density < 0.0) {
+
+	     // Step backward the ray.
+  	     float temp_distance = dist;
+             dist -= STEP_SIZE;
+  	     float value;
+  	     vec3 p;
+
+	     // Calculate more accurate intersection point.
+  	     while (dist < temp_distance) {
+  	       p = getPoint(dist, ray);
+               //value = trilinear_density(p); //calculate_density(p);
+               value = calculate_density(p);
+  	       if (value < 0.0) break;
+//           if (temp_distance > 200.0) {
+//               temp_distance = temp_distance + STEP_SIZE;  break;
+//           }
+  	       //temp_distance += temp_offset;
+  	       dist += temp_offset;
+  	     }
+
+	  // Jump back a litte.
+	  dist -= temp_offset;
+
+	  // Save intersection point.
+	  payload.intersection_point = vec4(getPoint(dist, ray) , 1.0);
+
+	  // Calculate normal and the actual value. payload.normal == vec3(normal, value);
+      //payload.normal = vec4(calculate_normal2(payload.intersection_point.xyz).xyz, 0.0);
+      payload.normal = vec4(calculate_normal(payload.intersection_point.xyz), 0.0);
+
+      // Calculate the colo for intersection.
+      hit(ray,payload);
+      return;
+
+    } // if
+     dist += STEP_SIZE;
+   } // while
+
+   miss(ray,payload);
 }
 
 void main () {
@@ -106,7 +264,7 @@ void main () {
   ray.origin = point_on_plane + camera.position.xyz;
   ray.direction = normalize(point_on_plane + d*camera.view.xyz);
   ray.rMin = 0.0f;
-  ray.rMax = 300.0f;
+  ray.rMax = 100.0f;
 
   RayPayload payload;
   payload.color = encode_rgbaf_u32(vec4(1.0, 0.0, 0.0, 1.0));

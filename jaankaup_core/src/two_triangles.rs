@@ -13,7 +13,7 @@ pub struct TwoTriangles {
 impl TwoTriangles {
 
     /// Creates resources.
-    pub fn init(device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor) -> Self {
+    pub fn init(device: &wgpu::Device, sc_desc: &wgpu::SurfaceConfiguration) -> Self {
         
         Self {
             pipeline: TwoTriangles::create_pipeline(&device, &sc_desc),
@@ -79,17 +79,19 @@ impl TwoTriangles {
 
     pub fn draw(&self,
                 encoder: &mut wgpu::CommandEncoder,
-                frame: &wgpu::SwapChainTexture,
+                //frame: &wgpu::SwapChainTexture,
+                frame: &wgpu::SurfaceFrame,
                 depth_texture: &jaankaup::Texture,
                 bind_group: &wgpu::BindGroup,
                 clear: bool) {
 
+        let view = frame.output.texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut render_pass = encoder.begin_render_pass(
                 &wgpu::RenderPassDescriptor {
                     label: Some("two_triangles_rendes_pass_descriptor"),
                     color_attachments: &[
                         wgpu::RenderPassColorAttachment {
-                                view: &frame.view,
+                                view: &view,
                                 resolve_target: None,
                                 ops: wgpu::Operations {
                                     load: match clear {
@@ -144,7 +146,7 @@ impl TwoTriangles {
     }
     
     /// Create the pipeline for TwoTriangles.
-    fn create_pipeline(device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor) -> wgpu::RenderPipeline {
+    fn create_pipeline(device: &wgpu::Device, sc_desc: &wgpu::SurfaceConfiguration) -> wgpu::RenderPipeline {
     
         // let (vs_module, fs_module) = TwoTriangles::load_shaders(&device);
         

@@ -479,15 +479,16 @@ impl Application for FMM_App {
     fn render(&mut self,
               device: &wgpu::Device,
               queue: &mut wgpu::Queue,
-              swap_chain: &mut wgpu::SwapChain,
+              //swap_chain: &mut wgpu::SwapChain,
               surface: &wgpu::Surface,
-              sc_desc: &wgpu::SwapChainDescriptor) {
+              sc_desc: &wgpu::SurfaceConfiguration) {
 
-        let frame = match swap_chain.get_current_frame() {
+        //let frame = match swap_chain.get_current_frame() {
+        let frame = match surface.get_current_frame() {
             Ok(frame) => { frame.output },
             Err(_) => {
-                *swap_chain = device.create_swap_chain(surface, sc_desc);
-                swap_chain.get_current_frame().expect("Failed to acquire next swap chain texture").output
+                surface.configure(&device, &sc_desc);
+                surface.get_current_frame().expect("Failed to acquire next texture").output
             },
         };
 
@@ -496,10 +497,14 @@ impl Application for FMM_App {
                 label: Some("Render Encoder"),
         });
         let mut clear = true;
+        
+        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         if self.show_mesh {
             draw(&mut encoder,
-                 &frame,
+                 //&surface.get_current_frame().unwrap(),
+                 //&current_frame,
+                 &view,
                  &self.depth_texture,
                  &self.render_vvvvnnnn_bind_groups,
                  &self.render_vvvvnnnn_pipeline.get_pipeline(),
@@ -527,7 +532,9 @@ impl Application for FMM_App {
         
         if self.debug_point_count > 0 {
            draw(&mut encoder,
-                &frame,
+                //&surface.get_current_frame().unwrap(),
+                //&current_frame,
+                &view,
                 &self.depth_texture,
                 &self.render_vvvc_point_bind_groups,
                 &self.render_vvvc_point_pipeline.get_pipeline(),
@@ -543,7 +550,9 @@ impl Application for FMM_App {
 
         if self.debug_triangle_draw_count > DEBUG_BUFFER_SIZE {
            draw(&mut encoder,
-                &frame,
+                //&surface.get_current_frame().unwrap(),
+                //&current_frame,
+                &view,
                 &self.depth_texture,
                 &self.render_vvvc_triangle_bind_groups,
                 &self.render_vvvc_triangle_pipeline.get_pipeline(),
@@ -559,7 +568,7 @@ impl Application for FMM_App {
         self.camera.update_from_input(&queue, &input_cache);
     }
 
-    fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, _new_size: winit::dpi::PhysicalSize<u32>) {
+    fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SurfaceConfiguration, _new_size: winit::dpi::PhysicalSize<u32>) {
         self.depth_texture = JTexture::create_depth_texture(&device, &sc_desc, Some("depth-texture"));
         self.camera.resize(sc_desc.width as f32, sc_desc.height as f32);
     }
@@ -800,7 +809,7 @@ impl Application for FMM_App {
             self.debug_point_count = histogram[0];
             self.debug_triangle_draw_count = histogram[1];
             self.data_loaded = true;
-        }
+        } // if data_loaded
         //if increase_fmm_step {
     }
 //                        encoder.copy_buffer_to_texture(

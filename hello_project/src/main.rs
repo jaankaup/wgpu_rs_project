@@ -473,27 +473,29 @@ impl Application for HelloApp {
     fn render(&mut self,
               device: &wgpu::Device,
               queue: &mut wgpu::Queue,
-              swap_chain: &mut wgpu::SwapChain,
+              //swap_chain: &mut wgpu::SwapChain,
               surface: &wgpu::Surface,
-              sc_desc: &wgpu::SwapChainDescriptor) {
+              sc_desc: &wgpu::SurfaceConfiguration) {
         
-        let frame = match swap_chain.get_current_frame() {
+        let frame = match surface.get_current_frame() {
             Ok(frame) => { frame.output },
             Err(_) => {
-                log::info!("FAILED");
-                *swap_chain = device.create_swap_chain(surface, sc_desc);
-                swap_chain.get_current_frame().expect("Failed to acquire next swap chain texture").output
+                surface.configure(&device, &sc_desc);
+                surface.get_current_frame().expect("Failed to acquire next texture").output
             },
         };
-        
+
         let mut encoder = device.create_command_encoder(
             &wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
         });
 
+        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
         // The mountain.
         draw(&mut encoder,
-             &frame,
+             //&frame,
+             &view,
              &self.depth_texture,
              &self.bind,
              &self.test_layout.pipeline,
@@ -504,7 +506,8 @@ impl Application for HelloApp {
 
         // The slime.
         draw(&mut encoder,
-             &frame,
+             //&frame,
+             &view,
              &self.depth_texture,
              &self.bind_slime,
              &self.test_layout.pipeline,
@@ -520,7 +523,7 @@ impl Application for HelloApp {
         // self.camera.update_from_input(&queue, &input_cache);
     }
 
-    fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, _new_size: winit::dpi::PhysicalSize<u32>) {
+    fn resize(&mut self, device: &wgpu::Device, sc_desc: &wgpu::SurfaceConfiguration, _new_size: winit::dpi::PhysicalSize<u32>) {
         self.depth_texture = JTexture::create_depth_texture(&device, &sc_desc, Some("depth-texture"));
         self.camera.resize(sc_desc.width as f32, sc_desc.height as f32);
     }

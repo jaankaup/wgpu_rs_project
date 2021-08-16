@@ -11,7 +11,9 @@ edition = "2018"
 [dependencies]
 
 # Working brach.
-wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="9310f264f1c3d70cd8665fc7e7e15d810577c3f5", features = ["spirv"] }
+#wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="9310f264f1c3d70cd8665fc7e7e15d810577c3f5", features = ["spirv"] }
+#wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="1e7d86b655cedc0f463f675848f3fd6410c8f8c1", features = ["spirv"] }
+wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="4dc5546a17acb6fb9c0a93319ba45d80758ef466", features = ["spirv"] }
 
 winit = { version = "0.24.0", features = ["web-sys"] }
 async-executor = "1.0"

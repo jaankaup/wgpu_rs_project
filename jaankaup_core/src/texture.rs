@@ -24,7 +24,7 @@ impl Texture {
 
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-    pub fn create_depth_texture(device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, label: Option<&str>) -> Self {
+    pub fn create_depth_texture(device: &wgpu::Device, sc_desc: &wgpu::SurfaceConfiguration, label: Option<&str>) -> Self {
 
         let width = sc_desc.width; 
         let height = sc_desc.height; 
@@ -74,7 +74,7 @@ impl Texture {
     /// its adding automaticallhy an alpha value of
     /// 255 to the image. TODO: check if aplha value already exists. TODO: allow a texture to been
     /// created from non png data.
-    pub fn create_from_bytes(queue: &wgpu::Queue, device: &wgpu::Device, sc_desc: &wgpu::SwapChainDescriptor, sample_count : u32, bytes: &[u8], label: Option<&str>) -> Self {
+    pub fn create_from_bytes(queue: &wgpu::Queue, device: &wgpu::Device, sc_desc: &wgpu::SurfaceConfiguration, sample_count : u32, bytes: &[u8], label: Option<&str>) -> Self {
 
         //let sampler = device.create_sampler(&wgpu::SamplerDescriptor::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -264,7 +264,7 @@ impl Texture {
     //++ }
 
     pub fn create_texture2d(device: &wgpu::Device,
-                            sc_desc: &wgpu::SwapChainDescriptor,
+                            sc_desc: &wgpu::SurfaceConfiguration,
                             sample_count: u32,
                             width: u32,
                             height: u32) -> Self {

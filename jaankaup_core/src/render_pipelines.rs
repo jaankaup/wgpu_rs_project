@@ -12,7 +12,8 @@ use crate::texture as jaankaup;
 //}
 
 pub fn draw(encoder: &mut wgpu::CommandEncoder,
-            frame: &wgpu::SwapChainTexture,
+            //frame: &wgpu::SurfaceFrame,
+            view: &wgpu::TextureView,
             depth_texture: &jaankaup::Texture,
             bind_groups: &Vec<wgpu::BindGroup>,
             pipeline: &wgpu::RenderPipeline,
@@ -20,12 +21,15 @@ pub fn draw(encoder: &mut wgpu::CommandEncoder,
             range: Range<u32>, 
             clear: bool) {
 
+        // println!("yhhyyy!");
+        // let view = frame.output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        // println!("yhhyyy2!");
         let mut render_pass = encoder.begin_render_pass(
                 &wgpu::RenderPassDescriptor {
                     label: Some("two_triangles_rendes_pass_descriptor"),
                     color_attachments: &[
                         wgpu::RenderPassColorAttachment {
-                                view: &frame.view,
+                                view: &view,
                                 resolve_target: None,
                                 ops: wgpu::Operations {
                                     load: match clear {
@@ -219,7 +223,7 @@ pub struct TestLayoutEntry {
 
 impl TestLayoutEntry {
     pub fn init(device: &wgpu::Device,
-                sc_desc: &wgpu::SwapChainDescriptor,               
+                sc_desc: &wgpu::SurfaceConfiguration,               
                 wgsl_module: &wgpu::ShaderModule,
                 // vs_module: &wgpu::ShaderModule,
                 // fs_module: &wgpu::ShaderModule,

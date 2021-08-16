@@ -108,11 +108,13 @@ layout(set = 0, binding = 5) buffer Counters {
 };
 
 layout(set = 0, binding = 6) readonly buffer OffsetTable {
-    ivec4[160] offset_hash_table;
+    ivec4[] offset_hash_table;
+    //ivec4[160] offset_hash_table;
 };
 
 layout(set = 0, binding = 7) readonly buffer VecToHashTable {
-    uint[216] vec_to_offset_table;
+    uint[] vec_to_offset_table;
+    //uint[216] vec_to_offset_table;
 };
 
 struct FMM_Attribute {
@@ -1304,6 +1306,32 @@ void load_vec_to_offset() {
   }
 }
 
+void load_fmm_data2(bool center_data_only, in BlockData[LOCAL_Y_DIM] bk_data) {
+
+    for (int y=0 ; y < LOCAL_Y_DIM ; y++) {
+    for (int x=0 ; x < fmm_attributes.offset_hash_table_size ; x += THREAD_COUNT) {
+
+        uint index = gl_LocalInvocationIndex + x;
+
+        if (index < fmm_attributes.offset_hash_table_size) {
+
+            const ivec4 pos_and_offset = shared_offset_table[index];
+            ivec3 global_index = pos_and_offset.xyz + bk_data[y].base_position*4;
+
+            bool outside = global_index.x < 0 ||
+                           global_index.y < 0 ||
+                           global_index.z < 0 ||
+                           global_index.x >= fmm_attributes.global_dimensions.x*4 ||
+                           global_index.y >= fmm_attributes.global_dimensions.y*4 ||
+                           global_index.z >= fmm_attributes.global_dimensions.z*4;
+
+            shared_fmm_nodes[index + y * 160] = 
+                outside ? FMM_Node(0.0, OUTSIDE) : fmm_nodes[pos_and_offset.w + int(bk_data[y].base_index)];
+
+        }
+    }}
+}
+
 // Load fmm node data to shared memory. Does not get data from outside
 // global computational context.
 void load_fmm_data(uint base_index, ivec3 global_base_coord, bool center_data_only) {
@@ -1327,7 +1355,7 @@ void load_fmm_data(uint base_index, ivec3 global_base_coord, bool center_data_on
                            global_index.y >= fmm_attributes.global_dimensions.y*4 ||
                            global_index.z >= fmm_attributes.global_dimensions.z*4;
 
-            shared_fmm_nodes[thread_id + gl_LocalInvocationID.y * 160] = 
+            shared_fmm_nodes[thread_id + gl_LocalInvocationID.y * 160] =
                 outside ? FMM_Node(0.0, OUTSIDE) : fmm_nodes[pos_and_offset.w + int(base_index)];
 
         }
@@ -1533,24 +1561,24 @@ void reduce(bool process) {
             FMM_Node a = shared_fmm_nodes[a_index + 160 * gl_LocalInvocationID.y];
             FMM_Node b = shared_fmm_nodes[b_index + 160 * gl_LocalInvocationID.y];
 
-            //++ uint temp_index = (a.tag == BAND) &&
-            //++                   (b.tag == BAND) &&
-            //++                   (a.value > b.value) ? b_index : a_index;
+            uint temp_index = (a.tag == BAND) &&
+                              (b.tag == BAND) &&
+                              (a.value > b.value) ? b_index : a_index;
 
-            //++ temp_index      = (a.tag != BAND) &&
-            //++                   (b.tag == BAND) ? b_index : temp_index; 
+            temp_index      = (a.tag != BAND) &&
+                              (b.tag == BAND) ? b_index : temp_index; 
 
-            //++ shared_fmm_indices[gl_LocalInvocationIndex] = shared_fmm_indices[temp_index];
+            shared_fmm_indices[gl_LocalInvocationIndex] = shared_fmm_indices[temp_index];
 
-            if (a.tag == BAND && b.tag == BAND) {
-                shared_fmm_indices[gl_LocalInvocationIndex] =
-                    a.value < b.value ? shared_fmm_indices[gl_LocalInvocationIndex] : shared_fmm_indices[gl_LocalInvocationIndex + s];
-            }
+            // if (a.tag == BAND && b.tag == BAND) {
+            //     shared_fmm_indices[gl_LocalInvocationIndex] =
+            //         a.value < b.value ? shared_fmm_indices[gl_LocalInvocationIndex] : shared_fmm_indices[gl_LocalInvocationIndex + s];
+            // }
 
-            if (a.tag != BAND && b.tag == BAND) {
-                shared_fmm_indices[gl_LocalInvocationIndex] = shared_fmm_indices[gl_LocalInvocationIndex + s];
-                //shared_fmm_indices[thread_a] = shared_fmm_indices[thread_b];
-            }
+            // if (a.tag != BAND && b.tag == BAND) {
+            //     shared_fmm_indices[gl_LocalInvocationIndex] = shared_fmm_indices[gl_LocalInvocationIndex + s];
+            //     //shared_fmm_indices[thread_a] = shared_fmm_indices[thread_b];
+            // }
         }
         barrier(); // Necessery?
     }
@@ -1735,8 +1763,13 @@ void find_smallest() {
       //}
       //barrier();
 
+      //BlockData[LOCAL_Y_DIM] bk_data;
+      //bk_data[gl_LocalInvocationID.y] = ijk;
+      //barrier();
+
       // Load fmm blocks to shared memory. Load ghost region also. 
       if (actual_block_index < last_index) {
+        //load_fmm_data2(false, bk_data);
         load_fmm_data(ijk.base_index, ijk.base_position * 4, false);
       }
       barrier();
@@ -1836,6 +1869,7 @@ void find_smallest() {
       barrier();
     } // for
 }
+
 
 // TODO: syncronize? yes!
 void add_initial_band_points() {
@@ -1941,7 +1975,18 @@ void render_fmm_nodes() {
         if (node.tag == BAND) { final_color = band; }
         if (node.tag == KNOWN) { final_color = known; }
         if (node.value == 777.0)  {final_color = error; }
-        create_point_ball7(this_coord, final_color.x,final_color.y,final_color.z, 0.01);
+        //++ create_point_ball7(this_coord, final_color.x,final_color.y,final_color.z, 0.01);
+        initialize_char_array(
+          vec3(this_coord.x,
+               this_coord.y,
+               this_coord.z));
+    
+        log_float(node.value, 2);
+        add_end_of_line();
+    
+        AABB aabb = create_char_sequency_points(final_color.x, final_color.y, final_color.z);
+        AABB traslated = AABB(vec4(this_coord, 1.0), vec4(this_coord + vec3(1.0, 1.0, 1.0), 1.0));
+        create_output_points(aabb, final_color.x, final_color.y, final_color.z);
     }
     barrier();
   } // for
