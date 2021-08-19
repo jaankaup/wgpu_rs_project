@@ -178,6 +178,7 @@ impl Loop for BasicLoop {
                         size = new_size;
                         sc_desc.width = new_size.width;
                         sc_desc.height = new_size.height;
+                        surface.configure(&device, &sc_desc);
                         //swap_chain = device.create_swap_chain(&surface, &sc_desc);
                         application.resize(&device, &sc_desc, size);
                     }
@@ -212,7 +213,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
         .with_level(LevelFilter::Off)
         .with_module_level("jaankaup", LevelFilter::Info)
         .with_module_level("hello_project", LevelFilter::Info)
-        //.with_module_level("wgpu", LevelFilter::Info)
+        .with_module_level("wgpu", LevelFilter::Info)
         .init()
         .unwrap();
     }

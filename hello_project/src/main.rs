@@ -344,11 +344,11 @@ impl Application for HelloApp {
 
         let texture3_d = Custom3DTexture::init(
                 &configuration.device,
-                module_comp3d,
+                module_comp3d
                 //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
                 //    label: Some("texture3_d"),
                 //    source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/data3d_test.wgsl"))),
-                //    flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
+                    //flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
                 //}),
         );
 

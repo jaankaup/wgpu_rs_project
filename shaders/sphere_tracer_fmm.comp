@@ -108,7 +108,7 @@ void load_fmm_data(uint base_index, ivec3 global_base_coord) {
                        global_index.z >= fmm_attributes.global_dimensions.z*4;
         // float dist_to_aabb = sdBoundingBox( vec3 p, vec3 b, float e )
 
-        distance_values[gl_LocalInvocationIndex] = !outside ? fmm_nodes[global_index].value : 657.0; 
+        // distance_values[gl_LocalInvocationIndex] = !outside ? fmm_nodes[global_index].value : 657.0; 
 
         //    outside ? FMM_Node(0.0, OUTSIDE) : fmm_nodes[pos_and_offset.w + int(base_index)];
         
@@ -184,7 +184,7 @@ vec3 getPoint(float parameter, in Ray ray) { return ray.origin + parameter * ray
 
 // If ray does not intersect anything (back groung color).
 void miss(in Ray ray, inout RayPayload payload) {
-  payload.color = encode_color(255,0,0,1);
+  payload.color = encode_rgba_u32(255,0,0,1);
 }
 
 // Trace a ray.
@@ -230,7 +230,7 @@ void traceRay(inout Ray ray, inout RayPayload payload) {
       payload.normal = vec4(calculate_normal(payload.intersection_point.xyz), 0.0);
 
       // Calculate the colo for intersection.
-      hit(ray,payload);
+      //++hit(ray,payload);
       return;
 
     } // if
