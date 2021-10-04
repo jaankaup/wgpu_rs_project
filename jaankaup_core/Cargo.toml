@@ -11,8 +11,8 @@ edition = "2018"
 [dependencies]
 
 # Working brach.
-#wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="9b85882ff82cd54071b2be82582f4d267fec1307", features = ["spirv"] }
-wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="564330432f60b967a69b36a0094d72e1e77ebb72", features = ["spirv"] }
+# wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="564330432f60b967a69b36a0094d72e1e77ebb72", features = ["spirv"] }
+wgpu = { git = "https://github.com/gfx-rs/wgpu", rev="1ee6036f440210e038098bcc372ddd738437918f", features = ["spirv"] }
 
 winit = { version = "0.24.0", features = ["web-sys"] }
 async-executor = "1.0"
@@ -35,16 +35,14 @@ version = "0.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 #wasm-bindgen = "=0.2.73" # remember to change version in wiki as well
-wasm-bindgen = "0.2.74" # remember to change version in wiki as well
-web-sys = { version = "=0.3.51", features = [
+wasm-bindgen = "0.2.76" # remember to change version in wiki as well
+web-sys = { version = "0.3.53", features = [
     "Document",
     "Navigator",
     "Node",
     "NodeList",
     "Gpu",
     "GpuAdapter",
-    "GpuAdapterFeatures",
-    "GpuAdapterLimits",
     "GpuAddressMode",
     "GpuBindGroup",
     "GpuBindGroupDescriptor",
@@ -63,6 +61,7 @@ web-sys = { version = "=0.3.51", features = [
     "GpuBufferDescriptor",
     "GpuBufferUsage",
     "GpuCanvasContext",
+    "GpuCanvasConfiguration",
     "GpuColorDict",
     "GpuColorTargetState",
     "GpuColorWrite",
@@ -91,11 +90,9 @@ web-sys = { version = "=0.3.51", features = [
     "GpuFragmentState",
     "GpuFrontFace",
     "GpuImageCopyBuffer",
-    "GpuImageCopyImageBitmap",
     "GpuImageCopyTexture",
     "GpuImageDataLayout",
     "GpuIndexFormat",
-    "GpuInputStepMode",
     "GpuLoadOp",
     "GpuMapMode",
     "GpuMultisampleState",
@@ -138,8 +135,8 @@ web-sys = { version = "=0.3.51", features = [
     "GpuStorageTextureAccess",
     "GpuStorageTextureBindingLayout",
     "GpuStoreOp",
-    "GpuSwapChain",
-    "GpuSwapChainDescriptor",
+    "GpuSupportedFeatures",
+    "GpuSupportedLimits",
     "GpuTexture",
     "GpuTextureAspect",
     "GpuTextureBindingLayout",
@@ -158,11 +155,14 @@ web-sys = { version = "=0.3.51", features = [
     "GpuVertexBufferLayout",
     "GpuVertexFormat",
     "GpuVertexState",
+    "GpuVertexStepMode",
     "HtmlCanvasElement",
+    "OffscreenCanvas",
     "Window",
 ]}
 js-sys = "0.3.50"
 wasm-bindgen-futures = "0.4.23"
+#wasm-bindgen-futures = "0.4.28"
 wasm-timer = "0.2.5"
 console_error_panic_hook = "0.1.6"
 console_log = "0.1.2"

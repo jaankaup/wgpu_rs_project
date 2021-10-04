@@ -1,8 +1,8 @@
 [[block]]
 struct Counter {
     // counter: u32;
-    // counter: atomic<i32>;
-    counter: [[stride(4)]] array<atomic<u32>>;
+    counter: atomic<u32>;
+    // counter: [[stride(4)]] array<atomic<u32>>;
     // counter: [[stride(4)]] u32;
 };
 
@@ -22,6 +22,7 @@ struct Vertex {
 
 [[block]]
 struct VertexBuffer {
+    //data: array<Vertex>;
     data: [[stride(32)]] array<Vertex>;
 };
 
@@ -34,20 +35,24 @@ struct Cube {
 var<uniform> mc_uniform: McParams;
 
 [[group(0), binding(1)]]
-var<storage> counter: [[access(read_write)]] Counter;
+var<storage, read_write> counter: Counter; // counter: array<atomic<u32>>; // counter: Counter;
 
 [[group(1), binding(0)]]
-var<storage> output: [[access(write)]] VertexBuffer;
+var<storage,write> output: VertexBuffer;
 
 var<private> cube: Cube;
 
-let edge_info: array<vec2<i32>, 12> = array<vec2<i32>, 12>(
+//let edge_info: array<vec2<i32>, 12> = array<vec2<i32>, 12>(
+// TODO: uniform!
+var<private> edge_info: array<vec2<i32>, 12> = array<vec2<i32>, 12>(
         vec2<i32>(0,1), vec2<i32>(1,2), vec2<i32>(2,3), vec2<i32>(3,0), 
         vec2<i32>(4,5), vec2<i32>(5,6), vec2<i32>(6,7), vec2<i32>(7,4), 
         vec2<i32>(0,4), vec2<i32>(1,5), vec2<i32>(2,6), vec2<i32>(3,7)
 ); 
 
-let triTable: array<u32, 1280> = array<u32, 1280>(
+//let triTable: array<u32, 1280> = array<u32, 1280>(
+// TODO: uniform!
+var<private> triTable: array<u32, 1280> = array<u32, 1280>(
     16777215u , 16777215u , 16777215u , 16777215u , 16777215u ,
     2051u     , 16777215u , 16777215u , 16777215u , 16777215u ,
     265u      , 16777215u , 16777215u , 16777215u , 16777215u ,
@@ -522,10 +527,15 @@ fn interpolateN(na: vec4<f32>, nb: vec4<f32>, densityA: f32, densityB: f32) -> v
 fn createVertex(edgeValue: i32, arrayIndex: i32) {
 
     let edge = edge_info[edgeValue];
+ 
+    //let tri = triTable[edgeValue];
 
     // TODO: ptr when its implemented.
     let vert_a: vec4<f32> = cube.vertices[edge.x];
     let vert_b: vec4<f32> = cube.vertices[edge.y];
+
+    //let vert_a = &cube.vertices[edge.x];
+    //let vert_b = &cube.vertices[edge.y];
 
     var v: Vertex;
 
@@ -540,8 +550,7 @@ fn main([[builtin(local_invocation_id)]] local_id: vec3<u32>,
         [[builtin(local_invocation_index)]] local_index: u32,
         [[builtin(global_invocation_id)]] global_id: vec3<u32>) {
 
-
-    let pos_x: u32 = 33u;
+    let pos_x: u32 = global_id.x;
     let pos_y: u32 = global_id.y;
     let pos_z: u32 = global_id.z;
 
@@ -594,10 +603,14 @@ fn main([[builtin(local_invocation_id)]] local_id: vec3<u32>,
         if (base_index != 16777215u) { 
 
      	    // Not supported?
+            //let ptr_to_counter : ptr<storage, Counter, read_write> = &counter; 
+            let ptr_to_counter : ptr<storage, Counter, read_write> = &counter; 
             //let ptr_to_counter : ptr<storage, atomic<u32>> = &counter.counter[0]; 
-            // let index = atomicAdd(ptr_to_counter, 3);
+            // let ptr_to_counter = &counter.counter;
+            //++ let ptr_to_counter = &counter.counter[0]; 
+            //let index = atomicAdd(ptr_to_counter, 3);
 
-	    // Create the triangle vertices and normals.
+            // Create the triangle vertices and normals.
             // createVertex(i32((base_index & 0xff0000) >> 16), i32(index));
             // createVertex(i32((base_index & 0xff00) >> 8)   , i32(index+1));
             // createVertex(i32( base_index & 0xff),            i32(index+2));

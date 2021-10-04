@@ -2209,16 +2209,16 @@ void main() {
     barrier();
   // }
 
-  // while (global_solver() > 0) {
+  while (global_solver() > 0) {
 
-    global_solver();
+    // global_solver();
 
     solve_quadradic_band_points();
     barrier();
 
     find_smallest();
     barrier();
-  // }
+  }
 
   /* RENDER NODES. DEBUGGING. */
 

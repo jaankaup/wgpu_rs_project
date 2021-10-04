@@ -212,14 +212,14 @@ impl Application for HelloApp {
 
         let mc = MarchingCubes::init(
             &configuration.device,
-            &module,
-            //++&configuration.device.create_shader_module_spirv(&mc_mountain),
+            //++&module,
             //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor { 
             //    label: Some("nojaa"), 
             //    source: wgpu::util::make_spirv(&include_bytes!("../../shaders/mc_test.comp")[..]),
             //    flags: wgpu::ShaderFlags::VALIDATION, //empty(),
             //}),
-            //&configuration.device.create_shader_module(&wgpu::include_spirv!("../../shaders/spirv/mc_test.comp.spv")),
+            module,
+            //&configuration.device.create_shader_module(&wgpu::include_spirv_raw!("../../shaders/spirv/mc_test.comp.spv")),
             //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             //    label: Some("marching_cubes_test"),
             //    source: wgpu::ShaderSource::SpirV(Cow::Borrowed(ahhaa)),
@@ -230,7 +230,6 @@ impl Application for HelloApp {
             //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             //    label: Some("marching_cubes_test"),
             //    source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/mc_test.wgsl"))),
-            //    flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
             //}),
             false
         ); 
@@ -344,12 +343,11 @@ impl Application for HelloApp {
 
         let texture3_d = Custom3DTexture::init(
                 &configuration.device,
-                module_comp3d
-                //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-                //    label: Some("texture3_d"),
-                //    source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/data3d_test.wgsl"))),
-                    //flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
-                //}),
+                //++ module_comp3d
+                &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+                    label: Some("texture3_d"),
+                    source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/data3d_test.wgsl"))),
+                }),
         );
 
         // Create uniform buffer uvec3 for number of invocations.

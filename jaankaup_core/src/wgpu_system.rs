@@ -213,7 +213,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
         .with_level(LevelFilter::Off)
         .with_module_level("jaankaup", LevelFilter::Info)
         .with_module_level("hello_project", LevelFilter::Info)
-        .with_module_level("wgpu", LevelFilter::Info)
+        //.with_module_level("wgpu", LevelFilter::Info)
         .init()
         .unwrap();
     }
@@ -297,7 +297,7 @@ pub async fn setup<P: WGPUFeatures>(title: &str) -> Result<WGPUConfiguration, &'
     //     })
     //     .await
     //     .expect("No suitable GPU adapters found on the system!");
-    let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, backend)
+    let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, backend, Some(&surface))
         .await
         .expect("No suitable GPU adapters found on the system!");
 
