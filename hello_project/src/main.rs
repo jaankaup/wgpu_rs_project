@@ -475,11 +475,11 @@ impl Application for HelloApp {
               surface: &wgpu::Surface,
               sc_desc: &wgpu::SurfaceConfiguration) {
         
-        let frame = match surface.get_current_frame() {
-            Ok(frame) => { frame.output },
+        let frame = match surface.get_current_texture() {
+            Ok(frame) => { frame },
             Err(_) => {
                 surface.configure(&device, &sc_desc);
-                surface.get_current_frame().expect("Failed to acquire next texture").output
+                surface.get_current_texture().expect("Failed to acquire next texture")
             },
         };
 
@@ -515,6 +515,7 @@ impl Application for HelloApp {
         );
 
         queue.submit(Some(encoder.finish()));
+        frame.present();
     }
 
     fn input(&mut self, queue: &wgpu::Queue, input_cache: &InputCache) {

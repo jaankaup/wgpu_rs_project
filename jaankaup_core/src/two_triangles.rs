@@ -80,12 +80,12 @@ impl TwoTriangles {
     pub fn draw(&self,
                 encoder: &mut wgpu::CommandEncoder,
                 //frame: &wgpu::SwapChainTexture,
-                frame: &wgpu::SurfaceFrame,
+                frame: &wgpu::SurfaceTexture,
                 depth_texture: &jaankaup::Texture,
                 bind_group: &wgpu::BindGroup,
                 clear: bool) {
 
-        let view = frame.output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut render_pass = encoder.begin_render_pass(
                 &wgpu::RenderPassDescriptor {
                     label: Some("two_triangles_rendes_pass_descriptor"),
