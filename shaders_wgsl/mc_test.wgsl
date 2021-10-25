@@ -38,7 +38,7 @@ var<uniform> mc_uniform: McParams;
 var<storage, read_write> counter: Counter; // counter: array<atomic<u32>>; // counter: Counter;
 
 [[group(1), binding(0)]]
-var<storage,write> output: VertexBuffer;
+var<storage,read_write> output: VertexBuffer;
 
 var<private> cube: Cube;
 
@@ -412,7 +412,20 @@ fn fbm3(x: vec3<f32>) -> f32 {
 
 // Marching cubes.
 
+
 fn calculate_density(v: vec3<f32>) -> f32 {
+
+    //if (v.x <= 0.0 || v.y <= 0.0 || v.z <= 0.0 || 
+    //    v.x >= 255.0*mc_uniform.cube_length || v.y >= 255.0*mc_uniform.cube_length || v.z >= 255.0*mc_uniform.cube_length) { 
+    //        return 10.0; 
+    //    }
+    // let noise_a = fbm(v.z * 1.2);
+    // let noise_d = fbm2(v.yz * 0.2);
+    // let noise_b = noise3(v.zyx * 1.1);
+    // let noise_c = noise3((v.xyz + 5.0) * 1.1);
+    // let heko = abs(6.0*fbm3(v*0.4)); // + 10.0 * noise + 14.0 * noise2;
+    // let something = 1.5 * noise_a - 2.0 * noise_b - 1.5 * sin(v.z * 0.2);
+    // return v.y - 1.62 * something - 1.5 * heko + 0.5 * noise_c + 1.5 * noise_d;
 
     let noise_a = fbm(v.z * 1.2);
     let noise_b = noise3(v.zyx * 1.1);
@@ -422,19 +435,29 @@ fn calculate_density(v: vec3<f32>) -> f32 {
     let heko = abs(6.0*fbm3(v*0.4));
     let something = 1.5 * noise_a - 2.45 * noise_b - 4.5 * sin(v.z * 0.2);
     return v.y + 0.62 * something - 0.1 * heko - 2.5 * noise_c + 5.0 * noise_d;
+    // return 0.0;
 }
 
 fn calculate_case() -> u32 {
 
   var result: u32 = 0u;
-  result = result | (select(1u, 0u, cube.vertices[7].a < mc_uniform.isovalue) << 7u);
-  result = result | (select(1u, 0u, cube.vertices[6].a < mc_uniform.isovalue) << 6u);
-  result = result | (select(1u, 0u, cube.vertices[5].a < mc_uniform.isovalue) << 5u);
-  result = result | (select(1u, 0u, cube.vertices[4].a < mc_uniform.isovalue) << 4u);
-  result = result | (select(1u, 0u, cube.vertices[3].a < mc_uniform.isovalue) << 3u);
-  result = result | (select(1u, 0u, cube.vertices[2].a < mc_uniform.isovalue) << 2u);
-  result = result | (select(1u, 0u, cube.vertices[1].a < mc_uniform.isovalue) << 1u);
-  result = result | (select(1u, 0u, cube.vertices[0].a < mc_uniform.isovalue) << 0u);
+  // result = result | (select(1u, 0u, cube.vertices[7].a < mc_uniform.isovalue) << 7u);
+  // result = result | (select(1u, 0u, cube.vertices[6].a < mc_uniform.isovalue) << 6u);
+  // result = result | (select(1u, 0u, cube.vertices[5].a < mc_uniform.isovalue) << 5u);
+  // result = result | (select(1u, 0u, cube.vertices[4].a < mc_uniform.isovalue) << 4u);
+  // result = result | (select(1u, 0u, cube.vertices[3].a < mc_uniform.isovalue) << 3u);
+  // result = result | (select(1u, 0u, cube.vertices[2].a < mc_uniform.isovalue) << 2u);
+  // result = result | (select(1u, 0u, cube.vertices[1].a < mc_uniform.isovalue) << 1u);
+  // result = result | (select(1u, 0u, cube.vertices[0].a < mc_uniform.isovalue) << 0u);
+
+  result = result | (select(0u, 1u,  cube.vertices[7].a < mc_uniform.isovalue) << 7u);
+  result = result | (select(0u, 1u,  cube.vertices[6].a < mc_uniform.isovalue) << 6u);
+  result = result | (select(0u, 1u,  cube.vertices[5].a < mc_uniform.isovalue) << 5u);
+  result = result | (select(0u, 1u,  cube.vertices[4].a < mc_uniform.isovalue) << 4u);
+  result = result | (select(0u, 1u,  cube.vertices[3].a < mc_uniform.isovalue) << 3u);
+  result = result | (select(0u, 1u,  cube.vertices[2].a < mc_uniform.isovalue) << 2u);
+  result = result | (select(0u, 1u,  cube.vertices[1].a < mc_uniform.isovalue) << 1u);
+  result = result | (select(0u, 1u,  cube.vertices[0].a < mc_uniform.isovalue) << 0u);
 
   return result;
 }
@@ -528,14 +551,8 @@ fn createVertex(edgeValue: i32, arrayIndex: i32) {
 
     let edge = edge_info[edgeValue];
  
-    //let tri = triTable[edgeValue];
-
-    // TODO: ptr when its implemented.
     let vert_a: vec4<f32> = cube.vertices[edge.x];
     let vert_b: vec4<f32> = cube.vertices[edge.y];
-
-    //let vert_a = &cube.vertices[edge.x];
-    //let vert_b = &cube.vertices[edge.y];
 
     var v: Vertex;
 
@@ -545,14 +562,11 @@ fn createVertex(edgeValue: i32, arrayIndex: i32) {
     output.data[arrayIndex] = v;
 }
 
-[[stage(compute), workgroup_size(64,1,1)]]
+[[stage(compute), workgroup_size(4,4,4)]]
 fn main([[builtin(local_invocation_id)]] local_id: vec3<u32>,
         [[builtin(local_invocation_index)]] local_index: u32,
         [[builtin(global_invocation_id)]] global_id: vec3<u32>) {
 
-    let pos_x: u32 = global_id.x;
-    let pos_y: u32 = global_id.y;
-    let pos_z: u32 = global_id.z;
 
     // Create and scale cube base position.
     let position = vec3<f32>(f32(global_id.x), f32(global_id.y), f32(global_id.z)) * mc_uniform.cube_length + mc_uniform.base_position.xyz;
@@ -596,24 +610,44 @@ fn main([[builtin(local_invocation_id)]] local_id: vec3<u32>,
     let OFFSET: u32 = 5u;
 
     // // Create triangles and save them to destination array (mc_out[]).
-    for (var i: u32 = 0u ; i<5u ; i = i+1u) {
+
+    var i: u32 = 0u;
+
+    loop {
+ 	if (i == 5u) { break; }
 
         let base_index: u32 = triTable[cube_case * OFFSET + i];
 
         if (base_index != 16777215u) { 
 
-     	    // Not supported?
-            //let ptr_to_counter : ptr<storage, Counter, read_write> = &counter; 
-            let ptr_to_counter : ptr<storage, Counter, read_write> = &counter; 
-            //let ptr_to_counter : ptr<storage, atomic<u32>> = &counter.counter[0]; 
-            // let ptr_to_counter = &counter.counter;
-            //++ let ptr_to_counter = &counter.counter[0]; 
-            //let index = atomicAdd(ptr_to_counter, 3);
+            let index = atomicAdd(&counter.counter, 3u);
 
             // Create the triangle vertices and normals.
-            // createVertex(i32((base_index & 0xff0000) >> 16), i32(index));
-            // createVertex(i32((base_index & 0xff00) >> 8)   , i32(index+1));
-            // createVertex(i32( base_index & 0xff),            i32(index+2));
+            createVertex(i32((base_index & 0xff0000u) >> 16u), i32(index));
+            createVertex(i32((base_index & 0xff00u) >> 8u)   , i32(index+1u));
+            createVertex(i32( base_index & 0xffu),            i32(index+2u));
         }
+	i = i + 1u;
     }
+    
+    // for (var i: u32 = 0u ; i<5u ; i = i+1u) {
+
+    //     let base_index: u32 = triTable[cube_case * OFFSET + i];
+
+    //     if (base_index != 16777215u) { 
+
+    //  	    // Not supported?
+    //         //let ptr_to_counter : ptr<storage, Counter, read_write> = &counter; 
+    //         //let ptr_to_counter : ptr<storage, Counter, read_write> = &counter; 
+    //         //let ptr_to_counter : ptr<storage, atomic<u32>> = &counter.counter[0]; 
+    //         //let ptr_to_counter = &counter.counter;
+    //         //++ let ptr_to_counter = &counter.counter[0]; 
+    //         let index = atomicAdd(&counter.counter, 3u);
+
+    //         // Create the triangle vertices and normals.
+    //         createVertex(i32((base_index & 0xff0000u) >> 16u), i32(index));
+    //         createVertex(i32((base_index & 0xff00u) >> 8u)   , i32(index+1u));
+    //         createVertex(i32( base_index & 0xffu),            i32(index+2u));
+    //     }
+    // }
 }

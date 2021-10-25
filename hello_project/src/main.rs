@@ -218,7 +218,7 @@ impl Application for HelloApp {
             //    source: wgpu::util::make_spirv(&include_bytes!("../../shaders/mc_test.comp")[..]),
             //    flags: wgpu::ShaderFlags::VALIDATION, //empty(),
             //}),
-            module,
+            //module,
             //&configuration.device.create_shader_module(&wgpu::include_spirv_raw!("../../shaders/spirv/mc_test.comp.spv")),
             //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             //    label: Some("marching_cubes_test"),
@@ -227,10 +227,10 @@ impl Application for HelloApp {
             //    flags: wgpu::ShaderFlags::VALIDATION,
             //    //flags: wgpu::ShaderFlags::VALIDATION | wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION,
             //}),
-            //&configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-            //    label: Some("marching_cubes_test"),
-            //    source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/mc_test.wgsl"))),
-            //}),
+            &configuration.device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+                label: Some("marching_cubes_test"),
+                source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("../../shaders_wgsl/mc_test.wgsl"))),
+            }),
             false
         ); 
 
